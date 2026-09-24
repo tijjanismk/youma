@@ -49,7 +49,7 @@ export default function Suivi({ code }: { code: string }) {
   const rang = etapes.findIndex((e) => e.cle === s.etape);
   const distance = s.livreur && s.destination ? distanceMetres([s.livreur[0], s.livreur[1]], s.destination) : null;
   return (
-    <Page titre={s.restaurant} sousTitre={`Commande n°${s.numero}`}>
+    <Page titre={s.restaurant} sousTitre={s.numero ? `Commande n°${s.numero}` : "Commande transmise au restaurant"}>
       {s.etape === "refusee" || s.etape === "annulee" || s.etape === "echec" ? (
         <div className="carte resultat-sortie ko" role="status">
           <h2>{s.etape === "echec" ? "Livraison non aboutie" : "Commande refusée"}</h2>
@@ -83,6 +83,7 @@ export default function Suivi({ code }: { code: string }) {
         </div>
       )}
       <div className="carte">
+        {s.lignes.length === 0 && s.numero === 0 && <p className="aide">Le détail s'affichera dès que le restaurant aura reçu la commande.</p>}
         <ul className="lignes-entrante">
           {s.lignes.map(([q, l], i) => (
             <li key={i}>

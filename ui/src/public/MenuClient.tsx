@@ -212,6 +212,19 @@ function Validation({
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [envoi, setEnvoi] = useState(false);
+  // RG-CAN-04 : code SMS (serveur relais et fournisseur SMS configurés).
+  const sms = enLigne && menu.verification_numero === "sms";
+  const [codeSms, setCodeSms] = useState("");
+  const [smsEnvoye, setSmsEnvoye] = useState(false);
+  const demanderCode = async () => {
+    setErreur("");
+    try {
+      await post("/public/verification", { telephone });
+      setSmsEnvoye(true);
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : String(e));
+    }
+  };
   const [erreur, setErreur] = useState("");
   const frais = enLigne && type === "livraison" ? (menu.quartiers.find((q) => q.nom === quartier)?.frais ?? 0) : 0;
 
@@ -228,7 +241,7 @@ function Validation({
 
   const valide =
     !enLigne ||
-    (telephone.replace(/\D/g, "").length >= 8 && (type === "emporter" || (quartier.trim() && repere.trim())) && (mode !== "avance" || (operateur && reference.trim())));
+    (telephone.replace(/\D/g, "").length >= 8 && (!sms || codeSms.trim().length === 4) && (type === "emporter" || (quartier.trim() && repere.trim())) && (mode !== "avance" || (operateur && reference.trim())));
 
   const envoyer = async () => {
     setEnvoi(true);
@@ -245,6 +258,7 @@ function Validation({
             paiement_mode: mode,
             paiement_operateur: mode === "avance" ? operateur : null,
             paiement_reference: mode === "avance" ? reference : null,
+            code_verification: sms ? codeSms.trim() : undefined,
             lignes: panier,
             note,
           }
@@ -278,6 +292,14 @@ function Validation({
           />
           <Champ libelle="Votre nom" valeur={nom} changer={setNom} />
           <Champ libelle="Votre téléphone" valeur={telephone} changer={setTelephone} type="tel" obligatoire />
+          {sms && (
+            <div className="grille-2">
+              <button type="button" disabled={telephone.replace(/\D/g, "").length < 8} onClick={demanderCode}>
+                {smsEnvoye ? "Renvoyer le code" : "Recevoir un code par SMS"}
+              </button>
+              <Champ libelle="Code reçu par SMS" valeur={codeSms} changer={setCodeSms} />
+            </div>
+          )}
           {type === "livraison" && (
             <>
               {menu.quartiers.length > 0 ? (

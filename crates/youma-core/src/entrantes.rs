@@ -16,7 +16,12 @@ use crate::zones_risque::{self, normaliser_telephone};
 
 const ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
-fn code_aleatoire(n: usize) -> String {
+/// Code produit par `code_aleatoire` (alphabet sans caractères ambigus).
+pub fn code_valide(c: &str, n: usize) -> bool {
+    c.len() == n && c.bytes().all(|b| ALPHABET.contains(&b))
+}
+
+pub fn code_aleatoire(n: usize) -> String {
     let mut r = rand::thread_rng();
     (0..n).map(|_| ALPHABET[r.gen_range(0..ALPHABET.len())] as char).collect()
 }
@@ -151,6 +156,9 @@ pub struct CommandeEntrante {
     /// Identifiant attribué par le relais : une commande renvoyée deux fois n'est créée qu'une fois.
     #[serde(default)]
     pub origine_id: Option<String>,
+    /// Code de suivi déjà communiqué au client par le relais (sinon attribué ici).
+    #[serde(default)]
+    pub code_suivi: Option<String>,
     /// qr_table | en_ligne
     pub canal: String,
     #[serde(default)]
@@ -333,7 +341,10 @@ fn recevoir_op(op: &mut Op, e: &CommandeEntrante) -> Resultat<Reponse> {
     }
     let id = op.nouvel_id();
     let numero = op.sequence("commande")?;
-    let code_suivi = code_aleatoire(8);
+    let code_suivi = match &e.code_suivi {
+        Some(c) if code_valide(c, 8) => c.clone(),
+        _ => code_aleatoire(8),
+    };
     let ordre = if paiement_mode == "avance" { "avant" } else { "apres" };
     let frais = match (&type_[..], &quartier) {
         ("livraison", Some(q)) => op.params.quartiers.iter().find(|x| x.nom.eq_ignore_ascii_case(q)).map(|x| x.frais).unwrap_or(0),
@@ -706,4 +717,27 @@ pub fn liens(db: &mut Db, acteur: &Acteur, commande_id: &str) -> Resultat<Liens>
         };
         Ok(Liens { code_suivi: suivi, code_livreur: livreur })
     })
+}
+
+// ───────────── Relais Internet (fiche 0013) ─────────────
+
+#[derive(Debug, Serialize)]
+pub struct SuiviRelais {
+    pub code_suivi: String,
+    pub code_livreur: Option<String>,
+    pub suivi: Suivi,
+}
+
+/// Suivis publiés sur le relais : commandes récentes ayant un code de suivi.
+pub fn suivis_recents(conn: &Connection, depuis_ms: i64) -> Resultat<Vec<SuiviRelais>> {
+    let codes: Vec<(String, Option<String>)> = conn
+        .prepare("SELECT code_suivi, code_livreur FROM commandes WHERE code_suivi IS NOT NULL AND (cree_le >= ?1 OR modifie_le >= ?1) ORDER BY modifie_le DESC LIMIT 300")?
+        .query_map(params![depuis_ms], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<Result<_, _>>()?;
+    let mut v = Vec::with_capacity(codes.len());
+    for (code, livreur) in codes {
+        let suivi = suivi(conn, &code)?;
+        v.push(SuiviRelais { code_suivi: code, code_livreur: livreur, suivi });
+    }
+    Ok(v)
 }

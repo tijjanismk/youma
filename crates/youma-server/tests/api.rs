@@ -469,3 +469,94 @@ async fn commandes_qr_en_ligne_et_suivi_par_api() {
     let r = s.client.post(format!("{}/public/position/{livreur}", s.url)).json(&json!({ "lat": 12_640_000, "lon": -8_000_000 })).send().await.unwrap();
     assert_eq!(r.status().as_u16(), 422, "pas encore en route");
 }
+
+/// Relais Internet facultatif : vrai poste central + vrai relais. Commande en ligne passée sur le relais,
+/// reprise et acceptée par la caisse, suivie par le client, position du livreur remontée au poste.
+#[tokio::test]
+async fn relais_internet_de_bout_en_bout() {
+    const CLE: &str = "cle-du-relais-de-bout-en-bout";
+    let dossier_relais = tempfile::tempdir().unwrap();
+    let rc = youma_relais::Config { dossier_donnees: dossier_relais.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false };
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let relais = format!("http://{}", ecoute.local_addr().unwrap());
+    tokio::spawn(youma_relais::servir(youma_relais::Etat::ouvrir(&rc).unwrap(), None, ecoute));
+
+    let dossier = tempfile::tempdir().unwrap();
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, reseau: false, dossier_ui: None, demo: true, reseau_sans_licence: false };
+    let etat = Etat::ouvrir(config).unwrap();
+    etat.relais.lock().unwrap().intervalle_ms = 100;
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let adresse = ecoute.local_addr().unwrap();
+    tokio::spawn(youma_server::servir(etat, ecoute));
+    let s = Serveur { url: format!("http://{adresse}/api"), adresse, _dossier: dossier, client: reqwest::Client::new() };
+
+    let proprio = s.connexion("Mariam", "1234").await;
+    let caissier = s.connexion("Kadi", "3333").await;
+    s.elever(&proprio, "baobab123").await;
+    let (_, mut p) = s.get(&proprio, "/parametres").await;
+    p["canaux"]["en_ligne"] = json!(true);
+    p["canaux"]["relais_url"] = json!(format!("{relais}/"));
+    p["canaux"]["relais_cle"] = json!(CLE);
+    let r = s.client.put(format!("{}/parametres", s.url)).bearer_auth(&proprio).json(&p).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    s.post(&caissier, "/journee/ouvrir", json!({})).await;
+
+    let attendre = |chemin: String, condition: fn(&Value) -> bool| {
+        let c = s.client.clone();
+        async move {
+            for _ in 0..100 {
+                if let Ok(r) = c.get(&chemin).send().await {
+                    let v: Value = r.json().await.unwrap_or(Value::Null);
+                    if condition(&v) {
+                        return v;
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            panic!("délai dépassé : {chemin}");
+        }
+    };
+    let menu = attendre(format!("{relais}/api/public/menu"), |m| m["ouvert"] == true).await;
+    let produit = menu["produits"][0]["id"].clone();
+    let rep: Value = s
+        .client
+        .post(format!("{relais}/api/public/commandes"))
+        .json(&json!({ "canal": "en_ligne", "type": "livraison", "client_nom": "Fanta", "telephone": "76112233",
+                       "livraison": { "quartier": "Hamdallaye", "repere": "Mosquée", "telephone": "76112233" },
+                       "paiement_mode": "a_la_livraison", "lignes": [{ "produit_id": produit, "quantite": 2 }] }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(rep["statut"], "en_attente", "{rep}");
+    let code = rep["code_suivi"].as_str().unwrap().to_string();
+    // Le poste reprend la commande : même code de suivi, numéro attribué, publié sur le relais.
+    let suivi = attendre(format!("{relais}/api/public/suivi/{code}"), |v| v["numero"].as_i64().unwrap_or(0) > 0).await;
+    assert_eq!(suivi["etape"], "recue");
+    let (_, relais_etat) = s.get(&proprio, "/relais/etat").await;
+    assert_eq!(relais_etat["actif"], true);
+    assert!(relais_etat["commandes_recues"].as_u64().unwrap() >= 1);
+
+    let (_, file) = s.get(&caissier, "/entrantes").await;
+    let id = file[0]["commande"]["id"].as_str().unwrap().to_string();
+    let (c, e) = s.post(&caissier, &format!("/entrantes/{id}/valider"), json!({ "accepter": true })).await;
+    assert_eq!(c, 200, "{e}");
+    attendre(format!("{relais}/api/public/suivi/{code}"), |v| v["etape"] == "en_preparation").await;
+
+    // Livreur en route : sa position, envoyée au relais (HTTPS), remonte au poste.
+    let gerant = s.connexion("Adama", "2222").await;
+    let (_, liens) = s.post(&gerant, &format!("/commandes/{id}/liens"), json!({})).await;
+    assert_eq!(liens["code_suivi"], code.as_str());
+    let livreur_code = liens["code_livreur"].as_str().unwrap().to_string();
+    let (_, employes) = s.get(&gerant, "/employes").await;
+    let livreur = employes.as_array().unwrap().iter().find(|e| e["fonction"] == "livreur").unwrap()["id"].clone();
+    s.post(&gerant, &format!("/livraisons/{id}/assigner"), json!({ "livreur_id": livreur })).await;
+    s.post(&gerant, &format!("/livraisons/{id}/statut"), json!({ "statut": "en_route" })).await;
+    attendre(format!("{relais}/api/public/suivi/{code}"), |v| v["etape"] == "en_route").await;
+    let r = s.client.post(format!("{relais}/api/public/position/{livreur_code}")).json(&json!({ "lat": 12_640_000, "lon": -8_000_000 })).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let local = attendre(format!("{}/public/suivi/{code}", s.url), |v| !v["livreur"].is_null()).await;
+    assert_eq!(local["livreur"][0], 12_640_000);
+}

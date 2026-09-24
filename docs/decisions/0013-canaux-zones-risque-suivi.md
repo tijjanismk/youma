@@ -25,8 +25,15 @@ vérification du numéro **oui** (SMS si un fournisseur est configuré, sinon ra
   envoyer la position, seulement pendant la course (`positions_livreur`, ajout seul).
 * **Routes publiques** `/api/public/*` : sans connexion ni appairage, mais refusées si le canal est inactif ;
   le poste central ignore `telephone_verifie` et `origine_id` venant du réseau local (réservés au relais).
-* **Relais Internet facultatif** (étape suivante) : le poste central garde la main ; le relais publie le menu,
-  reçoit les commandes (identifiant d'origine pour l'idempotence), envoie les SMS, sert la page de suivi en HTTPS.
+* **Relais Internet facultatif** (`crates/youma-relais`) : le poste central garde la main et **appelle** le relais
+  toutes les 10 s (`POST /api/relais/synchroniser`, clé partagée) : il y publie menu, réglages et suivis des
+  commandes des dernières 24 h, reprend les commandes en ligne et les positions des livreurs, renvoie ses
+  décisions. Le relais attribue au client un code de suivi immédiat et un identifiant d'origine (idempotence :
+  une commande renvoyée après 60 s sans réponse n'est créée qu'une fois). Il envoie le code SMS (4 chiffres,
+  10 min, 5 essais, 3 envois par heure et par numéro) et seul lui peut attester un numéro vérifié. Il limite
+  les commandes à 10 par 10 minutes et par adresse. Sans nouvelles du poste depuis 90 s, le menu est « fermé ».
+  Le QR des tables reste sur le Wi-Fi du restaurant. Le relais ne conserve que des copies : s'il disparaît,
+  le restaurant continue de vendre.
 
 ## Alternatives écartées
 * Commande client envoyée directement en cuisine : trop exposée aux fausses commandes et aux erreurs.
@@ -39,4 +46,5 @@ Migration 0003 ; permissions `commande.valider_entrante` et `zone.outrepasser` ;
 RG-ZON-01 à 03, RG-LIV-04. **[HYPOTHÈSE]** La géolocalisation du navigateur exige HTTPS : sur le Wi-Fi du
 restaurant (http), la page livreur ne peut pas partager sa position ; le suivi en direct complet passe par le relais.
 **[HYPOTHÈSE]** Pas de limitation de débit sur les routes publiques du réseau local (Wi-Fi du restaurant) ;
-le relais Internet devra en avoir une.
+le relais en a une. **[HYPOTHÈSE]** Un relais par restaurant (pas de multi-établissements) ; le fournisseur SMS
+s'appelle par une simple requête GET dont l'adresse est un modèle (`{numero}` au format +223…, `{message}`).

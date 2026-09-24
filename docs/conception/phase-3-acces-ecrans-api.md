@@ -183,6 +183,7 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 | Rapports | `GET /tableau-de-bord`, `GET /rapports/periode?debut&fin[&format=csv]`, `GET /rapports/stock`, `GET /rapports/dettes`, `GET /audit?action=` |
 | Commandes à distance | `GET /entrantes`, `POST /entrantes/{id}/valider`, `GET|POST /zones-risque`, `GET|POST /numeros-bloques`, `POST /numeros-bloques/debloquer`, `GET|POST /tables/codes-qr`, `POST /commandes/{id}/liens` |
 | Public (sans connexion ni appairage) | `GET /public/menu[?table=]` (403 si le canal est inactif), `POST /public/commandes`, `GET /public/suivi/{code}`, `POST /public/position/{code_livreur}` |
+| Relais | `GET /relais/etat` (poste) ; sur le relais : `POST /relais/synchroniser` (clé), `POST /public/verification` (code SMS), plus les routes publiques ci-dessus |
 | Administration | `GET|PUT /parametres`, `GET|PUT /restaurant`, `GET|PUT /roles`, `GET|POST /utilisateurs`, `PUT /utilisateurs/{id}`, `GET /appareils`, `POST /appareils/code`, `POST /appareils/appairer`, `POST /appareils/{id}/revoquer`, `GET /reseau`, `GET /diagnostic`, `GET|POST /sauvegardes`, `POST /sauvegardes/exporter`, `POST /sauvegardes/restaurer`, `POST /integrite`, `GET|POST /licence` |
 
 ### Événements WebSocket

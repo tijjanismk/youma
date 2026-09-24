@@ -35,6 +35,7 @@ fn zone(nom: &str, quartier: Option<&str>, debut_h: i64, fin_h: i64, action: &st
 fn en_ligne(b: &Banc, quartier: &str, telephone: &str, mode: &str) -> CommandeEntrante {
     CommandeEntrante {
         origine_id: None,
+        code_suivi: None,
         canal: "en_ligne".into(),
         code_table: None,
         type_: Some("livraison".into()),
@@ -57,6 +58,7 @@ fn livraison_a(quartier: &str, telephone: &str) -> InfosLivraison {
 fn qr(b: &Banc, code: &str, lignes: Vec<LigneSaisie>) -> CommandeEntrante {
     CommandeEntrante {
         origine_id: None,
+        code_suivi: None,
         canal: "qr_table".into(),
         code_table: Some(code.into()),
         type_: None,

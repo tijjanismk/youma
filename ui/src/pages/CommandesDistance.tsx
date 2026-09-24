@@ -71,11 +71,25 @@ function CanauxAdmin() {
         <Champ libelle="Adresse du relais" valeur={c.relais_url} changer={(v) => maj({ relais_url: v })} placeholder="https://commande.exemple.ml" />
         <Champ libelle="Clé du relais" valeur={c.relais_cle} changer={(v) => maj({ relais_cle: v })} type="password" />
         <Champ libelle="Modèle d'adresse SMS ({numero}, {message})" valeur={c.sms_url} changer={(v) => maj({ sms_url: v })} />
+        <EtatRelais />
       </details>
       <button className="principal" onClick={() => agir((pin) => appel("/parametres", { methode: "PUT", corps: p, pin }), "Canaux enregistrés").then(rechargerEtat)}>
         Enregistrer
       </button>
     </div>
+  );
+}
+
+type EtatRelaisT = { actif: boolean; dernier_succes: number | null; derniere_erreur: string | null; commandes_recues: number };
+
+function EtatRelais() {
+  const { donnees } = useDonnees(() => get<EtatRelaisT>("/relais/etat").catch(() => null), []);
+  if (!donnees?.actif) return <p className="aide">Relais : non configuré (ou commande en ligne désactivée).</p>;
+  return (
+    <p className={donnees.derniere_erreur ? "attention-texte" : "aide"}>
+      Relais : {donnees.dernier_succes ? `dernier contact ${dateHeure(donnees.dernier_succes)}` : "jamais joint"}
+      {donnees.derniere_erreur && ` — erreur : ${donnees.derniere_erreur}`} · {donnees.commandes_recues} commande(s) reçue(s) depuis le démarrage
+    </p>
   );
 }
 

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/youma-core", "crates/youma-server", "crates/youma-licence"]
+members = ["crates/youma-core", "crates/youma-server", "crates/youma-licence", "crates/youma-relais"]
 # Coquille Tauri : nécessite WebView2/webkit, construite à part (voir apps/desktop).
 exclude = ["apps/desktop/src-tauri"]
 
@@ -27,6 +27,7 @@ tower-http = { version = "0.6", features = ["fs", "cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tempfile = "3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [profile.release]
 lto = true

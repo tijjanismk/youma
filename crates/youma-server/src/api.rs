@@ -212,6 +212,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/numeros-bloques/debloquer", post(numero_debloquer))
         .route("/tables/codes-qr", get(codes_qr).post(codes_qr_generer))
         .route("/commandes/{id}/liens", post(commande_liens))
+        .route("/relais/etat", get(relais_etat))
         // Routes publiques : sans connexion ni appairage, seulement si le canal est activé.
         .route("/public/menu", get(public_menu))
         .route("/public/commandes", post(public_commande))
@@ -1209,6 +1210,11 @@ async fn commande_liens(State(e): State<Etat>, a: Auth, Path(id): Path<String>) 
     ecrire!(e, a, |db| entrantes::liens(db, &a, &id))
 }
 
+async fn relais_etat(State(e): State<Etat>, a: Auth) -> Rep<crate::relais::EtatRelais> {
+    let _ = &a;
+    Ok(Json(e.relais.lock().map(|r| r.clone()).unwrap_or_default()))
+}
+
 async fn public_menu(State(e): State<Etat>, Query(p): Q) -> Rep<entrantes::MenuPublic> {
     let table = q(&p, "table").map(str::to_owned);
     let m = e
@@ -1229,6 +1235,7 @@ async fn public_commande(State(e): State<Etat>, Json(c): Json<entrantes::Command
     let mut c = c;
     c.telephone_verifie = false;
     c.origine_id = None;
+    c.code_suivi = None;
     Ok(Json(e.avec_db(move |db| entrantes::recevoir(db, &c)).await?))
 }
 

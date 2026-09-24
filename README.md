@@ -29,7 +29,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Commandes par téléphone, QR sur la table, en ligne ; file de validation | ✅ (réseau local) |
 | Zones à risque (quartier ou cercle GPS × heure × jours), liste noire de numéros | ✅ |
 | Suivi en direct pour le client, position du livreur | ✅ (position : via relais HTTPS) |
-| Serveur relais Internet (menu en ligne, SMS) | facultatif, à venir |
+| Serveur relais Internet facultatif (menu en ligne, code SMS, suivi et position du livreur en HTTPS) | ✅ |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
 | Recettes, consignes, cloud, multi-établissements | V2, non commencé |
 
@@ -46,6 +46,20 @@ cargo run -p youma-server -- --demo --donnees ./donnees --ui ui/dist
 # Mode réseau (téléphones des serveurs) : ajouter --reseau
 ```
 
+### Relais Internet (facultatif)
+
+Sans relais, le menu QR et les commandes fonctionnent sur le Wi-Fi du restaurant. Pour publier le menu
+sur Internet, installer le relais sur un petit serveur (VPS) derrière un proxy HTTPS (Caddy, nginx) :
+
+```bash
+YOUMA_RELAIS_CLE=une-longue-cle-secrete cargo run --release -p youma-relais -- --port 8080 --ui ui/dist --derriere-proxy
+```
+
+Puis, sur le poste central : Administration → Commandes à distance → « Serveur relais Internet » :
+adresse (`https://commande.exemple.ml`) et même clé. Le poste central appelle le relais toutes les 10 s ;
+s'il se tait, le menu en ligne s'affiche « fermé ». Code SMS : modèle d'adresse du fournisseur, par exemple
+`https://api.fournisseur.ml/send?to={numero}&text={message}`.
+
 ## Tests
 
 ```bash
@@ -60,6 +74,7 @@ cd ui && npm run build && npx playwright test   # parcours complets dans Chromiu
 crates/youma-core     règles métier (RG-*), SQLite, rapports, impression, licence
 crates/youma-server   API HTTP + WebSocket, imprimantes, tâches de fond
 crates/youma-licence  outil fournisseur (clés, licences)
+crates/youma-relais   serveur relais Internet facultatif (commandes en ligne, SMS, suivi)
 apps/desktop          coquille Windows (Tauri 2)
 ui                    interface React + TypeScript
 docs/                 cahier des charges, conception (phases 1 à 4), fiches de décision
