@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { get, post } from "../api";
-import { Champ, Choix, Modal, Onglets, Vide } from "../composants/Base";
+import { Case, Champ, Choix, Modal, Onglets, Vide } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, minutesDepuis } from "../format";
 import { t } from "../i18n";
@@ -86,10 +86,13 @@ function NouvelleCommande({ fermer }: { fermer: () => void }) {
   const [quartier, setQuartier] = useState(params?.quartiers[0]?.nom ?? "");
   const [repere, setRepere] = useState("");
   const [telephone, setTelephone] = useState("");
+  const telephoneActif = !!params?.canaux?.telephone;
+  const [parTelephone, setParTelephone] = useState(telephoneActif);
   const creer = () =>
     agir(async (pin) => {
+      const canal = telephoneActif && parTelephone ? "telephone" : undefined;
       const corps =
-        type === "livraison" ? { type, livraison: { quartier, repere, telephone } } : { type };
+        type === "livraison" ? { type, canal, livraison: { quartier, repere, telephone } } : { type, canal };
       const id = await post<string>("/commandes", corps, pin);
       nav(`/commande/${id}`);
     });
@@ -119,6 +122,7 @@ function NouvelleCommande({ fermer }: { fermer: () => void }) {
           <Champ libelle="Téléphone du client" valeur={telephone} changer={setTelephone} type="tel" obligatoire />
         </>
       )}
+      {telephoneActif && <Case libelle="Commande reçue par téléphone" valeur={parTelephone} changer={setParTelephone} />}
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
         <button className="principal" disabled={type === "livraison" && (!quartier || !telephone)} onClick={creer}>

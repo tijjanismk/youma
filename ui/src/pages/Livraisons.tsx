@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { Link } from "react-router-dom";
 import { get, post } from "../api";
 import { ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
@@ -17,6 +18,9 @@ export default function Livraisons() {
   const { donnees: employes } = useDonnees(() => get<Employe[]>("/employes").catch(() => [] as Employe[]), []);
   const [assigner, setAssigner] = useState<CommandeResume | null>(null);
   const [remise, setRemise] = useState<Livreur | null>(null);
+  const [liens, setLiens] = useState<{ numero: number; code_suivi: string; code_livreur: string | null } | null>(null);
+  const ouvrirLiens = (c: CommandeResume) =>
+    agir((pin) => post<{ code_suivi: string; code_livreur: string | null }>(`/commandes/${c.id}/liens`, {}, pin)).then((l) => l && setLiens({ ...l, numero: c.numero }));
   const tout = () => {
     recharger();
     rechargerLivreurs();
@@ -34,6 +38,9 @@ export default function Livraisons() {
           fcfa(c.total),
           fcfa(c.reste),
           <span className="boutons-ligne">
+            <button className="petit" onClick={() => ouvrirLiens(c)}>
+              Suivi
+            </button>
             {["nouvelle", "confirmee", "en_preparation", "prete"].includes(c.livraison_statut ?? "") && (
               <button className="petit" onClick={() => setAssigner(c)}>
                 Livreur
@@ -80,6 +87,7 @@ export default function Livraisons() {
         />
       )}
       {remise && <RemiseLivreur l={remise} fermer={() => setRemise(null)} fait={tout} />}
+      {liens && <LiensSuivi {...liens} fermer={() => setLiens(null)} />}
     </div>
   );
 }
@@ -124,6 +132,37 @@ function RemiseLivreur({ l, fermer, fait }: { l: Livreur; fermer: () => void; fa
       >
         Valider la remise
       </button>
+    </Modal>
+  );
+}
+
+/** Liens de suivi : le client suit sa commande ; le livreur partage sa position pendant la course. */
+function LiensSuivi({ numero, code_suivi, code_livreur, fermer }: { numero: number; code_suivi: string; code_livreur: string | null; fermer: () => void }) {
+  const { donnees: reseau } = useDonnees(() => get<{ adresses: string[] }>("/reseau").catch(() => null), []);
+  const { etat } = useApp();
+  const base = (etat?.parametres.canaux?.relais_url || reseau?.adresses[0] || `${location.origin}/`).replace(/\/?$/, "/");
+  const client = `${base}suivi/${code_suivi}`;
+  const livreur = code_livreur ? `${base}livreur/${code_livreur}` : null;
+  const [qr, setQr] = useState("");
+  useEffect(() => {
+    if (livreur) QRCode.toDataURL(livreur, { width: 220, margin: 1 }).then(setQr).catch(() => setQr(""));
+  }, [livreur]);
+  return (
+    <Modal titre={`Suivi de la commande n°${numero}`} fermer={fermer}>
+      <p>
+        Lien à envoyer au client (SMS, WhatsApp) : <br />
+        <strong className="selectionnable">{client}</strong>
+      </p>
+      <a className="bouton" href={`https://wa.me/?text=${encodeURIComponent(`Suivez votre commande n°${numero} : ${client}`)}`} target="_blank" rel="noreferrer">
+        Envoyer par WhatsApp
+      </a>
+      {livreur && (
+        <div className="qr">
+          <p>Le livreur scanne ce QR pour partager sa position pendant la course :</p>
+          {qr && <img src={qr} alt="QR du livreur" />}
+          <p className="aide selectionnable">{livreur}</p>
+        </div>
+      )}
     </Modal>
   );
 }

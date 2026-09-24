@@ -128,3 +128,51 @@ describe("encaissement", () => {
     expect(billetsProposes(750)).toEqual([750, 1000, 2000, 5000, 10000]);
   });
 });
+
+describe("commandes à distance (fiche 0013)", async () => {
+  const { hhmm, lireHhmm, joursLibelle, versMicro, depuisMicro } = await import("./format");
+  const { cleOptions, distanceMetres, totalPanierClient } = await import("./public/panierClient");
+
+  it("plages horaires en minutes depuis minuit", () => {
+    expect(hhmm(21 * 60 + 30)).toBe("21:30");
+    expect(hhmm(1440)).toBe("24:00");
+    expect(lireHhmm("21:30")).toBe(1290);
+    expect(lireHhmm("6h")).toBe(360);
+    expect(lireHhmm("06h15")).toBe(375);
+    expect(lireHhmm("25:00")).toBeNull();
+    expect(lireHhmm("12:75")).toBeNull();
+    expect(lireHhmm("n'importe")).toBeNull();
+  });
+
+  it("jours de la semaine en masque de bits", () => {
+    expect(joursLibelle(127)).toBe("Tous les jours");
+    expect(joursLibelle(16 + 32)).toBe("Ven, Sam");
+    expect(joursLibelle(0)).toBe("Aucun jour");
+  });
+
+  it("positions GPS en microdegrés entiers", () => {
+    expect(versMicro(12.639232)).toBe(12_639_232);
+    expect(versMicro(-8.0029)).toBe(-8_002_900);
+    expect(depuisMicro(12_639_232)).toBeCloseTo(12.639232);
+    const d = distanceMetres([12_639_000, -8_002_000], [12_649_000, -8_002_000]);
+    expect(d).toBeGreaterThan(1_100);
+    expect(d).toBeLessThan(1_120);
+  });
+
+  it("panier du client : total indicatif avec suppléments", () => {
+    const produits = [
+      { id: "b", prix: 1000, groupes_options: [{ options: [{ id: "piment", supplement: 0 }, { id: "frites", supplement: 500 }] }] },
+      { id: "j", prix: 500, groupes_options: [] },
+    ];
+    const total = totalPanierClient(
+      [
+        { produit_id: "b", quantite: 2, options: ["frites"], commentaire: "" },
+        { produit_id: "j", quantite: 1, options: [], commentaire: "" },
+        { produit_id: "disparu", quantite: 3, options: [], commentaire: "" },
+      ],
+      produits,
+    );
+    expect(total).toBe(2 * 1500 + 500);
+    expect(cleOptions("b", ["y", "x"])).toBe(cleOptions("b", ["x", "y"]));
+  });
+});

@@ -16,8 +16,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
-    achats, appareils, auth, caisse, catalogue, clients, commandes, demo, employes, horloge, impression, journee, licence,
-    livraison, paie, parametres, rapports, salle, sauvegarde, stock, Db,
+    achats, appareils, auth, caisse, catalogue, clients, commandes, demo, employes, entrantes, horloge, impression, journee,
+    licence, livraison, paie, parametres, rapports, salle, sauvegarde, stock, zones_risque, Db,
 };
 
 use crate::erreurs::{ApiErreur, Rep};
@@ -203,7 +203,20 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/sauvegardes/exporter", post(sauvegarde_exporter))
         .route("/sauvegardes/restaurer", post(sauvegarde_restaurer))
         .route("/integrite", post(integrite))
-        .route("/licence", get(licence_etat).post(licence_installer));
+        .route("/licence", get(licence_etat).post(licence_installer))
+        // Commandes reçues (QR, en ligne), zones à risque, liste noire (fiche 0013)
+        .route("/entrantes", get(entrantes_file))
+        .route("/entrantes/{id}/valider", post(entrante_valider))
+        .route("/zones-risque", get(zones_risque_lister).post(zone_risque_enregistrer))
+        .route("/numeros-bloques", get(numeros_bloques).post(numero_bloquer))
+        .route("/numeros-bloques/debloquer", post(numero_debloquer))
+        .route("/tables/codes-qr", get(codes_qr).post(codes_qr_generer))
+        .route("/commandes/{id}/liens", post(commande_liens))
+        // Routes publiques : sans connexion ni appairage, seulement si le canal est activé.
+        .route("/public/menu", get(public_menu))
+        .route("/public/commandes", post(public_commande))
+        .route("/public/suivi/{code}", get(public_suivi))
+        .route("/public/position/{code}", post(public_position));
 
     let mut app = Router::new().nest("/api", api);
     if let Some(ui) = &etat.config.dossier_ui {
@@ -1122,4 +1135,113 @@ async fn licence_etat(State(e): State<Etat>, a: Auth) -> Rep<licence::EtatLicenc
 async fn licence_installer(State(e): State<Etat>, a: Auth, corps: Bytes) -> Rep<licence::Licence> {
     let texte = String::from_utf8_lossy(&corps).to_string();
     ecrire!(e, a, |db| licence::installer(db, &a, &texte))
+}
+
+// ───────────── Commandes reçues, zones à risque (fiche 0013) ─────────────
+
+async fn entrantes_file(State(e): State<Etat>, a: Auth) -> Rep<Vec<entrantes::Entrante>> {
+    lire!(e, a, Some(perm::COMMANDE_VALIDER_ENTRANTE), |db| entrantes::file(db.conn()))
+}
+
+#[derive(Deserialize)]
+struct Validation {
+    accepter: bool,
+    #[serde(default)]
+    motif: String,
+}
+
+async fn entrante_valider(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(v): Json<Validation>) -> Rep<()> {
+    ecrire!(e, a, |db| entrantes::valider(db, &a, &id, v.accepter, &v.motif))
+}
+
+async fn zones_risque_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<zones_risque::ZoneRisque>> {
+    lire!(e, a, Some(perm::ZONE_OUTREPASSER), |db| zones_risque::lister(db.conn()))
+}
+
+async fn zone_risque_enregistrer(State(e): State<Etat>, a: Auth, Json(z): Json<zones_risque::ZoneRisque>) -> Rep<String> {
+    ecrire!(e, a, |db| zones_risque::enregistrer(db, &a, &z))
+}
+
+async fn numeros_bloques(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    lire!(e, a, Some(perm::ZONE_OUTREPASSER), |db| {
+        Ok(json!(zones_risque::numeros_bloques(db.conn())?
+            .into_iter()
+            .map(|(t, m, c)| json!({ "telephone": t, "motif": m, "cree_le": c }))
+            .collect::<Vec<_>>()))
+    })
+}
+
+#[derive(Deserialize)]
+struct NumeroBloque {
+    telephone: String,
+    #[serde(default)]
+    motif: String,
+}
+
+async fn numero_bloquer(State(e): State<Etat>, a: Auth, Json(n): Json<NumeroBloque>) -> Rep<()> {
+    ecrire!(e, a, |db| zones_risque::bloquer_numero(db, &a, &n.telephone, &n.motif))
+}
+
+async fn numero_debloquer(State(e): State<Etat>, a: Auth, Json(n): Json<NumeroBloque>) -> Rep<()> {
+    ecrire!(e, a, |db| zones_risque::debloquer_numero(db, &a, &n.telephone))
+}
+
+async fn codes_qr(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    lire!(e, a, Some(perm::SALLE_GERER), |db| {
+        Ok(json!(entrantes::codes_qr(db.conn())?
+            .into_iter()
+            .map(|(id, nom, code)| json!({ "table_id": id, "nom": nom, "code": code }))
+            .collect::<Vec<_>>()))
+    })
+}
+
+#[derive(Deserialize)]
+struct GenerationQr {
+    #[serde(default)]
+    regenerer: bool,
+}
+
+async fn codes_qr_generer(State(e): State<Etat>, a: Auth, Json(g): Json<GenerationQr>) -> Rep<usize> {
+    ecrire!(e, a, |db| entrantes::generer_codes_qr(db, &a, g.regenerer))
+}
+
+async fn commande_liens(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<entrantes::Liens> {
+    ecrire!(e, a, |db| entrantes::liens(db, &a, &id))
+}
+
+async fn public_menu(State(e): State<Etat>, Query(p): Q) -> Rep<entrantes::MenuPublic> {
+    let table = q(&p, "table").map(str::to_owned);
+    let m = e
+        .avec_db(move |db| {
+            let m = entrantes::menu_public(db.conn(), table.as_deref())?;
+            let actif = if table.is_some() { m.qr_table } else { m.en_ligne };
+            if !actif {
+                return Err(Erreur::Interdit("Commande à distance non activée dans ce restaurant".into()));
+            }
+            Ok(m)
+        })
+        .await?;
+    Ok(Json(m))
+}
+
+async fn public_commande(State(e): State<Etat>, Json(c): Json<entrantes::CommandeEntrante>) -> Rep<entrantes::Reponse> {
+    // Le relais Internet seul peut affirmer qu'un numéro a été vérifié par SMS.
+    let mut c = c;
+    c.telephone_verifie = false;
+    c.origine_id = None;
+    Ok(Json(e.avec_db(move |db| entrantes::recevoir(db, &c)).await?))
+}
+
+async fn public_suivi(State(e): State<Etat>, Path(code): Path<String>) -> Rep<entrantes::Suivi> {
+    Ok(Json(e.avec_db(move |db| entrantes::suivi(db.conn(), &code)).await?))
+}
+
+#[derive(Deserialize)]
+struct Position {
+    lat: i64,
+    lon: i64,
+}
+
+async fn public_position(State(e): State<Etat>, Path(code): Path<String>, Json(p): Json<Position>) -> Rep<()> {
+    Ok(Json(e.avec_db(move |db| entrantes::ajouter_position(db, &code, p.lat, p.lon)).await?))
 }

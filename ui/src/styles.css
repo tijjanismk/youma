@@ -1082,3 +1082,134 @@ code {
     display: block;
   }
 }
+
+/* ───── Commandes à distance (fiche 0013) ───── */
+.entrante.risque {
+  border-color: var(--orange);
+  border-width: 2px;
+}
+.lignes-entrante {
+  margin: 6px 0;
+  padding-left: 1.2em;
+  font-size: 1.05rem;
+}
+.qr-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.qr-table {
+  margin: 0;
+  padding: 10px;
+  border: 1px dashed var(--bord);
+  border-radius: var(--rayon);
+  text-align: center;
+  break-inside: avoid;
+}
+.qr-table img {
+  width: 100%;
+  max-width: 220px;
+}
+@media print {
+  body.impression-qr * {
+    visibility: hidden;
+  }
+  body.impression-qr .qr-tables,
+  body.impression-qr .qr-tables * {
+    visibility: visible;
+  }
+  body.impression-qr .qr-tables {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+}
+.badge {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--rouge);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Pages publiques : menu du client, suivi, livreur */
+.public {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 12px 110px;
+}
+.public-entete {
+  text-align: center;
+  margin-bottom: 10px;
+}
+.public-entete h1 {
+  margin-bottom: 0;
+}
+.produits-client {
+  display: grid;
+  gap: 8px;
+}
+.produit-client {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--carte);
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon);
+}
+.produit-client p {
+  margin: 2px 0 0;
+  color: var(--doux);
+  font-size: 0.9rem;
+}
+.quantite-client {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.quantite-client button {
+  min-width: var(--tactile);
+  font-size: 1.4rem;
+}
+.barre-panier {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px;
+  background: var(--carte);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  justify-content: center;
+}
+.barre-panier button {
+  width: 100%;
+  max-width: 700px;
+}
+.etapes-suivi {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.etapes-suivi li {
+  padding: 10px 12px;
+  border-left: 4px solid var(--bord);
+  color: var(--doux);
+}
+.etapes-suivi li.faite {
+  border-color: var(--vert);
+  color: var(--texte);
+}
+.etapes-suivi li.courante {
+  border-color: var(--vert);
+  font-weight: 700;
+  background: #f0fdf4;
+}

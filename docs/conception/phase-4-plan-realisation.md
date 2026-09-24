@@ -14,7 +14,8 @@
 | 8 | Rapports, CSV, sauvegarde/restauration, licence, diagnostic | clôture + restauration sur un autre PC | ✅ |
 | 9 | Livraison et remise livreur | livraisons en moto | ✅ (base) |
 | 10 | Coquille Windows, installateur hors ligne | installation chez le pilote | ⚠️ code prêt, installateur à construire sur Windows |
-| V2 | Recettes, consignes, QR menu, commandes en ligne, cloud, relevés MM, promotions, multi-sites | — | ❌ conçu, non implémenté |
+| 11 | Canaux de commande : téléphone, QR sur la table, en ligne ; file de validation, zones à risque, liste noire, suivi en direct (fiche 0013) | QR collés sur les tables, 1 journée | ✅ sur le réseau local ; serveur relais Internet facultatif à venir |
+| V2 | Recettes, consignes, cloud, relevés MM, promotions, multi-sites | — | ❌ conçu, non implémenté |
 
 Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imprimante cuisine), puis mode réseau.
 
@@ -30,7 +31,8 @@ Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imp
 | Impression | `cargo test` | `youma-server/src/imprimantes.rs` | fichier, TCP ESC/POS (faux serveur 9100), ouverture du tiroir |
 | Interface (logique) | Vitest | `ui/src/logique.test.ts` | panier local, paiement mixte, rendu, formats |
 | Interface (composants) | Vitest + Testing Library | `ui/src/composants.test.tsx` | PinPad, connexion, rejeu avec PIN du responsable, hors ligne |
-| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 10 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone |
+| Canaux, zones | `cargo test` | `crates/youma-core/tests/canaux.rs` | RG-CAN-01 à 05, RG-ZON-01 à 03, RG-LIV-04 (12 tests) |
+| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 12 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi |
 
 Commandes :
 
@@ -67,6 +69,7 @@ tests de charge (300 commandes/jour sur 4 Go de RAM et disque mécanique), tests
 | Mot de passe pour l'administration | oui | RG-AUT-06, fiche 0011 |
 | Factures distinctes des tickets | non : bon de sortie | ticket de caisse payé = bon de sortie avec code de contrôle, écran « Contrôle de sortie » (RG-SOR-*, fiche 0012) |
 | Bambara | plus tard | architecture de traduction conservée (`ui/src/i18n.ts`) |
+| Commandes en ligne, suivi, zones à risque | oui, relais Internet facultatif ; zones par quartier et cercle GPS ; paiement d'avance et à la livraison ; vérification du numéro | fiche 0013 |
 
 ## 5. Questions encore ouvertes
 

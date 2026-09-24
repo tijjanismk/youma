@@ -26,8 +26,12 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Mot de passe personnel pour l'administration (en plus du PIN) | ✅ |
 | Sauvegardes, intégrité, restauration, licence hors ligne, diagnostic | ✅ |
 | Mode réseau (téléphones via navigateur, appairage par QR) | ✅ |
+| Commandes par téléphone, QR sur la table, en ligne ; file de validation | ✅ (réseau local) |
+| Zones à risque (quartier ou cercle GPS × heure × jours), liste noire de numéros | ✅ |
+| Suivi en direct pour le client, position du livreur | ✅ (position : via relais HTTPS) |
+| Serveur relais Internet (menu en ligne, SMS) | facultatif, à venir |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
-| Recettes, consignes, QR menu, cloud, multi-établissements | V2, non commencé |
+| Recettes, consignes, cloud, multi-établissements | V2, non commencé |
 
 ## Démarrer
 
@@ -45,7 +49,7 @@ cargo run -p youma-server -- --demo --donnees ./donnees --ui ui/dist
 ## Tests
 
 ```bash
-cargo test --workspace                       # règles métier, 15 scénarios d'acceptation, API, impression
+cargo test --workspace                       # règles métier, 15 scénarios d'acceptation, canaux, API, impression
 cd ui && npm test                            # logique et composants (Vitest)
 cd ui && npm run build && npx playwright test   # parcours complets dans Chromium sur un vrai serveur
 ```

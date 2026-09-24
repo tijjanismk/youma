@@ -234,3 +234,85 @@ test("interface utilisable sur le téléphone d'un serveur", async ({ browser })
   await expect(page.getByRole("navigation", { name: "Menu principal" })).toBeVisible();
   await contexte.close();
 });
+
+test("commandes à distance : QR sur la table, en ligne, zone à risque, validation et suivi", async ({ page, browser }) => {
+  // Le propriétaire active les canaux, crée les QR des tables et une zone à risque.
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Commandes à distance" }).click();
+  await page.getByLabel("QR code sur les tables (le client commande depuis son téléphone)").check();
+  await page.getByLabel("Commandes en ligne (livraison, à emporter)").check();
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await page.getByLabel("Mot de passe", { exact: true }).fill("baobab123");
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await expect(page.getByText("Canaux enregistrés")).toBeVisible();
+  await page.getByRole("button", { name: /^Créer les codes/ }).click();
+  await expect(page.locator(".qr-table")).toHaveCount(17);
+  await page.getByRole("button", { name: "+ Zone à risque" }).click();
+  const zone = page.getByRole("dialog", { name: "Zone à risque" });
+  await zone.getByLabel("Nom").fill("Kalaban toute la journée");
+  await zone.getByLabel("Quartier").fill("Kalaban Coura");
+  await zone.getByLabel("De (heure)").fill("00:00");
+  await zone.getByLabel("À (heure)").fill("24:00");
+  await zone.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByRole("cell", { name: "Kalaban toute la journée" })).toBeVisible();
+  const legende = await page.locator(".qr-table").filter({ hasText: /— 5Scannez/ }).first().locator("figcaption").textContent();
+  const code = /code ([A-Z2-9]{6})/.exec(legende ?? "")![1];
+
+  // Le client, sans compte ni appairage, commande depuis sa table.
+  const client = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
+  const tel = await client.newPage();
+  await tel.goto(`/menu?table=${code}`);
+  await expect(tel.getByText("Table 5")).toBeVisible();
+  await tel.getByRole("tab", { name: /Grillades/ }).click();
+  await tel.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
+  await tel.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
+  await tel.getByRole("button", { name: /^Commander \(2\)/ }).click();
+  await tel.getByRole("button", { name: "Envoyer la commande" }).click();
+  await expect(tel).toHaveURL(/\/suivi\/[A-Z2-9]{8}$/);
+  await expect(tel.locator("li[aria-current=step]")).toHaveText("Commande reçue");
+  const suiviQr = tel.url();
+
+  // Commande en ligne : zone bloquée, puis autre quartier.
+  const web = await client.newPage();
+  await web.goto("/menu");
+  await web.getByRole("tab", { name: /Grillades/ }).click();
+  await web.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
+  await web.getByRole("button", { name: /^Commander \(1\)/ }).click();
+  await web.getByLabel("Votre nom").fill("Fanta");
+  await web.getByLabel("Votre téléphone").fill("76 11 22 33");
+  await web.getByLabel("Quartier").selectOption("Kalaban Coura");
+  await web.getByLabel("Point de repère").fill("Près du marché");
+  await web.getByRole("button", { name: "Envoyer la commande" }).click();
+  await expect(web.getByRole("alert")).toContainText("Kalaban toute la journée");
+  await web.getByRole("button", { name: /^Commander \(1\)/ }).click();
+  await web.getByLabel("Votre téléphone").fill("76 11 22 33");
+  await web.getByLabel("Quartier").selectOption("Hamdallaye");
+  await web.getByLabel("Point de repère").fill("Derrière la mosquée");
+  await web.getByRole("button", { name: "Envoyer la commande" }).click();
+  await expect(web).toHaveURL(/\/suivi\//);
+
+  // La caissière voit les deux commandes, accepte celle de la table et refuse l'autre.
+  await connexion(page, /Kadi/, "3333");
+  await expect(page.getByRole("link", { name: /Commandes reçues/ }).first()).toContainText("2");
+  await page.goto("/entrantes");
+  const qr = page.locator(".entrante").filter({ hasText: "Table 5" });
+  await expect(qr).toContainText("2 × Brochettes (3)");
+  await qr.getByRole("button", { name: "Accepter et envoyer" }).click();
+  const enLigne = page.locator(".entrante").filter({ hasText: "Hamdallaye" });
+  await expect(enLigne).toContainText("nouveau client");
+  await enLigne.getByRole("button", { name: "Refuser" }).click();
+  await page.getByRole("button", { name: "Rupture" }).click();
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await expect(page.getByText("Aucune commande en attente")).toBeVisible();
+  await page.goto("/salle");
+  await expect(page.getByRole("button", { name: /^Table 5 Occupée/ })).toBeVisible();
+
+  // Le client suit sa commande en direct.
+  await tel.goto(suiviQr);
+  await expect(tel.locator("li[aria-current=step]")).toHaveText("En préparation");
+  await web.reload();
+  await expect(web.getByText("Commande refusée")).toBeVisible();
+  await expect(web.getByText("Rupture")).toBeVisible();
+  await client.close();
+});

@@ -93,6 +93,18 @@ const fr = {
   en_route: "En route",
   livree: "Livrée",
   echec: "Échec",
+  // Canaux de commande et zones à risque (fiche 0013)
+  serveur: "Serveur (menu papier)",
+  telephone: "Téléphone",
+  qr_table: "QR sur la table",
+  en_ligne: "En ligne",
+  a_la_livraison: "À la livraison",
+  bloquer: "Bloquer",
+  paiement_avance: "Paiement d'avance obligatoire",
+  validation_manuelle: "Accord d'un responsable",
+  recue: "Reçue",
+  refusee: "Refusée",
+  acceptee: "Acceptée",
 } as const;
 
 export type Cle = keyof typeof fr;

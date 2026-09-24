@@ -84,7 +84,7 @@ impl Banc {
     pub fn commande_table(&mut self, table: &str, lignes: &[(&str, i64)]) -> String {
         let a = self.serveur();
         let t = self.table(table);
-        let id = commandes::ouvrir(&mut self.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 2, note: String::new(), livraison: None }).unwrap();
+        let id = commandes::ouvrir(&mut self.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 2, note: String::new(), livraison: None, canal: None }).unwrap();
         let l: Vec<LigneSaisie> = lignes.iter().map(|(n, q)| self.ligne(n, *q)).collect();
         commandes::ajouter_lignes(&mut self.db, &a, &id, &l).unwrap();
         commandes::envoyer(&mut self.db, &a, &id).unwrap();

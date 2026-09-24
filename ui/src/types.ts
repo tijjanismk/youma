@@ -51,6 +51,86 @@ export type Parametres = {
   dossier_sauvegarde_externe: string;
   alerte_sauvegarde_jours: number;
   intervalle_sauvegarde_minutes: number;
+  canaux: Canaux;
+};
+
+/** Canaux de commande (fiche 0013) : le menu papier est toujours actif. */
+export type Canaux = {
+  telephone: boolean;
+  qr_table: boolean;
+  en_ligne: boolean;
+  paiement_avance: boolean;
+  paiement_a_la_livraison: boolean;
+  plafond_paiement_livraison: number;
+  avance_nouveau_client: boolean;
+  /** rappel | sms */
+  verification_numero: string;
+  relais_url: string;
+  relais_cle: string;
+  sms_url: string;
+};
+
+export type Entrante = {
+  commande: Commande;
+  canal: "qr_table" | "en_ligne";
+  table_demandee: string | null;
+  client_nom: string;
+  client_telephone: string | null;
+  paiement_mode: string | null;
+  paiement_operateur: string | null;
+  paiement_reference: string | null;
+  validation_responsable: boolean;
+  motif: string | null;
+  commandes_precedentes: number;
+  verification_numero: string;
+};
+
+export type ZoneRisque = {
+  id: string;
+  nom: string;
+  quartier: string | null;
+  lat: number | null;
+  lon: number | null;
+  rayon_m: number | null;
+  debut_min: number;
+  fin_min: number;
+  jours: number;
+  action: "bloquer" | "paiement_avance" | "validation_manuelle";
+  message: string;
+  actif: boolean;
+};
+
+export type MenuPublic = {
+  restaurant: string;
+  telephone: string;
+  ouvert: boolean;
+  table: string | null;
+  qr_table: boolean;
+  en_ligne: boolean;
+  paiement_avance: boolean;
+  paiement_a_la_livraison: boolean;
+  verification_numero: string;
+  operateurs: string[];
+  quartiers: { nom: string; frais: number }[];
+  categories: { id: string; nom: string; icone: string; couleur: string }[];
+  produits: { id: string; categorie_id: string; nom: string; description: string; photo: string; prix: number; groupes_options: GroupeOptions[] }[];
+};
+
+export type ReponseEntrante = { statut: "en_attente" | "refusee"; message: string; numero: number | null; code_suivi: string | null; total: number };
+
+export type Suivi = {
+  numero: number;
+  restaurant: string;
+  etape: string;
+  motif: string | null;
+  type: string;
+  total: number;
+  reste: number;
+  paiement_mode: string | null;
+  lignes: [number, string][];
+  livreur: [number, number, number] | null;
+  destination: [number, number] | null;
+  mis_a_jour: number;
 };
 
 export type Categorie = { id: string; nom: string; couleur: string; icone: string; ordre: number; actif: boolean };
@@ -135,6 +215,7 @@ export type Commande = {
   livraison_telephone: string | null;
   livraison_frais: number;
   livreur_id: string | null;
+  note: string;
   cree_le: number;
   lignes: Ligne[];
   envois: { id: string; numero: number; poste_nom: string | null; statut: string; message: string; cree_le: number }[];

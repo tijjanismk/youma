@@ -151,7 +151,7 @@ fn rg_jou_01_02_04_journee() {
     let mut b = banc();
     let a = b.serveur();
     let t = b.table("1");
-    let n = NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None };
+    let n = NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None };
     assert_eq!(commandes::ouvrir(&mut b.db, &a, &n).unwrap_err().regle_code(), Some("RG-JOU-01"));
     b.ouvrir_journee();
     let c = b.caissier();
@@ -185,7 +185,7 @@ fn rg_cat_04_05_options_et_rupture() {
     b.ouvrir_journee();
     let a = b.serveur();
     let t = b.table("2");
-    let c = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None }).unwrap();
+    let c = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap();
     let frites = catalogue::produit(b.db.conn(), &b.produit("Frites")).unwrap();
     // Taille obligatoire (min 1).
     let sans = LigneSaisie { produit_id: frites.id.clone(), quantite: 1, options: vec![], commentaire: String::new() };
@@ -289,7 +289,7 @@ fn rg_cmd_11_payer_d_abord_au_comptoir() {
     b.ouvrir_journee();
     b.ouvrir_caisse(0);
     let a = b.caissier();
-    let c = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "comptoir".into(), table_id: None, client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None }).unwrap();
+    let c = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "comptoir".into(), table_id: None, client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap();
     let l = b.ligne("Brochettes (3)", 1);
     commandes::ajouter_lignes(&mut b.db, &a, &c, &[l]).unwrap();
     assert_eq!(commandes::envoyer(&mut b.db, &a, &c).unwrap_err().regle_code(), Some("RG-CMD-11"));
@@ -671,9 +671,9 @@ fn operateurs_mobile_money_par_defaut() {
     assert_eq!(noms, ["Orange Money", "Moov Money", "Wave", "Sama Money"]);
 }
 
-/// Mise à jour d'une base existante (v1 → v2) : sauvegarde avant migration, opérateurs et permission ajoutés.
+/// Mise à jour d'une base existante (v1 → dernière version) : sauvegarde avant migration, opérateurs et permissions ajoutés.
 #[test]
-fn migration_v1_vers_v2() {
+fn migration_v1_vers_derniere_version() {
     let dossier = tempfile::tempdir().unwrap();
     let chemin = dossier.path().join("youma.db");
     {
@@ -682,7 +682,8 @@ fn migration_v1_vers_v2() {
         c.execute_batch(
             "INSERT INTO systeme(cle, valeur) VALUES ('installation_id', 'x');
              INSERT INTO restaurant(id, nom, modifie_le) VALUES ('r', 'Ancien', 0);
-             INSERT INTO roles(id, code, nom, modifie_le) VALUES ('rs', 'serveur', 'Serveur', 0), ('rc', 'cuisinier', 'Cuisinier', 0);
+             INSERT INTO roles(id, code, nom, modifie_le) VALUES ('rs', 'serveur', 'Serveur', 0), ('rc', 'cuisinier', 'Cuisinier', 0),
+               ('rk', 'caissier', 'Caissier', 0);
              INSERT INTO comptes_tresorerie(id, nom, type, modifie_le) VALUES ('c1', 'Orange Money', 'mobile_money', 0);
              PRAGMA user_version = 1;",
         )
@@ -691,13 +692,16 @@ fn migration_v1_vers_v2() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 2);
+    assert_eq!(v, 3);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);
     assert!(noms.contains(&"Sama Money".to_string()));
     let (serveur, _) = auth::permissions_utilisateur_role(db.conn(), "serveur");
     assert!(serveur.contains("sortie.controler"));
+    assert!(!serveur.contains("commande.valider_entrante"));
+    let (caissier, _) = auth::permissions_utilisateur_role(db.conn(), "caissier");
+    assert!(caissier.contains("commande.valider_entrante"), "migration 0003");
     let (cuisinier, _) = auth::permissions_utilisateur_role(db.conn(), "cuisinier");
     assert!(!cuisinier.contains("sortie.controler"));
     drop(db);

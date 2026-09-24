@@ -55,6 +55,10 @@ Nouvelle permission `sortie.controler` (contrôle des bons de sortie) : proprié
 caissier, serveur. Les permissions d'administration (`utilisateur.gerer`, `parametre.gerer`, `licence.gerer`,
 `sauvegarde.gerer`, `appareil.gerer`) exigent en plus le mot de passe personnel (RG-AUT-06).
 
+Permissions des commandes à distance (fiche 0013) : `commande.valider_entrante` (accepter ou refuser une
+commande QR ou en ligne) : propriétaire, administrateur, gérant, caissier ; `zone.outrepasser` (zones à risque,
+liste noire, accord pour une zone sous contrôle) : propriétaire, administrateur, gérant.
+
 Une permission absente n'est pas un refus sec : l'action peut être autorisée ponctuellement par le PIN d'un
 responsable présent qui détient la permission (RG-AUT-03). Les deux identités sont journalisées.
 
@@ -87,6 +91,10 @@ Choix notables :
 | Rapports (+ CSV, impression) | `/rapports` | gérant, propriétaire |
 | Journal d'audit | `/journal` | propriétaire |
 | Contrôle de sortie (bon de sortie) | `/sortie` | serveur, caissier, gérant |
+| Commandes reçues (QR, en ligne) | `/entrantes` | caissier, gérant |
+| Menu du client (sans connexion) | `/menu?table=CODE`, `/menu` | client |
+| Suivi de commande (sans connexion) | `/suivi/CODE` | client |
+| Page du livreur (partage de position) | `/livreur/CODE` | livreur |
 | Administration | `/administration` | propriétaire, gérant |
 
 ### Maquettes textuelles des écrans principaux
@@ -173,11 +181,13 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 | Employés, paie | `GET|POST /employes`, `GET /employes/references`, `GET /employes/{id}`, `POST /employes/avance`, `POST /employes/evenement`, `GET|POST /presences`, `GET /paie/apercu`, `POST /paie/cloturer`, `POST /paie/payer`, `GET /paie/bulletins`, `GET /paie/bulletins/{id}` |
 | Livraison | `GET /livraisons`, `POST /livraisons/{id}/assigner`, `POST /livraisons/{id}/statut`, `GET /livreurs`, `POST /livreurs/{id}/remise` |
 | Rapports | `GET /tableau-de-bord`, `GET /rapports/periode?debut&fin[&format=csv]`, `GET /rapports/stock`, `GET /rapports/dettes`, `GET /audit?action=` |
+| Commandes à distance | `GET /entrantes`, `POST /entrantes/{id}/valider`, `GET|POST /zones-risque`, `GET|POST /numeros-bloques`, `POST /numeros-bloques/debloquer`, `GET|POST /tables/codes-qr`, `POST /commandes/{id}/liens` |
+| Public (sans connexion ni appairage) | `GET /public/menu[?table=]` (403 si le canal est inactif), `POST /public/commandes`, `GET /public/suivi/{code}`, `POST /public/position/{code_livreur}` |
 | Administration | `GET|PUT /parametres`, `GET|PUT /restaurant`, `GET|PUT /roles`, `GET|POST /utilisateurs`, `PUT /utilisateurs/{id}`, `GET /appareils`, `POST /appareils/code`, `POST /appareils/appairer`, `POST /appareils/{id}/revoquer`, `GET /reseau`, `GET /diagnostic`, `GET|POST /sauvegardes`, `POST /sauvegardes/exporter`, `POST /sauvegardes/restaurer`, `POST /integrite`, `GET|POST /licence` |
 
 ### Événements WebSocket
 
 `{ "type": "<type>", "id": "<identifiant ou null>" }` après chaque commit : `commande`, `envoi`,
 `envoi_pret`, `paiement`, `table`, `caisse`, `stock`, `catalogue`, `journee`, `livraison`, `impression`,
-`employes`, plus `connecte` et `resynchroniser` (client en retard : il recharge). L'interface recharge
+`employes`, `commande_entrante`, `position`, plus `connecte` et `resynchroniser` (client en retard : il recharge). L'interface recharge
 les données concernées ; la reconnexion est automatique (1 s → 15 s).

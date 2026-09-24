@@ -13,6 +13,7 @@ pub mod clients;
 pub mod commandes;
 pub mod db;
 pub mod demo;
+pub mod entrantes;
 pub mod employes;
 pub mod erreur;
 pub mod horloge;
@@ -28,6 +29,7 @@ pub mod salle;
 pub mod sauvegarde;
 pub mod sortie;
 pub mod stock;
+pub mod zones_risque;
 
 pub use db::{Acteur, Db};
 pub use erreur::{Erreur, Resultat};

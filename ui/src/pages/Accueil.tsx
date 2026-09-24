@@ -2,9 +2,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { post } from "../api";
 import { useApp } from "../contexte";
 import { dateFr } from "../format";
+import type { EtatGeneral } from "../types";
 
 export const MENU: { chemin: string; libelle: string; icone: string; permission?: string }[] = [
   { chemin: "/salle", libelle: "Salle et commandes", icone: "🍽️", permission: "commande.creer" },
+  { chemin: "/entrantes", libelle: "Commandes reçues", icone: "📥", permission: "commande.valider_entrante" },
   { chemin: "/caisse", libelle: "Caisse", icone: "💰", permission: "caisse.session" },
   { chemin: "/cuisine", libelle: "Cuisine / Bar", icone: "👨‍🍳", permission: "cuisine.voir" },
   { chemin: "/livraisons", libelle: "Livraisons", icone: "🛵", permission: "livraison.gerer" },
@@ -21,10 +23,16 @@ export const MENU: { chemin: string; libelle: string; icone: string; permission?
   { chemin: "/administration", libelle: "Administration", icone: "⚙️", permission: "catalogue.gerer" },
 ];
 
+/** Entrées du menu permises ; « Commandes reçues » seulement si le QR ou l'en ligne est activé. */
+export function menuVisible(permissions: string[], etat: EtatGeneral | null) {
+  const distance = !!(etat?.parametres?.canaux?.qr_table || etat?.parametres?.canaux?.en_ligne);
+  return MENU.filter((m) => (!m.permission || permissions.includes(m.permission)) && (m.chemin !== "/entrantes" || distance));
+}
+
 export default function Accueil() {
   const { etat, session, peut, agir, rechargerEtat } = useApp();
   const nav = useNavigate();
-  const liens = MENU.filter((m) => !m.permission || peut(m.permission));
+  const liens = menuVisible(session?.permissions ?? [], etat);
 
   const ouvrirJournee = () =>
     agir(async (pin) => {

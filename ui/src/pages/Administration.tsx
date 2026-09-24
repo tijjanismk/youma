@@ -5,9 +5,10 @@ import { Case, Champ, ChampMontant, Choix, Modal, Onglets, TableauDonnees } from
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
+import CommandesDistance from "./CommandesDistance";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
 
-type Onglet = "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
+type Onglet = "distance" | "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
 
 /** RG-AUT-06 : onglets protégés par le mot de passe personnel. */
 const PROTEGES: Onglet[] = ["restaurant", "paiements", "utilisateurs", "roles", "appareils", "sauvegardes", "licence"];
@@ -21,6 +22,7 @@ export default function Administration() {
     { cle: "postes", libelle: "Postes et imprimantes", p: "catalogue.gerer" },
     { cle: "restaurant", libelle: "Restaurant et règles", p: "parametre.gerer" },
     { cle: "paiements", libelle: "Moyens de paiement", p: "parametre.gerer" },
+    { cle: "distance", libelle: "Commandes à distance", p: "zone.outrepasser" },
     { cle: "utilisateurs", libelle: "Utilisateurs", p: "utilisateur.gerer" },
     { cle: "roles", libelle: "Rôles et droits", p: "utilisateur.gerer" },
     { cle: "appareils", libelle: "Téléphones et tablettes", p: "appareil.gerer" },
@@ -60,6 +62,7 @@ function OngletAdmin({ onglet }: { onglet: Onglet }) {
       {onglet === "sauvegardes" && <SauvegardesAdmin />}
       {onglet === "licence" && <LicenceAdmin />}
       {onglet === "paiements" && <PaiementsAdmin />}
+      {onglet === "distance" && <CommandesDistance />}
     </>
   );
 }

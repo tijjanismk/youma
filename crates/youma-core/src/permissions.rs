@@ -43,6 +43,8 @@ pub const HORLOGE_FORCER: &str = "horloge.forcer";
 pub const LICENCE_GERER: &str = "licence.gerer";
 pub const APPAREIL_GERER: &str = "appareil.gerer";
 pub const SORTIE_CONTROLER: &str = "sortie.controler";
+pub const COMMANDE_VALIDER_ENTRANTE: &str = "commande.valider_entrante";
+pub const ZONE_OUTREPASSER: &str = "zone.outrepasser";
 
 /// RG-AUT-06 : permissions qui exigent une session confirmée par mot de passe.
 pub const ADMINISTRATION: &[&str] = &[UTILISATEUR_GERER, PARAMETRE_GERER, LICENCE_GERER, SAUVEGARDE_GERER, APPAREIL_GERER];
@@ -55,7 +57,7 @@ pub const TOUTES: &[&str] = &[
     CLIENT_GERER, CLIENT_CREDIT, CLIENT_DEPASSER_LIMITE, EMPLOYE_VOIR, EMPLOYE_GERER, EMPLOYE_PRESENCE,
     EMPLOYE_AVANCE, EMPLOYE_DEPASSER_PLAFOND, PAIE_GERER, LIVRAISON_GERER, RAPPORT_VOIR, CATALOGUE_GERER,
     SALLE_GERER, UTILISATEUR_GERER, PARAMETRE_GERER, JOURNEE_GERER, SAUVEGARDE_GERER, AUDIT_VOIR,
-    HORLOGE_FORCER, LICENCE_GERER, APPAREIL_GERER, SORTIE_CONTROLER,
+    HORLOGE_FORCER, LICENCE_GERER, APPAREIL_GERER, SORTIE_CONTROLER, COMMANDE_VALIDER_ENTRANTE, ZONE_OUTREPASSER,
 ];
 
 /// (code, nom, plafond de remise %, permissions)
@@ -64,6 +66,7 @@ pub fn roles_par_defaut() -> Vec<(&'static str, &'static str, i64, Vec<&'static 
     let caissier = vec![
         COMMANDE_CREER, COMMANDE_TRANSFERER, COMMANDE_REMISE, CUISINE_VOIR, CAISSE_ENCAISSER, CAISSE_SESSION, CAISSE_MOUVEMENT,
         DEPENSE_CREER, CLIENT_GERER, CLIENT_CREDIT, STOCK_VOIR, LIVRAISON_GERER, JOURNEE_GERER, SORTIE_CONTROLER,
+        COMMANDE_VALIDER_ENTRANTE,
     ];
     let mut gerant: Vec<&str> = TOUTES
         .iter()

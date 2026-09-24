@@ -150,6 +150,34 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-LIV-01** Une commande livraison porte adresse (quartier, repère, téléphone), frais et livreur.
 * **RG-LIV-02** Un paiement espèces encaissé par le livreur va sur le compte « à remettre » du livreur, pas dans la caisse.
 * **RG-LIV-03** Remise livreur : transfert du compte livreur vers la caisse ; l'écart (attendu − remis) est enregistré avec motif.
+* **RG-LIV-04** Suivi en direct : la position du livreur (microdegrés entiers, ajout seul) n'est acceptée que
+  pendant la course (livraison assignée ou en route) et avec le lien secret du livreur, distinct du code de
+  suivi du client. Le client ne voit la position que pendant la course.
+
+### Canaux de commande (CAN) — fiche 0013
+* **RG-CAN-01** Le menu papier (commande saisie par le serveur) est toujours possible. Les autres canaux sont
+  indépendants et facultatifs : téléphone (saisi par le personnel), QR sur la table, en ligne.
+* **RG-CAN-02** Une commande QR ou en ligne arrive dans une file « à valider » : rien ne part en cuisine avant
+  qu'un membre du personnel (`commande.valider_entrante`) ne l'accepte ; un refus exige un motif, visible du client.
+  Les prix sont toujours recalculés par le poste central. Le QR d'une table porte un code secret ; une commande
+  QR acceptée rejoint l'addition ouverte de la table (une addition par table). Une commande envoyée deux fois
+  par le relais (même identifiant d'origine) n'est créée qu'une fois. Pas de clôture de journée avec des commandes en attente.
+* **RG-CAN-03** Liste noire : un numéro bloqué ne peut pas commander en ligne ; saisi par le personnel, il faut
+  l'accord d'un responsable (`zone.outrepasser`), journalisé.
+* **RG-CAN-04** Vérification du numéro du client : rappel par la caisse (par défaut) ou code SMS envoyé par le
+  serveur relais. En mode SMS, une commande en ligne non vérifiée est refusée ; seul le relais peut l'attester.
+* **RG-CAN-05** Paiement des commandes en ligne : Mobile Money d'avance (opérateur et référence obligatoires,
+  encaissé à l'acceptation, « à vérifier », référence unique RG-CAI-05) et/ou paiement à la livraison, selon les
+  paramètres. L'avance peut être imposée au nouveau client ou au-delà d'un plafond.
+
+### Zones à risque (ZON) — fiche 0013
+* **RG-ZON-01** Une zone à risque est un quartier et/ou un cercle GPS (centre, rayon), une plage horaire (qui peut
+  passer minuit), des jours de la semaine et une action : bloquer, paiement d'avance obligatoire, accord d'un responsable.
+* **RG-ZON-02** Pour une livraison, la zone applicable la plus stricte l'emporte (bloquer > paiement d'avance >
+  accord d'un responsable). Une plage qui passe minuit appartient au jour où elle commence. En ligne, le client
+  voit un message clair ; aucun blocage ne concerne la vente à emporter ou sur place.
+* **RG-ZON-03** Saisie par le personnel dans une zone bloquée ou sous contrôle : accord d'un responsable
+  (`zone.outrepasser`), journalisé ; zone « paiement d'avance » : l'addition est payée avant l'envoi.
 
 ### Bon de sortie (SOR)
 * **RG-SOR-01** Pas de facture séparée : le ticket de caisse d'une addition entièrement payée sert de bon de sortie

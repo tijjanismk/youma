@@ -39,6 +39,53 @@ pub struct Parametres {
     pub alerte_sauvegarde_jours: i64,
     /// Sauvegarde automatique pendant le service (minutes).
     pub intervalle_sauvegarde_minutes: i64,
+    /// Canaux de commande, chacun activable indépendamment (fiche 0013).
+    pub canaux: Canaux,
+}
+
+/// RG-CAN-01 : le menu papier (saisie par le serveur) est toujours disponible ; les autres canaux sont optionnels.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Canaux {
+    /// Commandes prises au téléphone par le caissier.
+    pub telephone: bool,
+    /// QR sur la table : le client commande depuis son téléphone (Wi-Fi du restaurant ou relais).
+    pub qr_table: bool,
+    /// Commandes en ligne (livraison, à emporter) via le relais Internet optionnel.
+    pub en_ligne: bool,
+    /// Paiement Mobile Money d'avance autorisé pour les commandes à distance.
+    pub paiement_avance: bool,
+    /// Paiement à la livraison / au retrait autorisé.
+    pub paiement_a_la_livraison: bool,
+    /// Au-delà de ce montant, paiement d'avance obligatoire (0 = pas de limite).
+    pub plafond_paiement_livraison: i64,
+    /// Nouveau client (numéro jamais servi) : paiement d'avance obligatoire.
+    pub avance_nouveau_client: bool,
+    /// aucune | sms | rappel (RG-CAN-04).
+    pub verification_numero: String,
+    /// Relais Internet optionnel (étape B) : adresse et clé du restaurant.
+    pub relais_url: String,
+    pub relais_cle: String,
+    /// Fournisseur SMS (modèle d'URL avec {telephone} et {message}) ; vide = pas de SMS, rappel par le caissier.
+    pub sms_url: String,
+}
+
+impl Default for Canaux {
+    fn default() -> Self {
+        Canaux {
+            telephone: true,
+            qr_table: false,
+            en_ligne: false,
+            paiement_avance: true,
+            paiement_a_la_livraison: true,
+            plafond_paiement_livraison: 0,
+            avance_nouveau_client: false,
+            verification_numero: "rappel".into(),
+            relais_url: String::new(),
+            relais_cle: String::new(),
+            sms_url: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +138,7 @@ impl Default for Parametres {
             dossier_sauvegarde_externe: String::new(),
             alerte_sauvegarde_jours: 3,
             intervalle_sauvegarde_minutes: 30,
+            canaux: Canaux::default(),
         }
     }
 }

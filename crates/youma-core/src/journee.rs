@@ -104,6 +104,17 @@ pub fn cloturer(db: &mut Db, acteur: &Acteur) -> Resultat<Journee> {
     let id = db.executer(acteur, |op| {
         op.exiger(perm::JOURNEE_GERER)?;
         let j = op.journee_ouverte()?;
+        let entrantes: i64 = op.query_row(
+            "SELECT COUNT(*) FROM commandes WHERE journee_id = ?1 AND validation = 'en_attente'",
+            params![j.id],
+            |r| r.get(0),
+        )?;
+        if entrantes > 0 {
+            return Err(Erreur::regle(
+                "RG-JOU-04",
+                format!("{entrantes} commande(s) en ligne ou QR à accepter ou refuser avant la clôture."),
+            ));
+        }
         let commandes: i64 = op.query_row(
             "SELECT COUNT(*) FROM commandes WHERE journee_id = ?1 AND statut = 'ouverte'",
             params![j.id],

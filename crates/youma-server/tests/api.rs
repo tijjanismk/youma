@@ -377,3 +377,95 @@ async fn bon_de_sortie_par_api() {
         assert_eq!(r["regle"], "RG-SOR-02");
     }
 }
+
+/// Commande par QR sur la table et en ligne : routes publiques, file de validation, zones à risque, suivi.
+#[tokio::test]
+async fn commandes_qr_en_ligne_et_suivi_par_api() {
+    let s = serveur().await;
+    let proprio = s.connexion("Mariam", "1234").await;
+    let caissier = s.connexion("Kadi", "3333").await;
+    let serveuse = s.connexion("Awa", "4444").await;
+    // Canaux désactivés : aucune route publique.
+    let r = s.client.get(format!("{}/public/menu", s.url)).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 403);
+
+    s.elever(&proprio, "baobab123").await;
+    let (_, mut p) = s.get(&proprio, "/parametres").await;
+    p["canaux"]["qr_table"] = json!(true);
+    p["canaux"]["en_ligne"] = json!(true);
+    let r = s.client.put(format!("{}/parametres", s.url)).bearer_auth(&proprio).json(&p).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let (code, n) = s.post(&proprio, "/tables/codes-qr", json!({})).await;
+    assert_eq!(code, 200, "{n}");
+    let (_, codes) = s.get(&proprio, "/tables/codes-qr").await;
+    let qr = codes.as_array().unwrap().iter().find(|t| t["nom"].as_str().unwrap().ends_with("— 2")).unwrap()["code"].as_str().unwrap().to_string();
+    let (code, _) = s.get(&serveuse, "/tables/codes-qr").await;
+    assert_eq!(code, 403);
+
+    s.post(&caissier, "/journee/ouvrir", json!({})).await;
+    let menu: Value = s.client.get(format!("{}/public/menu?table={qr}", s.url)).send().await.unwrap().json().await.unwrap();
+    assert_eq!(menu["table"], "2");
+    assert_eq!(menu["ouvert"], true);
+    let produit = menu["produits"][0]["id"].as_str().unwrap().to_string();
+
+    // Commande QR : en attente, puis acceptée par la caissière.
+    let r: Value = s
+        .client
+        .post(format!("{}/public/commandes", s.url))
+        .json(&json!({ "canal": "qr_table", "code_table": qr, "lignes": [{ "produit_id": produit, "quantite": 1 }] }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r["statut"], "en_attente", "{r}");
+    let (_, file) = s.get(&caissier, "/entrantes").await;
+    assert_eq!(file.as_array().unwrap().len(), 1);
+    let id = file[0]["commande"]["id"].as_str().unwrap().to_string();
+    let (code, _) = s.get(&serveuse, "/entrantes").await;
+    assert_eq!(code, 403);
+    let (code, e) = s.post(&caissier, &format!("/entrantes/{id}/valider"), json!({ "accepter": true })).await;
+    assert_eq!(code, 200, "{e}");
+    let suivi: Value = s.client.get(format!("{}/public/suivi/{}", s.url, r["code_suivi"].as_str().unwrap())).send().await.unwrap().json().await.unwrap();
+    assert_eq!(suivi["etape"], "en_preparation");
+
+    // Zone à risque la nuit : ici toute la journée, pour le test.
+    let (code, e) = s
+        .post(&caissier, "/zones-risque", json!({ "nom": "Kalaban", "quartier": "Kalaban Coura", "debut_min": 0, "fin_min": 1440, "action": "bloquer" }))
+        .await;
+    assert_eq!(code, 403, "{e}");
+    let gerant = s.connexion("Adama", "2222").await;
+    let (code, e) = s
+        .post(&gerant, "/zones-risque", json!({ "nom": "Kalaban", "quartier": "Kalaban Coura", "debut_min": 0, "fin_min": 1440, "action": "bloquer" }))
+        .await;
+    assert_eq!(code, 200, "{e}");
+    let commande = |quartier: &str| {
+        json!({ "canal": "en_ligne", "type": "livraison", "client_nom": "Awa", "telephone": "76 00 00 01",
+                "telephone_verifie": true, "origine_id": "pirate",
+                "livraison": { "quartier": quartier, "repere": "École", "telephone": "76000001" },
+                "paiement_mode": "a_la_livraison", "lignes": [{ "produit_id": produit, "quantite": 2 }] })
+    };
+    let r: Value = s.client.post(format!("{}/public/commandes", s.url)).json(&commande("Kalaban Coura")).send().await.unwrap().json().await.unwrap();
+    assert_eq!(r["statut"], "refusee");
+    let r: Value = s.client.post(format!("{}/public/commandes", s.url)).json(&commande("Hamdallaye")).send().await.unwrap().json().await.unwrap();
+    assert_eq!(r["statut"], "en_attente");
+    // Liste noire.
+    let (code, _) = s.post(&gerant, "/numeros-bloques", json!({ "telephone": "76000001", "motif": "Faux client" })).await;
+    assert_eq!(code, 200);
+    let (_, l) = s.get(&gerant, "/numeros-bloques").await;
+    assert_eq!(l[0]["telephone"], "76000001");
+    let r: Value = s.client.post(format!("{}/public/commandes", s.url)).json(&commande("Hamdallaye")).send().await.unwrap().json().await.unwrap();
+    assert_eq!(r["statut"], "refusee");
+
+    // Liens de suivi : le code du livreur est distinct de celui du client.
+    let (_, file) = s.get(&caissier, "/entrantes").await;
+    let id = file[0]["commande"]["id"].as_str().unwrap().to_string();
+    let (code, e) = s.post(&caissier, &format!("/entrantes/{id}/valider"), json!({ "accepter": false, "motif": "" })).await;
+    assert_eq!((code, e["regle"].as_str()), (422, Some("RG-CAN-02")));
+    s.post(&caissier, &format!("/entrantes/{id}/valider"), json!({ "accepter": true })).await;
+    let (_, liens) = s.post(&gerant, &format!("/commandes/{id}/liens"), json!({})).await;
+    let livreur = liens["code_livreur"].as_str().unwrap();
+    let r = s.client.post(format!("{}/public/position/{livreur}", s.url)).json(&json!({ "lat": 12_640_000, "lon": -8_000_000 })).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 422, "pas encore en route");
+}

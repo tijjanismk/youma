@@ -1,11 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { definirJetonAppareil, post } from "./api";
+import { definirJetonAppareil, get, post } from "./api";
 import { Fournisseur, useApp } from "./contexte";
 import { dateFr, dateHeure } from "./format";
 import Connexion from "./pages/Connexion";
 import Installation from "./pages/Installation";
-import Accueil, { MENU } from "./pages/Accueil";
+import Accueil, { menuVisible } from "./pages/Accueil";
 import Salle from "./pages/Salle";
 import PriseCommande from "./pages/PriseCommande";
 import Encaissement from "./pages/Encaissement";
@@ -26,8 +26,31 @@ const MobileMoney = lazy(() => import("./pages/MobileMoney"));
 const Administration = lazy(() => import("./pages/Administration"));
 const Journal = lazy(() => import("./pages/Journal"));
 const Sortie = lazy(() => import("./pages/Sortie"));
+const Entrantes = lazy(() => import("./pages/Entrantes"));
+// Pages publiques (client, livreur) : sans connexion ni appairage.
+const MenuClient = lazy(() => import("./public/MenuClient"));
+const SuiviClient = lazy(() => import("./public/Suivi"));
+const Livreur = lazy(() => import("./public/Livreur"));
+
+/** Pages ouvertes par un QR ou un lien envoyé au client : hors de l'application du personnel. */
+function PagePublique() {
+  const chemin = location.pathname;
+  const code = decodeURIComponent(chemin.split("/")[2] ?? "");
+  return (
+    <Suspense fallback={<p className="aide">Chargement…</p>}>
+      {chemin.startsWith("/menu") && <MenuClient />}
+      {chemin.startsWith("/suivi/") && <SuiviClient code={code} />}
+      {chemin.startsWith("/livreur/") && <Livreur code={code} />}
+    </Suspense>
+  );
+}
+
+export function estPagePublique(chemin: string) {
+  return chemin === "/menu" || chemin.startsWith("/menu/") || chemin.startsWith("/suivi/") || chemin.startsWith("/livreur/");
+}
 
 export default function App() {
+  if (estPagePublique(location.pathname)) return <PagePublique />;
   return (
     <Fournisseur>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -90,9 +113,26 @@ function Appairage() {
   return null;
 }
 
+/** Nombre de commandes QR / en ligne en attente (pastille du menu), mis à jour en temps réel. */
+function useEntrantesEnAttente(): number {
+  const { session, etat, abonner } = useApp();
+  const [n, setN] = useState(0);
+  const actif = !!session?.permissions.includes("commande.valider_entrante") && !!(etat?.parametres?.canaux?.qr_table || etat?.parametres?.canaux?.en_ligne);
+  useEffect(() => {
+    if (!actif) return setN(0);
+    const charger = () => get<unknown[]>("/entrantes").then((l) => setN(l.length)).catch(() => undefined);
+    charger();
+    return abonner((e) => {
+      if (e.type === "commande_entrante" || e.type === "commande" || e.type === "resynchroniser") charger();
+    });
+  }, [actif, abonner]);
+  return n;
+}
+
 function Coquille() {
   const { etat, session, deconnecter } = useApp();
   const [menu, setMenu] = useState(false);
+  const enAttente = useEntrantesEnAttente();
   const loc = useLocation();
   useEffect(() => setMenu(false), [loc.pathname]);
 
@@ -126,7 +166,7 @@ function Coquille() {
       </>
     );
   }
-  const liens = MENU.filter((m) => !m.permission || session.permissions.includes(m.permission));
+  const liens = menuVisible(session.permissions, etat);
   return (
     <div className="application">
       <Bandeaux />
@@ -148,6 +188,7 @@ function Coquille() {
           {liens.map((m) => (
             <Link key={m.chemin} to={m.chemin} className={loc.pathname.startsWith(m.chemin) && m.chemin !== "/" ? "actif" : ""}>
               <span aria-hidden>{m.icone}</span> {m.libelle}
+              {m.chemin === "/entrantes" && enAttente > 0 && <span className="badge">{enAttente}</span>}
             </Link>
           ))}
         </nav>
@@ -173,6 +214,7 @@ function Coquille() {
               <Route path="/administration" element={<Administration />} />
               <Route path="/journal" element={<Journal />} />
               <Route path="/sortie" element={<Sortie />} />
+              <Route path="/entrantes" element={<Entrantes />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

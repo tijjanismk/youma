@@ -111,7 +111,7 @@ fn s03_tournees() {
     let c = b.commande_table("4", &[("Bière blonde", 3)]);
     let a = b.serveur();
     let t = b.table("4");
-    let c2 = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t.clone()), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None }).unwrap();
+    let c2 = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t.clone()), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap();
     assert_eq!(c, c2, "RG-CMD-01 : même addition");
     let l = b.ligne("Bière blonde", 2);
     commandes::ajouter_lignes(&mut b.db, &a, &c, &[l]).unwrap();
@@ -153,14 +153,14 @@ fn s05_horloge_remise_a_zero() {
     assert!(!b.db.etat_horloge().unwrap().coherente);
     let a = b.serveur();
     let t = b.table("6");
-    let e = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t.clone()), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None }).unwrap_err();
+    let e = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t.clone()), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap_err();
     assert_eq!(e.code(), "HORLOGE_INCOHERENTE");
     // Le serveur ne peut pas accepter la nouvelle heure.
     let s = b.serveur();
     assert_eq!(auth::accepter_heure(&mut b.db, &s).unwrap_err().code(), "AUTORISATION_REQUISE");
     // Le PC est corrigé : tout repart, sans intervention.
     b.horloge.regler_a("2026-03-14", 10, 30);
-    commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None }).unwrap();
+    commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap();
     // Si la date antérieure est la bonne (PC en avance auparavant), le propriétaire l'accepte et c'est journalisé.
     b.horloge.regler_a("2026-03-13", 9, 0);
     let p = b.proprietaire();
@@ -265,7 +265,7 @@ fn s09_consommation_employe() {
     let awa = b.employe("Awa Traoré");
     let coca_avant = b.stock("Coca-Cola 33 cl");
     let g = b.gerant();
-    let c = commandes::ouvrir(&mut b.db, &g, &NouvelleCommande { type_: "comptoir".into(), table_id: None, client_id: None, employe_id: Some(awa.clone()), couverts: 0, note: String::new(), livraison: None }).unwrap();
+    let c = commandes::ouvrir(&mut b.db, &g, &NouvelleCommande { type_: "comptoir".into(), table_id: None, client_id: None, employe_id: Some(awa.clone()), couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap();
     let l = [b.ligne("Coca-Cola", 1), b.ligne("Riz sauce arachide", 1)];
     commandes::ajouter_lignes(&mut b.db, &g, &c, &l).unwrap();
     // L'encaissement classique est refusé : c'est une imputation.
@@ -352,7 +352,8 @@ fn s12_retour_livreur() {
                 employe_id: None,
                 couverts: 0,
                 note: String::new(),
-                livraison: Some(commandes::InfosLivraison { quartier: q.to_string(), repere: "Près du marché".into(), telephone: format!("7600000{i}"), frais: None }),
+                livraison: Some(commandes::InfosLivraison { quartier: q.to_string(), repere: "Près du marché".into(), telephone: format!("7600000{i}"), frais: None, lat: None, lon: None }),
+                canal: None,
             },
         )
         .unwrap();

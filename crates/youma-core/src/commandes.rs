@@ -28,6 +28,9 @@ pub struct NouvelleCommande {
     pub note: String,
     #[serde(default)]
     pub livraison: Option<InfosLivraison>,
+    /// serveur (menu papier, défaut) | telephone. Les canaux QR et en ligne passent par `entrantes`.
+    #[serde(default)]
+    pub canal: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -38,6 +41,11 @@ pub struct InfosLivraison {
     pub telephone: String,
     #[serde(default)]
     pub frais: Option<i64>,
+    /// Position GPS facultative (microdegrés).
+    #[serde(default)]
+    pub lat: Option<i64>,
+    #[serde(default)]
+    pub lon: Option<i64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -297,7 +305,7 @@ pub fn lister(conn: &Connection, journee_id: &str, statut: Option<&str>) -> Resu
          LEFT JOIN tables_salle t ON t.id = c.table_id
          LEFT JOIN utilisateurs u ON u.id = c.serveur_id
          LEFT JOIN clients cl ON cl.id = c.client_id
-         WHERE c.journee_id = ?1 AND (?2 IS NULL OR c.statut = ?2)
+         WHERE c.journee_id = ?1 AND (?2 IS NULL OR c.statut = ?2) AND COALESCE(c.validation, '') NOT IN ('en_attente','refusee')
          ORDER BY c.numero DESC",
     )?;
     let lignes = s
@@ -390,7 +398,15 @@ pub fn ouvrir(db: &mut Db, acteur: &Acteur, n: &NouvelleCommande) -> Resultat<St
 pub(crate) fn ouvrir_op(op: &mut Op, n: &NouvelleCommande) -> Resultat<String> {
     op.exiger(perm::COMMANDE_CREER)?;
     let journee = op.journee_ouverte()?;
-    let ordre = match n.type_.as_str() {
+    // RG-CAN-01 : le menu papier est toujours ouvert ; le téléphone est un canal activable.
+    let canal = n.canal.as_deref().unwrap_or("serveur");
+    match canal {
+        "serveur" => {}
+        "telephone" if op.params.canaux.telephone => {}
+        "telephone" => return Err(Erreur::regle("RG-CAN-01", "Les commandes par téléphone sont désactivées")),
+        _ => return Err(Erreur::validation("Canal réservé aux commandes reçues (QR, en ligne)")),
+    }
+    let mut ordre = match n.type_.as_str() {
         // Consommation employé : pas d'encaissement, imputation à la fin (RG-CMD-07).
         _ if n.employe_id.is_some() => "apres",
         "sur_place" => "apres",
@@ -432,16 +448,43 @@ pub(crate) fn ouvrir_op(op: &mut Op, n: &NouvelleCommande) -> Resultat<String> {
         ("livraison", None) => return Err(Erreur::regle("RG-LIV-01", "Adresse de livraison manquante")),
         _ => (None, None, None, None, 0),
     };
+    let position = n.livraison.as_ref().and_then(|l| l.lat.zip(l.lon));
+    // RG-CAN-03 : numéro en liste noire → accord d'un responsable.
+    if let Some(t) = &tel {
+        if let Some(motif) = crate::zones_risque::est_bloque(op, t)? {
+            let par = op.exiger(perm::ZONE_OUTREPASSER).map_err(|e| match e {
+                Erreur::AutorisationRequise(p) => Erreur::AutorisationRequise(format!("{p} — numéro bloqué : {motif}")),
+                e => e,
+            })?;
+            op.audit("numero.outrepasser", "commande", None, None, Some(json!({ "telephone": t })), Some(&motif), par.as_deref())?;
+        }
+    }
+    // RG-ZON-03 : zones à risque pour les commandes saisies par le personnel.
+    if n.type_ == "livraison" {
+        if let Some(d) = crate::zones_risque::evaluer(op, quartier.as_deref(), position, op.maintenant)? {
+            match d.action.as_str() {
+                "paiement_avance" => ordre = "avant",
+                _ => {
+                    let par = op.exiger(perm::ZONE_OUTREPASSER).map_err(|e| match e {
+                        Erreur::AutorisationRequise(p) => Erreur::AutorisationRequise(format!("{p} — {}", d.message)),
+                        e => e,
+                    })?;
+                    op.audit("zone.outrepasser", "commande", None, None, Some(json!(d)), None, par.as_deref())?;
+                }
+            }
+        }
+    }
     let id = op.nouvel_id();
     let numero = op.sequence("commande")?;
     op.execute(
         "INSERT INTO commandes(id, numero, journee_id, type, ordre_paiement, table_id, zone_id, serveur_id, client_id,
             employe_id, couverts, note, statut, livraison_statut, livraison_quartier, livraison_repere,
-            livraison_telephone, livraison_frais, cree_le, cree_par, modifie_le)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'ouverte', ?13, ?14, ?15, ?16, ?17, ?18, ?8, ?18)",
+            livraison_telephone, livraison_frais, cree_le, cree_par, modifie_le, canal, livraison_lat, livraison_lon, client_telephone)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'ouverte', ?13, ?14, ?15, ?16, ?17, ?18, ?8, ?18, ?19, ?20, ?21, ?16)",
         params![
             id, numero, journee.id, n.type_, ordre, n.table_id, zone_id, op.utilisateur(), n.client_id, n.employe_id,
-            n.couverts, n.note, statut_liv, quartier, repere, tel, frais, op.maintenant
+            n.couverts, n.note, statut_liv, quartier, repere, tel, frais, op.maintenant, canal,
+            position.map(|p| p.0), position.map(|p| p.1)
         ],
     )?;
     op.outbox("commande", &id, "creer")?;

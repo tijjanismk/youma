@@ -15,6 +15,7 @@ use crate::{auth, permissions};
 const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/0001_initial.sql")),
     (2, include_str!("../migrations/0002_mot_de_passe_sortie_operateurs.sql")),
+    (3, include_str!("../migrations/0003_canaux_zones_risque.sql")),
 ];
 
 pub fn version_schema() -> i64 {
