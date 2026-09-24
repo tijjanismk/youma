@@ -1,0 +1,1062 @@
+/* Youma — contraste élevé (terrasses en plein soleil), grands boutons, lisible sur téléphone. */
+:root {
+  --vert: #14532d;
+  --vert-clair: #166534;
+  --fond: #f4f4f0;
+  --carte: #ffffff;
+  --texte: #111111;
+  --doux: #4b5563;
+  --bord: #c9c9c1;
+  --rouge: #b91c1c;
+  --orange: #c2410c;
+  --jaune: #a16207;
+  --bleu: #1d4ed8;
+  --rayon: 10px;
+  --tactile: 52px;
+  font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 17px;
+  color: var(--texte);
+  background: var(--fond);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fond);
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0.2em 0 0.6em;
+}
+h2 {
+  font-size: 1.25rem;
+  margin: 0.3em 0 0.6em;
+}
+h3 {
+  font-size: 1.05rem;
+  margin: 0.8em 0 0.4em;
+}
+
+button,
+.bouton {
+  min-height: var(--tactile);
+  padding: 0 18px;
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  background: #fff;
+  color: var(--texte);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+button.principal,
+.bouton.principal {
+  background: var(--vert);
+  border-color: var(--vert);
+  color: #fff;
+}
+button.attention {
+  border-color: var(--rouge);
+  color: var(--rouge);
+}
+button.grand,
+.bouton.grand {
+  min-height: 64px;
+  font-size: 1.1rem;
+}
+button.tres-grand {
+  min-height: 76px;
+  font-size: 1.25rem;
+  width: 100%;
+}
+button.petit {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 0.9rem;
+}
+button.lien {
+  border: none;
+  background: none;
+  color: var(--bleu);
+  padding: 0;
+  min-height: 32px;
+  text-decoration: underline;
+}
+button.actif,
+.onglets button.actif {
+  background: var(--vert);
+  color: #fff;
+  border-color: var(--vert);
+}
+
+input,
+select,
+textarea {
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  font-size: 1.05rem;
+  background: #fff;
+  color: var(--texte);
+  width: 100%;
+}
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 1px;
+}
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.champ > span {
+  font-weight: 600;
+  color: var(--doux);
+  font-size: 0.95rem;
+}
+.case {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 600;
+}
+.case input {
+  width: 26px;
+  min-height: 26px;
+  height: 26px;
+}
+.petit-champ {
+  max-width: 110px;
+  min-height: 40px;
+}
+.zone-texte {
+  font-family: monospace;
+}
+
+.aide {
+  color: var(--doux);
+  font-size: 0.95rem;
+}
+.erreur-texte,
+.negatif {
+  color: var(--rouge);
+  font-weight: 700;
+}
+.attention-texte {
+  color: var(--orange);
+  font-weight: 700;
+}
+.montant.fort {
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+.montant.negatif {
+  color: var(--rouge);
+}
+code {
+  background: #eee;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* ───── Structure ───── */
+.application {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.entete {
+  background: var(--vert);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.entete .marque {
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+.entete .journee {
+  opacity: 0.9;
+}
+.entete .utilisateur {
+  margin-left: auto;
+  font-weight: 700;
+}
+.entete button {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+.entete .burger {
+  display: none;
+}
+.corps {
+  display: flex;
+  flex: 1;
+}
+.menu {
+  width: 220px;
+  background: #fff;
+  border-right: 2px solid var(--bord);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 2px;
+}
+.menu a {
+  padding: 12px 10px;
+  border-radius: var(--rayon);
+  color: var(--texte);
+  text-decoration: none;
+  font-weight: 600;
+}
+.menu a.actif,
+.menu a:hover {
+  background: #e7efe9;
+}
+.contenu {
+  flex: 1;
+  padding: 16px;
+  min-width: 0;
+}
+.plein-ecran {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.carte {
+  background: var(--carte);
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.carte.etroite {
+  width: min(460px, 100%);
+}
+.titre-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.grille-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.grille-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin: 12px 0;
+}
+.menu-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.boutons-ligne {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vide {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--doux);
+  font-size: 1.1rem;
+}
+.filtres {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.filtres .champ {
+  min-width: 180px;
+}
+
+/* ───── Bandeaux, notifications ───── */
+.bandeau {
+  padding: 10px 14px;
+  font-weight: 700;
+  text-align: center;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.bandeau.erreur {
+  background: var(--rouge);
+  color: #fff;
+}
+.bandeau.erreur button {
+  background: #fff;
+}
+.bandeau.demo {
+  background: #fde047;
+  color: #111;
+}
+.notifications {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  width: min(560px, calc(100% - 24px));
+}
+.notification {
+  padding: 14px 16px;
+  border-radius: var(--rayon);
+  background: #111;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+.notification.erreur {
+  background: var(--rouge);
+}
+.notification.succes {
+  background: var(--vert);
+}
+
+/* ───── Modales ───── */
+.voile {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 12px;
+}
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  width: min(520px, 100%);
+  max-height: 94vh;
+  overflow: auto;
+}
+.modal.large {
+  width: min(960px, 100%);
+}
+.modal-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--bord);
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+.modal-entete h2 {
+  margin: 0;
+}
+.modal-corps {
+  padding: 16px;
+}
+.fermer {
+  min-width: var(--tactile);
+}
+
+/* ───── Connexion, PIN ───── */
+.connexion {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 16px;
+  text-align: center;
+}
+.grille-utilisateurs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.tuile {
+  min-height: 120px;
+  flex-direction: column;
+  background: #fff;
+  border: 2px solid var(--bord);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--texte);
+  text-decoration: none;
+  font-weight: 600;
+}
+.tuile .icone {
+  font-size: 2rem;
+}
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--vert);
+  color: #fff;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.connexion-pin {
+  max-width: 340px;
+  margin: 0 auto;
+}
+.pinpad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pin-affichage {
+  font-size: 2rem;
+  letter-spacing: 8px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  background: #fff;
+}
+.pin-touches {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pin-touches button {
+  min-height: 68px;
+  font-size: 1.6rem;
+}
+
+/* ───── Accueil ───── */
+.journee-carte {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.actions-rapides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.actions-rapides > * {
+  min-height: 90px;
+  font-size: 1.3rem;
+}
+.grille-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+/* ───── Onglets ───── */
+.onglets {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+.onglets button {
+  white-space: nowrap;
+}
+
+/* ───── Salle ───── */
+.plan-salle {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+}
+.plan-salle.petit {
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+}
+.table-salle {
+  min-height: 104px;
+  flex-direction: column;
+  border-width: 3px;
+  position: relative;
+}
+.table-salle strong {
+  font-size: 1.5rem;
+}
+.table-salle.libre {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+.table-salle.occupee {
+  border-color: var(--orange);
+  background: #fff7ed;
+}
+.table-salle.reservee {
+  border-color: var(--bleu);
+  background: #eff6ff;
+}
+.table-salle.a_nettoyer {
+  border-color: #6b7280;
+  background: #f3f4f6;
+}
+.pastille {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 8px;
+  color: #fff;
+}
+.pastille.pret {
+  background: #16a34a;
+}
+.pastille.attente {
+  background: var(--jaune);
+}
+.liste-commandes {
+  display: grid;
+  gap: 8px;
+}
+.ligne-commande {
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  flex-wrap: wrap;
+}
+
+/* ───── Prise de commande ───── */
+.prise-commande {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 14px;
+  align-items: start;
+}
+.recherche {
+  margin-bottom: 8px;
+}
+.categories {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+.categories button {
+  white-space: nowrap;
+  border-width: 3px;
+}
+.categories button.actif {
+  color: #fff;
+}
+.produits {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.produit {
+  min-height: 96px;
+  flex-direction: column;
+  border-top-width: 8px;
+  text-align: center;
+  padding: 8px;
+}
+.produit img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.produit.rupture {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.ticket {
+  background: #fff;
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  padding: 12px;
+  position: sticky;
+  top: 70px;
+}
+.ticket-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.statut {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #eee;
+  font-weight: 700;
+}
+.statut.payee {
+  background: #dcfce7;
+}
+.lignes {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  max-height: 52vh;
+  overflow: auto;
+}
+.ligne {
+  border-bottom: 1px solid #e5e5e5;
+}
+.ligne-bouton,
+.ligne.panier {
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 8px 2px;
+  min-height: 48px;
+  font-weight: 500;
+}
+.ligne.panier {
+  background: #fefce8;
+}
+.lien-ligne {
+  border: none;
+  background: none;
+  min-height: 40px;
+  padding: 0;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 500;
+}
+.ligne .qte {
+  font-weight: 800;
+}
+.ligne .etat {
+  font-size: 0.8rem;
+  color: var(--doux);
+}
+.ligne .prix {
+  font-weight: 700;
+  min-width: 70px;
+  text-align: right;
+}
+.ligne.offerte .lib {
+  text-decoration: line-through;
+}
+.note {
+  color: var(--orange);
+}
+.boutons-qte {
+  display: flex;
+  gap: 4px;
+}
+.boutons-qte button {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0;
+  font-size: 1.3rem;
+}
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 800;
+  font-size: 1.15rem;
+  padding: 10px 0;
+  border-top: 2px solid var(--texte);
+  margin-top: 6px;
+}
+.sous-total {
+  text-align: right;
+  color: var(--doux);
+}
+.actions-ticket {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.envois {
+  margin-top: 10px;
+}
+.envoi {
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+.envoi.pret {
+  color: #15803d;
+  font-weight: 700;
+}
+.envoi.probleme {
+  color: var(--rouge);
+  font-weight: 700;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.suggestions button {
+  min-height: 44px;
+}
+.apercu-ticket {
+  font-family: "Courier New", monospace;
+  background: #fafafa;
+  border: 1px dashed var(--bord);
+  padding: 12px;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+}
+
+/* ───── Encaissement ───── */
+.moyens {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.moyens .mm {
+  border-color: var(--orange);
+}
+.division {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 8px 0;
+}
+.part {
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.part-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.raccourcis {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.raccourcis button {
+  min-height: 44px;
+}
+.rendu {
+  font-size: 1.4rem;
+  color: var(--vert);
+}
+.resultat-paiement {
+  text-align: center;
+  max-width: 560px;
+  margin: 20px auto;
+}
+
+/* ───── Caisse ───── */
+.billetage {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.billet {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.billet .aide {
+  grid-column: 1 / -1;
+  text-align: right;
+}
+.billetage .total {
+  grid-column: 1 / -1;
+}
+
+/* ───── Cuisine ───── */
+.cartes-cuisine {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+.carte-cuisine {
+  background: #fff;
+  border: 4px solid var(--bord);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 1.15rem;
+}
+.carte-cuisine.en_preparation {
+  border-color: var(--jaune);
+}
+.carte-cuisine.pret {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+.carte-cuisine.probleme {
+  border-color: var(--rouge);
+}
+.carte-cuisine.retard {
+  box-shadow: 0 0 0 4px rgba(185, 28, 28, 0.35);
+}
+.carte-cuisine-entete {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 6px;
+}
+.carte-cuisine-entete strong {
+  font-size: 1.6rem;
+}
+.carte-cuisine ul {
+  list-style: none;
+  padding: 0;
+  font-size: 1.3rem;
+}
+.carte-cuisine li {
+  padding: 6px 0;
+}
+.carte-cuisine .qte {
+  font-weight: 900;
+}
+.actions-cuisine {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ───── Tableaux, indicateurs ───── */
+.tableau-conteneur {
+  overflow-x: auto;
+}
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+.tableau th,
+.tableau td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e3e3e3;
+  text-align: left;
+  vertical-align: middle;
+}
+.tableau th {
+  background: #eef2ee;
+  font-size: 0.9rem;
+}
+.tableau .droite {
+  text-align: right;
+}
+.tableau .centre {
+  text-align: center;
+}
+.tableau tr.total td {
+  font-weight: 800;
+  border-top: 2px solid #111;
+}
+.matrice td,
+.matrice th {
+  font-size: 0.85rem;
+  padding: 4px 6px;
+}
+.indicateurs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.indicateur {
+  background: #fff;
+  border: 2px solid var(--bord);
+  border-radius: var(--rayon);
+  padding: 12px;
+}
+.indicateur summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.indicateur summary strong {
+  font-size: 1.5rem;
+}
+.indicateur summary small {
+  color: var(--bleu);
+}
+.indicateur.benefice {
+  border-color: var(--vert);
+}
+.formule {
+  font-size: 0.9rem;
+  color: var(--doux);
+  background: #f8f8f5;
+  padding: 8px;
+  border-radius: 8px;
+}
+.ligne-valeur {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed #e3e3e3;
+  gap: 10px;
+}
+.alerte {
+  display: block;
+  margin-top: 8px;
+  color: var(--orange);
+  font-weight: 700;
+}
+
+/* ───── Employés ───── */
+.ligne-pointage {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #eee;
+  padding: 6px 0;
+}
+.bulletin .signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+}
+.ligne-achat {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 0.7fr 1.2fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+}
+.qr {
+  text-align: center;
+}
+.code-appairage {
+  font-size: 2rem;
+  letter-spacing: 6px;
+  font-weight: 800;
+}
+
+/* ───── Téléphones et petites tablettes ───── */
+@media (max-width: 900px) {
+  .prise-commande {
+    grid-template-columns: 1fr;
+  }
+  .ticket {
+    position: static;
+  }
+  .menu {
+    display: none;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    bottom: 0;
+    z-index: 30;
+    width: 260px;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+  }
+  .menu.ouvert {
+    display: flex;
+  }
+  .entete .burger {
+    display: inline-flex;
+  }
+  .entete .journee {
+    display: none;
+  }
+  .grille-2,
+  .grille-3 {
+    grid-template-columns: 1fr;
+  }
+  .ligne-achat {
+    grid-template-columns: 1fr 1fr;
+  }
+  .contenu {
+    padding: 10px;
+  }
+}
+
+/* ───── Impression (A4) ───── */
+@media print {
+  .entete,
+  .menu,
+  .bandeau,
+  .onglets,
+  .non-imprime,
+  .actions,
+  .notifications,
+  button {
+    display: none !important;
+  }
+  .voile {
+    position: static;
+    background: none;
+  }
+  .modal {
+    max-height: none;
+    width: 100%;
+  }
+  body,
+  .carte,
+  .indicateur {
+    background: #fff;
+    border-color: #999;
+  }
+  details {
+    display: block;
+  }
+}

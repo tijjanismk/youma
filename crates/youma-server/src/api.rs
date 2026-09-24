@@ -108,6 +108,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/commandes/{id}/fusionner", post(commande_fusionner))
         .route("/commandes/{id}/abandonner", post(commande_abandonner))
         .route("/commandes/{id}/imputer", post(commande_imputer))
+        .route("/commandes/{id}/client", post(commande_client))
         .route("/commandes/{id}/ticket", get(commande_ticket))
         .route("/commandes/{id}/imprimer", post(commande_imprimer))
         .route("/commandes/{id}/diviser", get(commande_diviser))
@@ -433,6 +434,15 @@ async fn commande_abandonner(State(e): State<Etat>, a: Auth, Path(id): Path<Stri
 
 async fn commande_imputer(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<i64> {
     ecrire!(e, a, |db| employes::imputer_commande(db, &a, &id))
+}
+
+#[derive(Deserialize)]
+struct ClientCommande {
+    client_id: Option<String>,
+}
+
+async fn commande_client(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(c): Json<ClientCommande>) -> Rep<()> {
+    ecrire!(e, a, |db| commandes::definir_client(db, &a, &id, c.client_id.as_deref()))
 }
 
 async fn commande_ticket(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<String> {

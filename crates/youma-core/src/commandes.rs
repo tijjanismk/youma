@@ -1063,3 +1063,17 @@ mod tests {
         assert_eq!(diviser_parts_egales(12_500, 3, 25).iter().sum::<i64>(), 12_500);
     }
 }
+
+/// Associe (ou retire) un client à l'addition : crédit, historique, livraison.
+pub fn definir_client(db: &mut Db, acteur: &Acteur, commande_id: &str, client_id: Option<&str>) -> Resultat<()> {
+    db.executer(acteur, |op| {
+        op.exiger(perm::COMMANDE_CREER)?;
+        let e = etat(op, commande_id)?;
+        exiger_ouverte(&e)?;
+        if let Some(c) = client_id {
+            crate::clients::client(op, c)?;
+        }
+        op.execute("UPDATE commandes SET client_id = ?1 WHERE id = ?2", params![client_id, commande_id])?;
+        toucher(op, commande_id)
+    })
+}
