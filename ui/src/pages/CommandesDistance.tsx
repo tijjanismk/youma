@@ -50,7 +50,7 @@ function CanauxAdmin() {
             changer={(v) => maj({ verification_numero: v })}
             options={[
               { valeur: "rappel", libelle: "Rappel par la caisse avant d'accepter" },
-              { valeur: "sms", libelle: "Code SMS (serveur relais et fournisseur SMS)" },
+              { valeur: "sms", libelle: "Code SMS Orange Mali (serveur relais)" },
             ]}
           />
         </div>
@@ -70,7 +70,9 @@ function CanauxAdmin() {
         <p className="aide">Sans relais, le menu QR et les commandes fonctionnent sur le Wi-Fi du restaurant. Le relais publie le menu sur Internet.</p>
         <Champ libelle="Adresse du relais" valeur={c.relais_url} changer={(v) => maj({ relais_url: v })} placeholder="https://commande.exemple.ml" />
         <Champ libelle="Clé du relais" valeur={c.relais_cle} changer={(v) => maj({ relais_cle: v })} type="password" />
-        <Champ libelle="Modèle d'adresse SMS ({numero}, {message})" valeur={c.sms_url} changer={(v) => maj({ sms_url: v })} />
+        <p className="aide">
+          SMS : Orange Mali, configuré sur le relais (identifiants Orange). Sans contrat Orange, le relais simule l'envoi et affiche le code au client.
+        </p>
         <EtatRelais />
       </details>
       <button className="principal" onClick={() => agir((pin) => appel("/parametres", { methode: "PUT", corps: p, pin }), "Canaux enregistrés").then(rechargerEtat)}>
@@ -80,7 +82,7 @@ function CanauxAdmin() {
   );
 }
 
-type EtatRelaisT = { actif: boolean; dernier_succes: number | null; derniere_erreur: string | null; commandes_recues: number };
+type EtatRelaisT = { actif: boolean; dernier_succes: number | null; derniere_erreur: string | null; commandes_recues: number; sms: string | null };
 
 function EtatRelais() {
   const { donnees } = useDonnees(() => get<EtatRelaisT>("/relais/etat").catch(() => null), []);
@@ -89,6 +91,7 @@ function EtatRelais() {
     <p className={donnees.derniere_erreur ? "attention-texte" : "aide"}>
       Relais : {donnees.dernier_succes ? `dernier contact ${dateHeure(donnees.dernier_succes)}` : "jamais joint"}
       {donnees.derniere_erreur && ` — erreur : ${donnees.derniere_erreur}`} · {donnees.commandes_recues} commande(s) reçue(s) depuis le démarrage
+      {donnees.sms && ` · SMS : ${donnees.sms === "orange_mali" ? "Orange Mali" : "simulation (pas de SMS réel)"}`}
     </p>
   );
 }

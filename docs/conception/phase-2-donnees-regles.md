@@ -165,7 +165,7 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAN-03** Liste noire : un numéro bloqué ne peut pas commander en ligne ; saisi par le personnel, il faut
   l'accord d'un responsable (`zone.outrepasser`), journalisé.
 * **RG-CAN-04** Vérification du numéro du client : rappel par la caisse (par défaut) ou code SMS envoyé par le
-  serveur relais. En mode SMS, une commande en ligne non vérifiée est refusée ; seul le relais peut l'attester.
+  serveur relais via Orange Mali (simulé tant que les identifiants Orange ne sont pas fournis). En mode SMS, une commande en ligne non vérifiée est refusée ; seul le relais peut l'attester.
 * **RG-CAN-05** Paiement des commandes en ligne : Mobile Money d'avance (opérateur et référence obligatoires,
   encaissé à l'acceptation, « à vérifier », référence unique RG-CAI-05) et/ou paiement à la livraison, selon les
   paramètres. L'avance peut être imposée au nouveau client ou au-delà d'un plafond.

@@ -2266,6 +2266,7 @@ name = "youma-relais"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64",
  "rand 0.8.8",
  "reqwest",
  "rusqlite",

@@ -3,10 +3,12 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use axum::extract::Query;
-use axum::routing::get;
+use axum::extract::Path;
+use axum::http::{HeaderMap, StatusCode};
+use axum::routing::post;
+use axum::Json;
 use serde_json::{json, Value};
-use youma_relais::{Config, Etat};
+use youma_relais::{Config, Etat, FournisseurSms};
 
 const CLE: &str = "cle-de-test-du-relais-0123";
 
@@ -17,8 +19,12 @@ struct Relais {
 }
 
 async fn relais() -> Relais {
+    relais_avec(FournisseurSms::Simulation).await
+}
+
+async fn relais_avec(sms: FournisseurSms) -> Relais {
     let dossier = tempfile::tempdir().unwrap();
-    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false };
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms };
     let etat = Etat::ouvrir(&config).unwrap();
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let adresse = ecoute.local_addr().unwrap();
@@ -26,24 +32,43 @@ async fn relais() -> Relais {
     Relais { url: format!("http://{adresse}/api"), client: reqwest::Client::new(), _dossier: dossier }
 }
 
-/// Faux fournisseur SMS : garde les messages reçus.
-async fn fournisseur_sms() -> (String, Arc<Mutex<Vec<(String, String)>>>) {
+/// Faux serveur Orange (API SMS) : jeton OAuth2 puis envoi ; garde les messages reçus.
+async fn faux_orange() -> (youma_relais::Orange, Arc<Mutex<Vec<Value>>>) {
     let recus = Arc::new(Mutex::new(Vec::new()));
     let r = recus.clone();
-    let app = axum::Router::new().route(
-        "/envoyer",
-        get(move |Query(q): Query<std::collections::HashMap<String, String>>| {
-            let r = r.clone();
-            async move {
-                r.lock().unwrap().push((q["to"].clone(), q["text"].clone()));
-                "OK"
-            }
-        }),
-    );
+    let app = axum::Router::new()
+        .route(
+            "/oauth/v3/token",
+            post(|h: HeaderMap, corps: String| async move {
+                // Basic base64("id:secret")
+                assert_eq!(h["authorization"], "Basic aWQ6c2VjcmV0");
+                assert_eq!(corps, "grant_type=client_credentials");
+                Json(json!({ "token_type": "Bearer", "access_token": "JETON", "expires_in": 3600 }))
+            }),
+        )
+        .route(
+            "/smsmessaging/v1/outbound/{expediteur}/requests",
+            post(move |Path(expediteur): Path<String>, h: HeaderMap, Json(v): Json<Value>| {
+                let r = r.clone();
+                async move {
+                    assert_eq!(h["authorization"], "Bearer JETON");
+                    assert_eq!(expediteur, "tel:+22370000000");
+                    r.lock().unwrap().push(v);
+                    (StatusCode::CREATED, Json(json!({ "outboundSMSMessageRequest": {} })))
+                }
+            }),
+        );
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let a: SocketAddr = ecoute.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(ecoute, app).await });
-    (format!("http://{a}/envoyer?to={{numero}}&text={{message}}"), recus)
+    let orange = youma_relais::Orange {
+        api: format!("http://{a}"),
+        client_id: "id".into(),
+        client_secret: "secret".into(),
+        expediteur: "+22370000000".into(),
+        nom_expediteur: Some("Baobab".into()),
+    };
+    (orange, recus)
 }
 
 impl Relais {
@@ -75,13 +100,13 @@ fn commande(code: &str) -> Value {
 
 #[tokio::test]
 async fn parcours_relais_sms_suivi_et_position() {
-    let r = relais().await;
-    let (sms_url, sms) = fournisseur_sms().await;
+    let (orange, sms) = faux_orange().await;
+    let r = relais_avec(FournisseurSms::Orange(orange)).await;
     // Avant la première synchronisation : rien à montrer.
     assert_eq!(r.get("/public/menu").await.0, 503);
     // Mauvaise clé : refusé.
     assert_eq!(r.synchroniser("mauvaise", json!({ "menu": menu() })).await.0, 401);
-    let config = json!({ "verification_numero": "sms", "sms_url": sms_url });
+    let config = json!({ "verification_numero": "sms" });
     let (code, s) = r.synchroniser(CLE, json!({ "menu": menu(), "config": config })).await;
     assert_eq!(code, 200, "{s}");
     let (_, m) = r.get("/public/menu").await;
@@ -91,8 +116,12 @@ async fn parcours_relais_sms_suivi_et_position() {
     // Code SMS : faux code refusé, bon code accepté.
     let (code, v) = r.post("/public/verification", json!({ "telephone": "76 00 00 01" })).await;
     assert_eq!(code, 200, "{v}");
-    let (numero, texte) = sms.lock().unwrap()[0].clone();
-    assert_eq!(numero, "+22376000001");
+    assert!(v.get("code").is_none(), "avec Orange, le code ne part que par SMS");
+    let envoi = sms.lock().unwrap()[0]["outboundSMSMessageRequest"].clone();
+    assert_eq!(envoi["address"], "tel:+22376000001");
+    assert_eq!(envoi["senderAddress"], "tel:+22370000000");
+    assert_eq!(envoi["senderName"], "Baobab");
+    let texte = envoi["outboundSMSTextMessage"]["message"].as_str().unwrap().to_string();
     let code_sms = texte.rsplit(' ').next().unwrap().to_string();
     assert_eq!(code_sms.len(), 4);
     let faux = if code_sms == "0000" { "1111" } else { "0000" };
@@ -142,7 +171,7 @@ async fn refus_du_poste_et_anti_abus() {
     let mut m = menu();
     m["verification_numero"] = json!("rappel");
     r.synchroniser(CLE, json!({ "menu": m, "config": { "verification_numero": "rappel" } })).await;
-    // Sans SMS configuré : pas de code.
+    // Vérification par rappel : pas de code SMS.
     assert_eq!(r.post("/public/verification", json!({ "telephone": "76000001" })).await.0, 403);
     let (_, rep) = r.post("/public/commandes", commande("")).await;
     assert_eq!(rep["statut"], "en_attente");
@@ -171,4 +200,22 @@ async fn refus_du_poste_et_anti_abus() {
     m["en_ligne"] = json!(false);
     r.synchroniser(CLE, json!({ "menu": m })).await;
     assert_eq!(r.get("/public/menu").await.0, 403);
+}
+
+#[tokio::test]
+async fn sms_simule_tant_qu_orange_n_est_pas_configure() {
+    let r = relais().await;
+    let config = json!({ "verification_numero": "sms" });
+    r.synchroniser(CLE, json!({ "menu": menu(), "config": config })).await;
+    let (_, etat) = r.get("/etat").await;
+    assert_eq!(etat["sms"], "simulation");
+    let (code, v) = r.post("/public/verification", json!({ "telephone": "76000001" })).await;
+    assert_eq!(code, 200, "{v}");
+    assert_eq!(v["simulation"], true);
+    let code_sms = v["code"].as_str().unwrap().to_string();
+    let (_, rep) = r.post("/public/commandes", commande(&code_sms)).await;
+    assert_eq!(rep["statut"], "en_attente", "{rep}");
+    let (_, s) = r.synchroniser(CLE, json!({ "menu": menu(), "config": config })).await;
+    assert_eq!(s["sms"], "simulation");
+    assert_eq!(s["commandes"][0]["telephone_verifie"], true);
 }

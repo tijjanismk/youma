@@ -46,5 +46,15 @@ Migration 0003 ; permissions `commande.valider_entrante` et `zone.outrepasser` ;
 RG-ZON-01 à 03, RG-LIV-04. **[HYPOTHÈSE]** La géolocalisation du navigateur exige HTTPS : sur le Wi-Fi du
 restaurant (http), la page livreur ne peut pas partager sa position ; le suivi en direct complet passe par le relais.
 **[HYPOTHÈSE]** Pas de limitation de débit sur les routes publiques du réseau local (Wi-Fi du restaurant) ;
-le relais en a une. **[HYPOTHÈSE]** Un relais par restaurant (pas de multi-établissements) ; le fournisseur SMS
-s'appelle par une simple requête GET dont l'adresse est un modèle (`{numero}` au format +223…, `{message}`).
+le relais en a une. **[HYPOTHÈSE]** Un relais par restaurant (pas de multi-établissements).
+
+## SMS : Orange Mali, simulé en attendant le contrat
+Le porteur de projet a choisi **Orange Mali**. Le relais appelle l'API SMS d'Orange Developer : jeton OAuth2
+(`POST /oauth/v3/token`, client_credentials, gardé jusqu'à son expiration et redemandé sur un refus 401), puis
+`POST /smsmessaging/v1/outbound/tel:+223…/requests`. Les identifiants (`YOUMA_ORANGE_*`) ne sont connus que du
+relais, jamais du poste central ni de la base. Sans eux, le relais **simule** : le code est journalisé et affiché
+sur la page du client, ce qui permet de tester tout le parcours. **[HYPOTHÈSE]** Forme exacte de l'API
+« SMS Mali » (chemins, nom d'expéditeur, format du numéro) à confirmer à la signature du contrat Orange.
+
+La clé du relais est un secret : `/api/etat` (lisible sans connexion) et le journal d'audit la remplacent par
+`********` ; renvoyer ce masque en enregistrant les paramètres conserve la clé existante.

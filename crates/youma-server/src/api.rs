@@ -246,7 +246,7 @@ async fn etat_general(State(e): State<Etat>, poste: Result<Poste, ApiErreur>) ->
                 "journee": journee::ouverte(db.conn())?,
                 "version": env!("CARGO_PKG_VERSION"),
                 "reseau": config.reseau,
-                "parametres": parametres::lire(db.conn())?,
+                "parametres": parametres::publics(db.conn())?,
             }))
         })
         .await?;

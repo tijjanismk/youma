@@ -67,7 +67,6 @@ export type Canaux = {
   verification_numero: string;
   relais_url: string;
   relais_cle: string;
-  sms_url: string;
 };
 
 export type Entrante = {

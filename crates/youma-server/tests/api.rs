@@ -476,7 +476,7 @@ async fn commandes_qr_en_ligne_et_suivi_par_api() {
 async fn relais_internet_de_bout_en_bout() {
     const CLE: &str = "cle-du-relais-de-bout-en-bout";
     let dossier_relais = tempfile::tempdir().unwrap();
-    let rc = youma_relais::Config { dossier_donnees: dossier_relais.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false };
+    let rc = youma_relais::Config { dossier_donnees: dossier_relais.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: youma_relais::FournisseurSms::Simulation };
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relais = format!("http://{}", ecoute.local_addr().unwrap());
     tokio::spawn(youma_relais::servir(youma_relais::Etat::ouvrir(&rc).unwrap(), None, ecoute));
@@ -499,6 +499,17 @@ async fn relais_internet_de_bout_en_bout() {
     p["canaux"]["relais_cle"] = json!(CLE);
     let r = s.client.put(format!("{}/parametres", s.url)).bearer_auth(&proprio).json(&p).send().await.unwrap();
     assert_eq!(r.status().as_u16(), 200);
+    // La clé du relais n'est jamais lisible sans connexion ; renvoyer le masque la conserve.
+    let (_, etat_public) = s.get("", "/etat").await;
+    assert_eq!(etat_public["parametres"]["canaux"]["relais_cle"], "********");
+    let mut p2 = etat_public["parametres"].clone();
+    p2["canaux"]["paiement_avance"] = json!(true);
+    let r = s.client.put(format!("{}/parametres", s.url)).bearer_auth(&proprio).json(&p2).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let (_, p3) = s.get(&proprio, "/parametres").await;
+    assert_eq!(p3["canaux"]["relais_cle"], CLE);
+    let (_, journal) = s.get(&proprio, "/audit?action=parametres.modifier").await;
+    assert!(!journal.to_string().contains(CLE), "pas de clé dans le journal");
     s.post(&caissier, "/journee/ouvrir", json!({})).await;
 
     let attendre = |chemin: String, condition: fn(&Value) -> bool| {
@@ -538,6 +549,7 @@ async fn relais_internet_de_bout_en_bout() {
     let (_, relais_etat) = s.get(&proprio, "/relais/etat").await;
     assert_eq!(relais_etat["actif"], true);
     assert!(relais_etat["commandes_recues"].as_u64().unwrap() >= 1);
+    assert_eq!(relais_etat["sms"], "simulation");
 
     let (_, file) = s.get(&caissier, "/entrantes").await;
     let id = file[0]["commande"]["id"].as_str().unwrap().to_string();

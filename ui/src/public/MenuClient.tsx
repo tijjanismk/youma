@@ -216,11 +216,14 @@ function Validation({
   const sms = enLigne && menu.verification_numero === "sms";
   const [codeSms, setCodeSms] = useState("");
   const [smsEnvoye, setSmsEnvoye] = useState(false);
+  const [codeSimule, setCodeSimule] = useState("");
   const demanderCode = async () => {
     setErreur("");
     try {
-      await post("/public/verification", { telephone });
+      const r = await post<{ envoye: boolean; simulation?: boolean; code?: string }>("/public/verification", { telephone });
       setSmsEnvoye(true);
+      // Relais sans contrat Orange Mali : envoi simulé, le code s'affiche ici.
+      setCodeSimule(r.simulation && r.code ? r.code : "");
     } catch (e) {
       setErreur(e instanceof Error ? e.message : String(e));
     }
@@ -298,6 +301,7 @@ function Validation({
                 {smsEnvoye ? "Renvoyer le code" : "Recevoir un code par SMS"}
               </button>
               <Champ libelle="Code reçu par SMS" valeur={codeSms} changer={setCodeSms} />
+              {codeSimule && <p className="aide">Mode test (SMS simulé) : votre code est {codeSimule}</p>}
             </div>
           )}
           {type === "livraison" && (

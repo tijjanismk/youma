@@ -20,11 +20,13 @@ pub struct EtatRelais {
     pub dernier_succes: Option<i64>,
     pub derniere_erreur: Option<String>,
     pub commandes_recues: u64,
+    /// Fournisseur SMS du relais : orange_mali ou simulation.
+    pub sms: Option<String>,
 }
 
 impl Default for EtatRelais {
     fn default() -> Self {
-        EtatRelais { intervalle_ms: 10_000, actif: false, dernier_succes: None, derniere_erreur: None, commandes_recues: 0 }
+        EtatRelais { intervalle_ms: 10_000, actif: false, dernier_succes: None, derniere_erreur: None, commandes_recues: 0, sms: None }
     }
 }
 
@@ -58,7 +60,7 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
             }
             let corps = json!({
                 "menu": entrantes::menu_public(db.conn(), None)?,
-                "config": { "verification_numero": c.verification_numero, "sms_url": c.sms_url },
+                "config": { "verification_numero": c.verification_numero },
                 "suivis": entrantes::suivis_recents(db.conn(), db.maintenant() - 24 * 3_600_000)?,
                 "resultats": envoyes,
             });
@@ -116,6 +118,7 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
         r.dernier_succes = Some(chrono::Utc::now().timestamp_millis());
         r.derniere_erreur = None;
         r.commandes_recues += n as u64;
+        r.sms = reponse["sms"].as_str().map(str::to_owned);
     }
     Ok(n)
 }

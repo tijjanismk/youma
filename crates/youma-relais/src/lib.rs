@@ -30,6 +30,9 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::entrantes::code_aleatoire;
 use youma_core::zones_risque::normaliser_telephone;
 
+pub mod sms;
+pub use sms::{FournisseurSms, Orange};
+
 /// Au-delà, le poste central est considéré injoignable : le menu s'affiche « fermé ».
 pub const SILENCE_MAX_MS: i64 = 90_000;
 /// Une commande transmise sans résultat est renvoyée après ce délai (le poste est idempotent).
@@ -44,13 +47,15 @@ pub struct Config {
     pub dossier_ui: Option<PathBuf>,
     /// Derrière un proxy HTTPS (Caddy, nginx) : l'adresse du client est dans `X-Forwarded-For`.
     pub derriere_proxy: bool,
+    /// Orange Mali, ou simulation tant que le contrat n'est pas signé.
+    pub sms: FournisseurSms,
 }
 
 #[derive(Clone)]
 pub struct Etat {
     db: Arc<Mutex<Connection>>,
     empreinte_cle: [u8; 32],
-    http: reqwest::Client,
+    sms: Arc<sms::Envoyeur>,
     limites: Arc<Mutex<HashMap<String, Vec<i64>>>>,
     derriere_proxy: bool,
 }
@@ -113,7 +118,7 @@ impl Etat {
         Ok(Etat {
             db: Arc::new(Mutex::new(conn)),
             empreinte_cle: empreinte(&config.cle),
-            http: reqwest::Client::builder().timeout(std::time::Duration::from_secs(15)).build().unwrap_or_default(),
+            sms: Arc::new(sms::Envoyeur::new(config.sms.clone())),
             limites: Arc::new(Mutex::new(HashMap::new())),
             derriere_proxy: config.derriere_proxy,
         })
@@ -164,7 +169,7 @@ impl Etat {
 pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
     let mut app = Router::new()
         .route("/api/relais/synchroniser", post(synchroniser))
-        .route("/api/etat", get(|| async { Json(json!({ "relais": true })) }))
+        .route("/api/etat", get(|State(e): State<Etat>| async move { Json(json!({ "relais": true, "sms": e.sms.nom() })) }))
         .route("/api/public/menu", get(menu))
         .route("/api/public/verification", post(verification))
         .route("/api/public/commandes", post(commande))
@@ -257,7 +262,7 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         let commandes: Vec<Value> = a_transmettre.into_iter().filter_map(|(_, c)| serde_json::from_str(&c).ok()).collect();
         Ok((commandes, positions))
     })?;
-    Ok(Json(json!({ "commandes": commandes, "positions": positions })))
+    Ok(Json(json!({ "commandes": commandes, "positions": positions, "sms": e.sms.nom() })))
 }
 
 // ───────────── Client ─────────────
@@ -277,16 +282,6 @@ async fn menu(State(e): State<Etat>, Query(q): Query<HashMap<String, String>>) -
     Ok(Json(m))
 }
 
-/// Encode une valeur pour une adresse (modèle du fournisseur SMS).
-fn encoder(s: &str) -> String {
-    s.bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
-}
-
 #[derive(Deserialize)]
 struct DemandeCode {
     telephone: String,
@@ -295,9 +290,8 @@ struct DemandeCode {
 /// RG-CAN-04 : code à 4 chiffres envoyé par SMS, valable 10 minutes, 5 essais.
 async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(d): Json<DemandeCode>) -> Rep {
     let config = e.lire("config")?.unwrap_or_default();
-    let modele = config["sms_url"].as_str().unwrap_or("").to_string();
-    if config["verification_numero"] != "sms" || modele.is_empty() {
-        return Err(erreur(StatusCode::FORBIDDEN, "INTERDIT", "Vérification par SMS non configurée"));
+    if config["verification_numero"] != "sms" {
+        return Err(erreur(StatusCode::FORBIDDEN, "INTERDIT", "Vérification par SMS non activée"));
     }
     let tel = normaliser_telephone(&d.telephone);
     if tel.len() != 8 {
@@ -310,9 +304,7 @@ async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<Socket
     let code = format!("{:04}", rand::thread_rng().gen_range(0..10_000));
     let restaurant = e.lire("menu")?.and_then(|m| m["restaurant"].as_str().map(str::to_owned)).unwrap_or_default();
     let message = format!("{restaurant} : votre code de commande est {code}");
-    let url = modele.replace("{numero}", &encoder(&format!("+223{tel}"))).replace("{message}", &encoder(&message));
-    let envoi = e.http.get(&url).send().await.and_then(|r| r.error_for_status());
-    if let Err(err) = envoi {
+    if let Err(err) = e.sms.envoyer(&format!("+223{tel}"), &message).await {
         tracing::warn!("SMS non envoyé : {err}");
         return Err(erreur(StatusCode::BAD_GATEWAY, "SMS", "SMS non envoyé : réessayez ou appelez le restaurant"));
     }
@@ -323,6 +315,10 @@ async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<Socket
             params![tel, h, maintenant() + 600_000],
         )
     })?;
+    // Simulation (pas encore de contrat Orange) : le code s'affiche sur la page du client.
+    if e.sms.simulation() {
+        return Ok(Json(json!({ "envoye": true, "simulation": true, "code": code })));
+    }
     Ok(Json(json!({ "envoye": true })))
 }
 

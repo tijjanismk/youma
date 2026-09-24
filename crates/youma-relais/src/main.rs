@@ -2,6 +2,8 @@
 //!
 //! À placer derrière un proxy HTTPS (Caddy, nginx) : la géolocalisation du livreur exige HTTPS.
 //! La clé peut aussi venir de la variable d'environnement `YOUMA_RELAIS_CLE`.
+//! SMS Orange Mali : `YOUMA_ORANGE_CLIENT_ID`, `YOUMA_ORANGE_CLIENT_SECRET`, `YOUMA_ORANGE_EXPEDITEUR` (+223…),
+//! `YOUMA_ORANGE_NOM_EXPEDITEUR` (facultatif). Sans eux : simulation (code affiché au client).
 
 use std::path::PathBuf;
 
@@ -28,7 +30,9 @@ async fn main() {
         cle,
         dossier_ui: arg(&args, "--ui").map(PathBuf::from).or_else(|| Some(PathBuf::from("ui/dist")).filter(|p| p.exists())),
         derriere_proxy: args.iter().any(|a| a == "--derriere-proxy"),
+        sms: youma_relais::FournisseurSms::depuis_environnement(),
     };
+    tracing::info!("SMS : {}", config.sms.nom());
     if let Err(e) = youma_relais::demarrer(config).await {
         eprintln!("Erreur : {e}");
         std::process::exit(1);

@@ -29,7 +29,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Commandes par téléphone, QR sur la table, en ligne ; file de validation | ✅ (réseau local) |
 | Zones à risque (quartier ou cercle GPS × heure × jours), liste noire de numéros | ✅ |
 | Suivi en direct pour le client, position du livreur | ✅ (position : via relais HTTPS) |
-| Serveur relais Internet facultatif (menu en ligne, code SMS, suivi et position du livreur en HTTPS) | ✅ |
+| Serveur relais Internet facultatif (menu en ligne, code SMS Orange Mali ou simulé, suivi et position du livreur en HTTPS) | ✅ (SMS simulé tant que le contrat Orange n'est pas signé) |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
 | Recettes, consignes, cloud, multi-établissements | V2, non commencé |
 
@@ -57,8 +57,17 @@ YOUMA_RELAIS_CLE=une-longue-cle-secrete cargo run --release -p youma-relais -- -
 
 Puis, sur le poste central : Administration → Commandes à distance → « Serveur relais Internet » :
 adresse (`https://commande.exemple.ml`) et même clé. Le poste central appelle le relais toutes les 10 s ;
-s'il se tait, le menu en ligne s'affiche « fermé ». Code SMS : modèle d'adresse du fournisseur, par exemple
-`https://api.fournisseur.ml/send?to={numero}&text={message}`.
+s'il se tait, le menu en ligne s'affiche « fermé ».
+
+Code SMS de vérification du numéro : **Orange Mali** (API SMS d'Orange Developer). Identifiants à fournir
+au relais seulement :
+
+```bash
+YOUMA_ORANGE_CLIENT_ID=… YOUMA_ORANGE_CLIENT_SECRET=… YOUMA_ORANGE_EXPEDITEUR=+223XXXXXXXX \
+YOUMA_ORANGE_NOM_EXPEDITEUR=Baobab   # facultatif, nom validé par Orange
+```
+
+Sans ces identifiants, le relais **simule** l'envoi : le code s'affiche sur la page du client (essais, démonstration).
 
 ## Tests
 

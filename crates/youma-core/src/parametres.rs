@@ -61,13 +61,11 @@ pub struct Canaux {
     pub plafond_paiement_livraison: i64,
     /// Nouveau client (numéro jamais servi) : paiement d'avance obligatoire.
     pub avance_nouveau_client: bool,
-    /// aucune | sms | rappel (RG-CAN-04).
+    /// rappel | sms (RG-CAN-04) ; SMS : Orange Mali, envoyé par le relais.
     pub verification_numero: String,
     /// Relais Internet optionnel (étape B) : adresse et clé du restaurant.
     pub relais_url: String,
     pub relais_cle: String,
-    /// Fournisseur SMS (modèle d'URL avec {telephone} et {message}) ; vide = pas de SMS, rappel par le caissier.
-    pub sms_url: String,
 }
 
 impl Default for Canaux {
@@ -83,7 +81,6 @@ impl Default for Canaux {
             verification_numero: "rappel".into(),
             relais_url: String::new(),
             relais_cle: String::new(),
-            sms_url: String::new(),
         }
     }
 }
@@ -238,7 +235,25 @@ pub fn modifier_restaurant(db: &mut crate::Db, acteur: &crate::Acteur, r: &Resta
     })
 }
 
+/// Valeur affichée à la place d'un secret (clé du relais) : jamais renvoyée à un poste non autorisé.
+pub const SECRET_MASQUE: &str = "********";
+
+/// Paramètres lisibles sans connexion (`/api/etat`) : les secrets sont masqués.
+pub fn publics(conn: &Connection) -> Resultat<Parametres> {
+    let mut p = lire(conn)?;
+    if !p.canaux.relais_cle.is_empty() {
+        p.canaux.relais_cle = SECRET_MASQUE.into();
+    }
+    Ok(p)
+}
+
 pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> Resultat<()> {
+    let mut p = p.clone();
+    if p.canaux.relais_cle == SECRET_MASQUE {
+        // Formulaire rempli depuis les paramètres publics : la clé n'a pas été modifiée.
+        p.canaux.relais_cle = lire(db.conn())?.canaux.relais_cle;
+    }
+    let p = &p;
     db.executer(acteur, |op| {
         op.exiger(crate::permissions::PARAMETRE_GERER)?;
         if !(0..=12).contains(&p.heure_bascule) || p.arrondi < 1 || p.seuil_ecart_caisse < 0 || p.largeur_ticket < 24 {
@@ -253,9 +268,16 @@ pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> R
         if (c.inps_active && c.inps_salarie_bp == 0) || (c.amo_active && c.amo_salarie_bp == 0) {
             return Err(crate::Erreur::regle("RG-PAI-07", "Saisissez le taux de cotisation avant de l'activer"));
         }
-        let avant = serde_json::to_value(&op.params)?;
+        // Le journal d'audit ne garde pas la clé du relais.
+        let masquer = |mut v: serde_json::Value| {
+            if v["canaux"]["relais_cle"].as_str().is_some_and(|c| !c.is_empty()) {
+                v["canaux"]["relais_cle"] = SECRET_MASQUE.into();
+            }
+            v
+        };
+        let avant = masquer(serde_json::to_value(&op.params)?);
         ecrire(op, p)?;
-        op.audit("parametres.modifier", "parametres", None, Some(avant), Some(serde_json::to_value(p)?), None, None)?;
+        op.audit("parametres.modifier", "parametres", None, Some(avant), Some(masquer(serde_json::to_value(p)?)), None, None)?;
         Ok(())
     })
 }
