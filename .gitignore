@@ -8,3 +8,4 @@ ui/playwright-report/
 *.db-wal
 *.db-shm
 /donnees/
+*.tsbuildinfo
