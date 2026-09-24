@@ -22,6 +22,8 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Employés (contrat, INPS et AMO facultatifs), présences, avances, paie, bulletins | ✅ |
 | Livraison et remise livreur | ✅ (base) |
 | Rapports avec formules, export CSV, journal d'audit | ✅ |
+| Ticket de caisse = bon de sortie (code de contrôle, écran de contrôle) | ✅ |
+| Mot de passe personnel pour l'administration (en plus du PIN) | ✅ |
 | Sauvegardes, intégrité, restauration, licence hors ligne, diagnostic | ✅ |
 | Mode réseau (téléphones via navigateur, appairage par QR) | ✅ |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
@@ -32,7 +34,9 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 ```bash
 # Interface
 cd ui && npm ci && npm run build && cd ..
-# Poste central avec la base de démonstration (PIN : propriétaire 1234, gérant 2222, caisse 3333, serveuse 4444, grill 5555)
+# Poste central avec la base de démonstration
+#   PIN : propriétaire 1234, gérant 2222, caisse 3333, serveuse 4444, grill 5555
+#   Mot de passe d'administration : propriétaire « baobab123 », gérant « adama123 »
 cargo run -p youma-server -- --demo --donnees ./donnees --ui ui/dist
 # → http://127.0.0.1:7878
 # Mode réseau (téléphones des serveurs) : ajouter --reseau

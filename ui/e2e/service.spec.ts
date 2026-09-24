@@ -4,6 +4,9 @@ import { expect, Page, test } from "@playwright/test";
 // Les tests s'enchaînent sur la même journée, comme un vrai service.
 test.describe.configure({ mode: "serial" });
 
+// Bon de sortie du service à table, contrôlé plus loin.
+let bonSortie: { numero: string; code: string } | null = null;
+
 async function connexion(page: Page, nom: RegExp, pin: string) {
   await page.goto("/");
   const changer = page.getByRole("button", { name: "Changer d'utilisateur" });
@@ -67,6 +70,10 @@ test("service à table : tournées, envoi, encaissement mixte et rendu monnaie",
   await expect(page.getByText("Argent reçu du client")).toBeVisible();
   await expect(page.locator(".resultat-paiement")).toContainText("5 000 FCFA");
   await expect(page.getByText("Monnaie à rendre : 3 000 FCFA")).toBeVisible();
+  // Ticket de caisse = bon de sortie : numéro et code affichés.
+  const bon = page.locator(".bon-sortie strong");
+  bonSortie = { numero: (await bon.nth(0).textContent())!, code: (await bon.nth(1).textContent())! };
+  expect(bonSortie.code).toMatch(/^[A-Z2-9]{4}$/);
   await page.getByRole("button", { name: "Terminé" }).click();
   await expect(page.getByRole("button", { name: /^Table 4 Libre/ })).toBeVisible();
 });
@@ -143,15 +150,50 @@ test("employé sans contrat, payé à la journée : seul le nom et le taux sont 
   await expect(page.getByRole("row").filter({ hasText: "Bakary Diallo" })).toContainText("2 500 FCFA");
 });
 
-test("cotisations INPS/AMO : désactivées par défaut, activables", async ({ page }) => {
+test("administration protégée par mot de passe ; cotisations INPS/AMO à taux manuels", async ({ page }) => {
   await connexion(page, /Mariam/, "1234");
   await page.goto("/administration");
   await page.getByRole("tab", { name: "Restaurant et règles" }).click();
+  // Le PIN ne suffit pas (RG-AUT-06).
+  await expect(page.getByText("Mot de passe requis")).toBeVisible();
+  await page.getByRole("button", { name: "Saisir mon mot de passe" }).click();
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mauvais1");
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await expect(page.getByText("Mot de passe incorrect")).toBeVisible();
+  await page.getByLabel("Mot de passe", { exact: true }).fill("baobab123");
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  // Cotisations désactivées par défaut, taux vides à saisir.
   const inps = page.getByRole("checkbox", { name: "Prélever la cotisation INPS" });
   await expect(inps).not.toBeChecked();
   await expect(page.getByRole("checkbox", { name: "Prélever la cotisation AMO" })).not.toBeChecked();
   await inps.check();
-  await expect(page.getByLabel("INPS part salarié (%)")).toHaveValue("3,60");
+  await expect(page.getByLabel("INPS part salarié (%)")).toHaveValue("0,00");
+  await page.getByRole("button", { name: "Enregistrer les règles" }).click();
+  await expect(page.getByText("Saisissez le taux de cotisation avant de l'activer")).toBeVisible();
+  await page.getByLabel("INPS part salarié (%)").fill("3,6");
+  await page.getByRole("button", { name: "Enregistrer les règles" }).click();
+  await expect(page.getByText("Paramètres enregistrés")).toBeVisible();
+  // Tous les opérateurs Mobile Money sont proposés.
+  await page.getByRole("tab", { name: "Moyens de paiement" }).click();
+  for (const op of ["Orange Money", "Moov Money", "Wave", "Sama Money"]) {
+    await expect(page.getByRole("checkbox", { name: `${op} actif` })).toBeChecked();
+  }
+});
+
+test("contrôle de sortie : le ticket payé est un bon de sortie, une seule fois", async ({ page }) => {
+  expect(bonSortie).not.toBeNull();
+  await connexion(page, /Awa/, "4444");
+  await page.goto("/sortie");
+  await page.getByLabel("N° du bon de sortie").fill(bonSortie!.numero);
+  await page.getByLabel("Code de contrôle").fill(bonSortie!.code);
+  await page.getByRole("button", { name: "Vérifier" }).click();
+  await expect(page.getByText("PAYÉ — peut sortir")).toBeVisible();
+  await expect(page.getByText("3 × Bière blonde")).toBeVisible();
+  await page.getByRole("button", { name: "Ticket suivant" }).click();
+  await page.getByLabel("N° du bon de sortie").fill(bonSortie!.numero);
+  await page.getByLabel("Code de contrôle").fill(bonSortie!.code);
+  await page.getByRole("button", { name: "Vérifier" }).click();
+  await expect(page.getByText("DÉJÀ PRÉSENTÉ")).toBeVisible();
 });
 
 test("tableau de bord : chiffres de la journée avec leurs formules", async ({ page }) => {

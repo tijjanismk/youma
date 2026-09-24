@@ -25,6 +25,7 @@ const Rapports = lazy(() => import("./pages/Rapports"));
 const MobileMoney = lazy(() => import("./pages/MobileMoney"));
 const Administration = lazy(() => import("./pages/Administration"));
 const Journal = lazy(() => import("./pages/Journal"));
+const Sortie = lazy(() => import("./pages/Sortie"));
 
 export default function App() {
   return (
@@ -171,6 +172,7 @@ function Coquille() {
               <Route path="/mobile-money" element={<MobileMoney />} />
               <Route path="/administration" element={<Administration />} />
               <Route path="/journal" element={<Journal />} />
+              <Route path="/sortie" element={<Sortie />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

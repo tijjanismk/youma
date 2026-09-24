@@ -136,9 +136,12 @@ impl FromRequestParts<Etat> for Auth {
             .ok_or(ApiErreur(Erreur::NonAuthentifie))?;
         let pin = entete(parts, "x-autorisation-pin");
         let j = jeton.clone();
-        let (uid, appareil_session) = etat.avec_db(move |db| auth::verifier_session(db, &j)).await?;
-        let acteur = Acteur::utilisateur(&uid).avec_appareil(appareil.or(appareil_session)).avec_autorisation(pin);
-        Ok(Auth { acteur, jeton, utilisateur_id: uid })
+        let s = etat.avec_db(move |db| auth::verifier_session(db, &j)).await?;
+        let acteur = Acteur::utilisateur(&s.utilisateur_id)
+            .avec_appareil(appareil.or(s.appareil_id))
+            .avec_autorisation(pin)
+            .avec_eleve(s.eleve);
+        Ok(Auth { acteur, jeton, utilisateur_id: s.utilisateur_id })
     }
 }
 

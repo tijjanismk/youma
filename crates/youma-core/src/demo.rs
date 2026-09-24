@@ -75,8 +75,9 @@ fn employe(nom: &str, fonction: &str, remuneration: &str, montant: i64, contrat:
 }
 
 /// Remplit une base vide. PIN : propriétaire 1234, gérant 2222, caissier 3333, serveuse 4444, cuisinier 5555.
+/// Mots de passe d'administration (RG-AUT-06) : propriétaire « baobab123 », gérant « adama123 ».
 pub fn remplir(db: &mut Db) -> Resultat<Demo> {
-    let proprietaire = auth::installer_proprietaire(db, "Mariam (propriétaire)", "1234", "Maquis Le Baobab")?;
+    let proprietaire = auth::installer_proprietaire(db, "Mariam (propriétaire)", "1234", "baobab123", "Maquis Le Baobab")?;
     let sys = Acteur::systeme();
     db.conn().execute("INSERT OR REPLACE INTO systeme(cle, valeur) VALUES ('demo', '1')", [])?;
     db.conn().execute(
@@ -98,7 +99,7 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
         mot_de_passe: None,
         employe_id: None,
     };
-    let gerant = auth::creer_utilisateur(db, &sys, &u("Adama (gérant)", "gerant", "2222"))?;
+    let gerant = auth::creer_utilisateur(db, &sys, &NouvelUtilisateur { mot_de_passe: Some("adama123".into()), ..u("Adama (gérant)", "gerant", "2222") })?;
     let caissier = auth::creer_utilisateur(db, &sys, &u("Kadi (caisse)", "caissier", "3333"))?;
     let serveur = auth::creer_utilisateur(db, &sys, &u("Awa", "serveur", "4444"))?;
     auth::creer_utilisateur(db, &sys, &u("Moussa (grill)", "cuisinier", "5555"))?;

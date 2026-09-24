@@ -8,6 +8,7 @@ export const MENU: { chemin: string; libelle: string; icone: string; permission?
   { chemin: "/caisse", libelle: "Caisse", icone: "💰", permission: "caisse.session" },
   { chemin: "/cuisine", libelle: "Cuisine / Bar", icone: "👨‍🍳", permission: "cuisine.voir" },
   { chemin: "/livraisons", libelle: "Livraisons", icone: "🛵", permission: "livraison.gerer" },
+  { chemin: "/sortie", libelle: "Contrôle de sortie", icone: "🎫", permission: "sortie.controler" },
   { chemin: "/tableau-de-bord", libelle: "Ma journée", icone: "📊", permission: "rapport.voir" },
   { chemin: "/mobile-money", libelle: "Mobile Money", icone: "📱", permission: "caisse.verifier_mm" },
   { chemin: "/stock", libelle: "Stock", icone: "📦", permission: "stock.voir" },

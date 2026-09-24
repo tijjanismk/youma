@@ -13,6 +13,9 @@ pub enum Erreur {
     /// RG-AUT-03 : l'action est possible avec le PIN d'un responsable.
     #[error("Autorisation d'un responsable requise ({0})")]
     AutorisationRequise(String),
+    /// RG-AUT-06 : confirmer la session par le mot de passe de l'utilisateur.
+    #[error("Confirmez avec votre mot de passe pour accéder à l'administration")]
+    MotDePasseRequis(String),
     #[error("{0}")]
     Validation(String),
     /// Violation d'une règle métier numérotée.
@@ -48,6 +51,7 @@ impl Erreur {
             Erreur::NonTrouve(_) => "NON_TROUVE",
             Erreur::Interdit(_) => "INTERDIT",
             Erreur::AutorisationRequise(_) => "AUTORISATION_REQUISE",
+            Erreur::MotDePasseRequis(_) => "MOT_DE_PASSE_REQUIS",
             Erreur::Validation(_) => "VALIDATION",
             Erreur::Regle { .. } => "REGLE_METIER",
             Erreur::HorlogeIncoherente(_) => "HORLOGE_INCOHERENTE",
@@ -67,6 +71,7 @@ impl Erreur {
             Erreur::Regle { regle, .. } => Some(regle),
             Erreur::HorlogeIncoherente(_) => Some("RG-SYS-01"),
             Erreur::AutorisationRequise(_) => Some("RG-AUT-03"),
+            Erreur::MotDePasseRequis(_) => Some("RG-AUT-06"),
             Erreur::Base(e) if est_ajout_seul(e) => Some("RG-SYS-03"),
             _ => None,
         }
@@ -74,7 +79,7 @@ impl Erreur {
 
     pub fn permission(&self) -> Option<&str> {
         match self {
-            Erreur::AutorisationRequise(p) | Erreur::Interdit(p) => Some(p),
+            Erreur::AutorisationRequise(p) | Erreur::Interdit(p) | Erreur::MotDePasseRequis(p) => Some(p),
             _ => None,
         }
     }

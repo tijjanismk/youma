@@ -112,9 +112,8 @@ docs/                      cahier des charges, conception, décisions
 
 * **[HYPOTHÈSE]** Heure de bascule par défaut : 6 h.
 * **[HYPOTHÈSE]** Quantités de stock entières dans l'unité de base (bouteille, pièce, g, ml).
-* **[HYPOTHÈSE]** Taux INPS/AMO fournis par défaut à titre indicatif (salarié INPS 3,6 %, AMO 3,06 %
-  salarié / 3,5 % employeur) **désactivés** ; à faire vérifier par le comptable du client.
+* Taux INPS/AMO : **saisis à la main** par le restaurateur, aucun taux pré-rempli (décision du porteur de projet).
 * **[HYPOTHÈSE]** Mois de paie = 26 jours ouvrables pour la déduction d'absence (configurable).
-* Question : faut-il une numérotation de factures distincte des tickets (clients B2B) ?
-* Question : quels opérateurs Mobile Money activer par défaut (Orange Money, Moov Money, Wave) ?
+* Pas de factures distinctes : le ticket de caisse payé sert de bon de sortie (fiche 0012).
+* Opérateurs Mobile Money : tous proposés (Orange Money, Moov Money, Wave, Sama Money), d'autres ajoutables.
 * Question : impression USB par le spouleur Windows à valider sur le matériel du pilote.

@@ -991,6 +991,28 @@ code {
   font-weight: 800;
 }
 
+/* ───── Contrôle de sortie ───── */
+.code-saisie {
+  font-size: 2rem;
+  letter-spacing: 10px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.resultat-sortie.ok {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+.resultat-sortie.ko {
+  border-color: var(--rouge);
+  background: #fef2f2;
+}
+.resultat-sortie h2 {
+  font-size: 1.8rem;
+}
+.bon-sortie {
+  font-size: 1.2rem;
+}
+
 /* ───── Téléphones et petites tablettes ───── */
 @media (max-width: 900px) {
   .prise-commande {

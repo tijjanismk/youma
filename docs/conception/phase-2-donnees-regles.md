@@ -49,6 +49,10 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   peut être autorisée ponctuellement par le PIN d'un responsable qui détient la permission. Les deux identités sont journalisées.
 * **RG-AUT-04** Session expirée après l'inactivité configurée (défaut 15 min en poste de service).
 * **RG-AUT-05** Le rôle `proprietaire` ne peut pas perdre ses permissions ni être supprimé.
+* **RG-AUT-06** Les permissions d'administration (`utilisateur.gerer`, `parametre.gerer`, `licence.gerer`,
+  `sauvegarde.gerer`, `appareil.gerer`) exigent une session confirmée par le **mot de passe personnel**
+  (6 caractères au moins) en plus du PIN. Pas d'autorisation ponctuelle par PIN pour elles. Les échecs de
+  mot de passe comptent pour le verrouillage (RG-AUT-02). Le propriétaire choisit son mot de passe à l'installation.
 
 ### Journée (JOU)
 * **RG-JOU-01** Vente, dépense, session de caisse exigent une journée ouverte.
@@ -138,13 +142,22 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-PAI-05** Paiement partiel autorisé ; il sort d'un compte de trésorerie et apparaît dans la caisse.
 * **RG-PAI-06** Un bulletin clôturé n'est jamais modifié ; toute correction est un mouvement de régularisation qui apparaîtra sur le bulletin suivant.
 * **RG-PAI-07** Cotisations INPS/AMO : appliquées seulement si (a) activées dans les paramètres ET (b) l'employé est déclaré/affilié.
-  Désactivées par défaut. La part employeur est affichée à titre informatif, jamais retenue sur le salaire.
+  Désactivées par défaut. **Taux saisis à la main** par le restaurateur (aucun taux pré-rempli) ; une cotisation
+  ne peut être activée sans taux salarié. La part employeur est affichée à titre informatif, jamais retenue sur le salaire.
 * **RG-PAI-08** Déduction d'absence = base ÷ jours ouvrables du mois (paramètre, défaut 26) × absences non justifiées, arrondie à l'entier.
 
 ### Livraison (LIV)
 * **RG-LIV-01** Une commande livraison porte adresse (quartier, repère, téléphone), frais et livreur.
 * **RG-LIV-02** Un paiement espèces encaissé par le livreur va sur le compte « à remettre » du livreur, pas dans la caisse.
 * **RG-LIV-03** Remise livreur : transfert du compte livreur vers la caisse ; l'écart (attendu − remis) est enregistré avec motif.
+
+### Bon de sortie (SOR)
+* **RG-SOR-01** Pas de facture séparée : le ticket de caisse d'une addition entièrement payée sert de bon de sortie
+  (« TICKET DE CAISSE », « BON DE SORTIE n° », « PAYÉ »). Il est imprimé d'office si une imprimante de caisse est configurée.
+* **RG-SOR-02** Le bon porte un code de contrôle de 4 caractères, dérivé de l'installation et de la commande.
+  Au contrôle, numéro et code doivent correspondre (un numéro inventé est refusé et journalisé).
+* **RG-SOR-03** Chaque présentation d'un bon payé est enregistrée (ajout seul). Une deuxième présentation est
+  signalée « déjà présenté » avec l'heure et le contrôleur, et journalisée.
 
 ### Rapports (RAP)
 * **RG-RAP-01** Chaque indicateur est accompagné de sa formule écrite.

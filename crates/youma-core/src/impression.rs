@@ -326,6 +326,10 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
         Some(t) => format!("Table {t}"),
         None => c.type_.replace('_', " "),
     };
+    let payee = matches!(c.statut.as_str(), "payee" | "cloturee") && c.totaux.reste == 0 && c.totaux.paye > 0;
+    if payee {
+        s.push_str(">>TICKET DE CAISSE\n");
+    }
     s.push_str(&format!("**Ticket n°{} — {titre}\n", c.numero));
     s.push_str(&format!("{}\n", format_ms(c.cree_le + p.fuseau_minutes * 60_000)));
     if let Some(serv) = &c.serveur_nom {
@@ -372,6 +376,13 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
     }
     if c.totaux.reste > 0 {
         s.push_str(&format!("**{}\n", ligne_montant("Reste à payer", &fcfa(c.totaux.reste), w)));
+    }
+    // Fiche 0012 : le ticket payé sert de bon de sortie (RG-SOR-01/02).
+    if payee {
+        s.push_str("--\n");
+        s.push_str(&format!("##BON DE SORTIE n°{}\n", c.numero));
+        s.push_str(&format!("**PAYÉ — Code de contrôle : {}\n", crate::sortie::code_controle(conn, commande_id)?));
+        s.push_str(">>Présentez ce ticket à la sortie\n");
     }
     s.push_str("--\n");
     s.push_str(&format!(">>{pied}\n"));

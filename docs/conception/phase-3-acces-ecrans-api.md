@@ -51,6 +51,10 @@ Administration → Rôles et droits ; le rôle propriétaire est intouchable, RG
 | `appareil.gerer` | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | Plafond de remise | 100 % | 100 % | 50 % | 10 % | 0 % | 0 % | 0 % | 0 % | 0 % |
 
+Nouvelle permission `sortie.controler` (contrôle des bons de sortie) : propriétaire, administrateur, gérant,
+caissier, serveur. Les permissions d'administration (`utilisateur.gerer`, `parametre.gerer`, `licence.gerer`,
+`sauvegarde.gerer`, `appareil.gerer`) exigent en plus le mot de passe personnel (RG-AUT-06).
+
 Une permission absente n'est pas un refus sec : l'action peut être autorisée ponctuellement par le PIN d'un
 responsable présent qui détient la permission (RG-AUT-03). Les deux identités sont journalisées.
 
@@ -82,6 +86,7 @@ Choix notables :
 | Paie | `/paie` | RH, gérant |
 | Rapports (+ CSV, impression) | `/rapports` | gérant, propriétaire |
 | Journal d'audit | `/journal` | propriétaire |
+| Contrôle de sortie (bon de sortie) | `/sortie` | serveur, caissier, gérant |
 | Administration | `/administration` | propriétaire, gérant |
 
 ### Maquettes textuelles des écrans principaux
@@ -146,6 +151,7 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 | `VERROUILLE` | 423 | 5 échecs (RG-AUT-02) |
 | `INTERDIT` | 403 | droit de lecture manquant, appareil non autorisé |
 | `AUTORISATION_REQUISE` | 403 | action possible avec le PIN d'un responsable |
+| `MOT_DE_PASSE_REQUIS` | 403 | administration : confirmer la session par mot de passe (RG-AUT-06) |
 | `VALIDATION`, `REGLE_METIER` | 422 | données ou règle `RG-*` (champ `regle`) |
 | `HORLOGE_INCOHERENTE` | 409 | RG-SYS-01 |
 | `AJOUT_SEUL` | 409 | tentative de modification d'une donnée financière |
@@ -155,7 +161,7 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 
 | Domaine | Routes |
 |---|---|
-| Système | `GET /etat`, `POST /installation`, `GET /connexion/utilisateurs`, `POST /connexion`, `POST /deconnexion`, `GET /session`, `POST /horloge/accepter`, `GET /ws?jeton=` |
+| Système | `GET /etat`, `POST /installation`, `POST /session/elever`, `POST /moi/mot-de-passe`, `POST /utilisateurs/{id}/mot-de-passe`, `POST /sortie/controle`, `GET /connexion/utilisateurs`, `POST /connexion`, `POST /deconnexion`, `GET /session`, `POST /horloge/accepter`, `GET /ws?jeton=` |
 | Journée | `GET /journees`, `POST /journee/ouvrir`, `POST /journee/cloturer` |
 | Catalogue | `GET /catalogue`, `POST /categories`, `POST /produits`, `POST /produits/import` (CSV), `POST /produits/{id}/disponibilite`, `GET /produits/{id}/historique`, `POST /postes` |
 | Salle | `GET /salle`, `POST /zones`, `POST /tables`, `POST /tables/serie`, `POST /tables/{id}/marquer` |

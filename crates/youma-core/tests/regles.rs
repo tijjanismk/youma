@@ -105,7 +105,7 @@ fn rg_aut_01_pin_unique_et_format() {
     auth::creer_utilisateur(&mut b.db, &p, &u("987654")).unwrap();
     // Un serveur ne crée pas d'utilisateur.
     let s = b.serveur();
-    assert_eq!(auth::creer_utilisateur(&mut b.db, &s, &u("1111")).unwrap_err().code(), "AUTORISATION_REQUISE");
+    assert_eq!(auth::creer_utilisateur(&mut b.db, &s, &u("1111")).unwrap_err().code(), "INTERDIT");
 }
 
 #[test]
@@ -473,6 +473,13 @@ fn rg_pai_07_cotisations_facultatives() {
     let mut p = parametres::lire(b.db.conn()).unwrap();
     p.cotisations.inps_active = true;
     p.cotisations.amo_active = true;
+    // Taux saisis à la main par le restaurateur (exemple).
+    let proprio = b.proprietaire();
+    assert_eq!(parametres::modifier(&mut b.db, &proprio, &p).unwrap_err().regle_code(), Some("RG-PAI-07"), "activer sans taux est refusé");
+    p.cotisations.inps_salarie_bp = 360;
+    p.cotisations.inps_employeur_bp = 1640;
+    p.cotisations.amo_salarie_bp = 306;
+    p.cotisations.amo_employeur_bp = 350;
     parametres::ecrire(b.db.conn(), &p).unwrap();
     let a1 = paie::apercu(b.db.conn(), &adama, "2026-03-01", "2026-03-31").unwrap();
     assert_eq!(a1.cotisations_salarie, 4_320 + 3_672);
@@ -530,9 +537,9 @@ fn base_neuve_initialisee_sans_utilisateur() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-01-01", 8, 0));
     let mut db = Db::en_memoire(h).unwrap();
     assert_eq!(auth::nombre_utilisateurs(db.conn()).unwrap(), 0);
-    assert_eq!(caisse::lister_comptes(db.conn()).unwrap().len(), 4);
-    let id = auth::installer_proprietaire(&mut db, "Moi", "1234", "Chez Moi").unwrap();
-    assert!(auth::installer_proprietaire(&mut db, "Autre", "9999", "").is_err());
+    assert_eq!(caisse::lister_comptes(db.conn()).unwrap().len(), 6);
+    let id = auth::installer_proprietaire(&mut db, "Moi", "1234", "motdepasse", "Chez Moi").unwrap();
+    assert!(auth::installer_proprietaire(&mut db, "Autre", "9999", "motdepasse", "").is_err());
     let s = auth::connexion_pin(&mut db, &id, "1234", None).unwrap();
     assert!(s.permissions.len() > 30);
     let _ = Acteur::systeme();
@@ -584,4 +591,117 @@ fn rg_cai_14_especes_recues_et_monnaie_rendue() {
     let t = rap.tableaux.iter().find(|t| t.titre == "Espèces reçues et monnaie rendue").unwrap();
     assert_eq!(t.lignes.len(), 1);
     assert_eq!(t.lignes[0][4..], [serde_json::json!(3_000), serde_json::json!(5_000), serde_json::json!(2_000)]);
+}
+
+#[test]
+fn rg_aut_06_administration_par_mot_de_passe() {
+    let mut b = banc();
+    let pid = b.demo.proprietaire.clone();
+    let u = NouvelUtilisateur { nom: "Test".into(), role_code: "serveur".into(), pin: "8765".into(), mot_de_passe: None, employe_id: None };
+    // Connecté par PIN seulement : l'administration exige le mot de passe.
+    let pin_seul = Acteur::utilisateur(&pid);
+    assert_eq!(auth::creer_utilisateur(&mut b.db, &pin_seul, &u).unwrap_err().code(), "MOT_DE_PASSE_REQUIS");
+    // Le PIN d'un responsable ne remplace pas le mot de passe.
+    let serveur = b.serveur().avec_autorisation(Some("1234".into()));
+    assert_eq!(auth::creer_utilisateur(&mut b.db, &serveur, &u).unwrap_err().code(), "INTERDIT");
+    // Session confirmée par le bon mot de passe.
+    let s = auth::connexion_pin(&mut b.db, &pid, "1234", None).unwrap();
+    assert!(!s.eleve);
+    assert!(auth::elever_session(&mut b.db, &s.jeton, "mauvais").is_err());
+    let s = auth::elever_session(&mut b.db, &s.jeton, "baobab123").unwrap();
+    assert!(s.eleve);
+    assert!(auth::verifier_session(&b.db, &s.jeton).unwrap().eleve);
+    auth::creer_utilisateur(&mut b.db, &Acteur::utilisateur(&pid).avec_eleve(true), &u).unwrap();
+    // Les opérations courantes restent au PIN (pas de mot de passe pour vendre).
+    b.ouvrir_journee();
+    b.commande_table("1", &[("Coca-Cola", 1)]);
+    // Mot de passe trop court refusé ; changement du sien avec l'ancien.
+    let e = auth::definir_mot_de_passe(&mut b.db, &pin_seul, &pid, Some("baobab123"), "123").unwrap_err();
+    assert_eq!(e.regle_code(), Some("RG-AUT-06"));
+    assert!(auth::definir_mot_de_passe(&mut b.db, &pin_seul, &pid, Some("faux"), "nouveau-mdp").is_err());
+    auth::definir_mot_de_passe(&mut b.db, &pin_seul, &pid, Some("baobab123"), "nouveau-mdp").unwrap();
+    let s = auth::connexion_pin(&mut b.db, &pid, "1234", None).unwrap();
+    assert!(auth::elever_session(&mut b.db, &s.jeton, "nouveau-mdp").unwrap().eleve);
+    // Un caissier sans mot de passe ne peut pas s'élever.
+    let c = b.demo.caissier.clone();
+    let s = auth::connexion_pin(&mut b.db, &c, "3333", None).unwrap();
+    assert_eq!(auth::elever_session(&mut b.db, &s.jeton, "nimporte").unwrap_err().regle_code(), Some("RG-AUT-06"));
+}
+
+#[test]
+fn rg_sor_bon_de_sortie() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    b.ouvrir_caisse(0);
+    let c = b.commande_table("1", &[("Coca-Cola", 2)]);
+    let numero = commandes::detail(b.db.conn(), &c).unwrap().numero;
+    let code = youma_core::sortie::code_controle(b.db.conn(), &c).unwrap();
+    assert_eq!(code.len(), 4);
+    let s = b.serveur();
+    // Pas encore payé : pas de bon de sortie (RG-SOR-01).
+    let r = youma_core::sortie::controler(&mut b.db, &s, numero, &code).unwrap();
+    assert_eq!(r.statut, "non_paye");
+    assert_eq!(r.reste, 1_500);
+    b.payer_especes(&c, 1_500);
+    let ticket = youma_core::impression::ticket_client(b.db.conn(), &c).unwrap();
+    assert!(ticket.contains("TICKET DE CAISSE"));
+    assert!(ticket.contains(&format!("BON DE SORTIE n°{numero}")));
+    assert!(ticket.contains(&code));
+    // Code faux : ticket douteux (RG-SOR-02).
+    let faux = if code == "AAAA" { "BBBB" } else { "AAAA" };
+    assert_eq!(youma_core::sortie::controler(&mut b.db, &s, numero, faux).unwrap_err().regle_code(), Some("RG-SOR-02"));
+    assert!(youma_core::sortie::controler(&mut b.db, &s, 999_999, &code).is_err());
+    // Premier passage : payé ; second passage : signalé (RG-SOR-03).
+    let r = youma_core::sortie::controler(&mut b.db, &s, numero, &code.to_lowercase()).unwrap();
+    assert_eq!(r.statut, "paye");
+    assert!(r.deja_presente.is_empty());
+    assert_eq!(r.lignes, vec![(2, "Coca-Cola".to_string())]);
+    let r = youma_core::sortie::controler(&mut b.db, &s, numero, &code).unwrap();
+    assert_eq!(r.deja_presente.len(), 1);
+    assert_eq!(b.compter("SELECT COUNT(*) FROM journal_audit WHERE action = 'sortie.deja_presente'"), 1);
+    // Un cuisinier ne contrôle pas les sorties.
+    let cuisinier: String = b.db.conn().query_row("SELECT id FROM utilisateurs WHERE nom LIKE 'Moussa%'", [], |r| r.get(0)).unwrap();
+    assert!(youma_core::sortie::controler(&mut b.db, &Acteur::utilisateur(cuisinier), numero, &code).is_err());
+}
+
+#[test]
+fn operateurs_mobile_money_par_defaut() {
+    let b = banc();
+    let noms: Vec<String> = caisse::lister_comptes(b.db.conn()).unwrap().into_iter().filter(|c| c.type_ == "mobile_money").map(|c| c.nom).collect();
+    assert_eq!(noms, ["Orange Money", "Moov Money", "Wave", "Sama Money"]);
+}
+
+/// Mise à jour d'une base existante (v1 → v2) : sauvegarde avant migration, opérateurs et permission ajoutés.
+#[test]
+fn migration_v1_vers_v2() {
+    let dossier = tempfile::tempdir().unwrap();
+    let chemin = dossier.path().join("youma.db");
+    {
+        let c = rusqlite::Connection::open(&chemin).unwrap();
+        c.execute_batch(include_str!("../migrations/0001_initial.sql")).unwrap();
+        c.execute_batch(
+            "INSERT INTO systeme(cle, valeur) VALUES ('installation_id', 'x');
+             INSERT INTO restaurant(id, nom, modifie_le) VALUES ('r', 'Ancien', 0);
+             INSERT INTO roles(id, code, nom, modifie_le) VALUES ('rs', 'serveur', 'Serveur', 0), ('rc', 'cuisinier', 'Cuisinier', 0);
+             INSERT INTO comptes_tresorerie(id, nom, type, modifie_le) VALUES ('c1', 'Orange Money', 'mobile_money', 0);
+             PRAGMA user_version = 1;",
+        )
+        .unwrap();
+    }
+    let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
+    let db = Db::ouvrir(&chemin, h.clone()).unwrap();
+    let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+    assert_eq!(v, 2);
+    assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
+    let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
+    assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);
+    assert!(noms.contains(&"Sama Money".to_string()));
+    let (serveur, _) = auth::permissions_utilisateur_role(db.conn(), "serveur");
+    assert!(serveur.contains("sortie.controler"));
+    let (cuisinier, _) = auth::permissions_utilisateur_role(db.conn(), "cuisinier");
+    assert!(!cuisinier.contains("sortie.controler"));
+    drop(db);
+    // Réouverture : rien n'est dupliqué.
+    let db = Db::ouvrir(&chemin, h).unwrap();
+    assert_eq!(caisse::lister_comptes(db.conn()).unwrap().iter().filter(|c| c.nom == "Wave").count(), 1);
 }

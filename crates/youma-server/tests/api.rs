@@ -50,6 +50,13 @@ impl Serveur {
         r["jeton"].as_str().unwrap().to_string()
     }
 
+    /// RG-AUT-06 : confirme la session par mot de passe (administration).
+    async fn elever(&self, jeton: &str, mot_de_passe: &str) {
+        let (code, r) = self.post(jeton, "/session/elever", json!({ "mot_de_passe": mot_de_passe })).await;
+        assert_eq!(code, 200, "{r}");
+        assert_eq!(r["eleve"], true);
+    }
+
     async fn post(&self, jeton: &str, chemin: &str, corps: Value) -> (u16, Value) {
         self.post_pin(jeton, chemin, corps, None).await
     }
@@ -201,6 +208,11 @@ async fn parcours_complet_service() {
     let (_, audit) = s.get(&proprio, "/audit").await;
     assert!(audit.as_array().unwrap().iter().any(|l| l["action"] == "commande.annuler_article" && l["autorise_par"] == "Adama (gérant)"));
     // Sauvegarde de clôture créée.
+    // Administration : mot de passe exigé en plus du PIN (RG-AUT-06).
+    let (code, e) = s.get(&proprio, "/sauvegardes").await;
+    assert_eq!(code, 403);
+    assert_eq!(e["code"], "MOT_DE_PASSE_REQUIS");
+    s.elever(&proprio, "baobab123").await;
     let (_, sv) = s.get(&proprio, "/sauvegardes").await;
     assert!(sv.as_array().unwrap().iter().any(|x| x["motif"] == "cloture"));
 }
@@ -234,6 +246,7 @@ async fn appairage_d_un_telephone() {
     let serveuse = s.connexion("Awa", "4444").await;
     let (code, _) = s.post(&serveuse, "/appareils/code", json!({})).await;
     assert_eq!(code, 403);
+    s.elever(&proprio, "baobab123").await;
     let (_, code_app) = s.post(&proprio, "/appareils/code", json!({})).await;
     let c = code_app["code"].as_str().unwrap();
     let (code, e) = s.post("", "/appareils/appairer", json!({ "code": "000000", "nom": "Tél. Awa" })).await;
@@ -315,6 +328,9 @@ async fn appareil_distant_doit_etre_appaire() {
     let users: Vec<Value> = client.get(format!("{local}/connexion/utilisateurs")).send().await.unwrap().json().await.unwrap();
     let proprio = users.iter().find(|u| u["nom"].as_str().unwrap().contains("Mariam")).unwrap();
     let s: Value = client.post(format!("{local}/connexion")).json(&json!({ "utilisateur_id": proprio["id"], "pin": "1234" })).send().await.unwrap().json().await.unwrap();
+    let j = s["jeton"].as_str().unwrap();
+    let el = client.post(format!("{local}/session/elever")).bearer_auth(j).json(&json!({ "mot_de_passe": "baobab123" })).send().await.unwrap();
+    assert_eq!(el.status().as_u16(), 200);
     let code: Value = client.post(format!("{local}/appareils/code")).bearer_auth(s["jeton"].as_str().unwrap()).json(&json!({})).send().await.unwrap().json().await.unwrap();
 
     // Le téléphone s'appaire puis accède à l'application.
@@ -327,4 +343,37 @@ async fn appareil_distant_doit_etre_appaire() {
     // Jeton inventé : refusé.
     let r = client.get(format!("{distant}/connexion/utilisateurs")).header("X-Appareil", "faux").send().await.unwrap();
     assert_eq!(r.status().as_u16(), 403);
+}
+
+/// Bon de sortie : le ticket payé porte un numéro et un code ; le contrôle à la sortie le vérifie.
+#[tokio::test]
+async fn bon_de_sortie_par_api() {
+    let s = serveur().await;
+    let caissier = s.connexion("Kadi", "3333").await;
+    s.post(&caissier, "/journee/ouvrir", json!({})).await;
+    s.post(&caissier, "/caisse/ouvrir", json!({ "fond_compte": 0, "motif_ecart": "x" })).await;
+    let (_, cid) = s.post(&caissier, "/commandes", json!({ "type": "emporter" })).await;
+    let cid = cid.as_str().unwrap().to_string();
+    let coca = id_produit(&s, &caissier, "Coca-Cola").await;
+    s.post(&caissier, &format!("/commandes/{cid}/lignes"), json!([{ "produit_id": coca, "quantite": 2 }])).await;
+    let (code, r) = s.post(&caissier, "/caisse/encaisser", json!({ "commande_id": cid, "parts": [{ "moyen": "especes", "montant": 1500 }], "especes_recues": 2000 })).await;
+    assert_eq!(code, 200, "{r}");
+    let (_, ticket) = s.get(&caissier, &format!("/commandes/{cid}/ticket")).await;
+    let ticket = ticket.as_str().unwrap().to_string();
+    assert!(ticket.contains("TICKET DE CAISSE"), "{ticket}");
+    let ligne = ticket.lines().find(|l| l.contains("Code de contrôle")).unwrap();
+    let code_ctrl = ligne.rsplit(' ').next().unwrap().trim().to_string();
+    let (_, d) = s.get(&caissier, &format!("/commandes/{cid}")).await;
+    let numero = d["numero"].as_i64().unwrap();
+    let serveuse = s.connexion("Awa", "4444").await;
+    let (code, r) = s.post(&serveuse, "/sortie/controle", json!({ "numero": numero, "code": code_ctrl })).await;
+    assert_eq!(code, 200, "{r}");
+    assert_eq!(r["statut"], "paye");
+    let (_, r) = s.post(&serveuse, "/sortie/controle", json!({ "numero": numero, "code": code_ctrl })).await;
+    assert_eq!(r["deja_presente"].as_array().unwrap().len(), 1);
+    let (code, r) = s.post(&serveuse, "/sortie/controle", json!({ "numero": numero, "code": "ZZZZ" })).await;
+    if code_ctrl != "ZZZZ" {
+        assert_eq!(code, 422);
+        assert_eq!(r["regle"], "RG-SOR-02");
+    }
 }

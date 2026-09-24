@@ -58,11 +58,17 @@ tests de charge (300 commandes/jour sur 4 Go de RAM et disque mécanique), tests
 | Adoption par un personnel peu à l'aise avec l'écrit | grands boutons, couleurs et icônes de catégories, PIN au lieu de mots de passe |
 | Équipe réduite | un seul langage métier (Rust), un seul chemin d'appel (HTTP), tests automatisés |
 
-## 4. Questions ouvertes
+## 4. Questions tranchées par le porteur de projet
 
-1. Opérateurs Mobile Money à proposer par défaut (Orange Money, Moov Money, Wave, Sama ?) et format des références.
-2. Taux INPS/AMO à valider par un comptable ; faut-il gérer un plafond d'assiette ?
-3. Faut-il un mot de passe (en plus du PIN) pour l'administration ?
-4. Numérotation des factures distincte des tickets pour les clients professionnels ?
-5. Modèles d'imprimantes du pack matériel (pour valider la page de code et l'impression USB).
-6. Bambara : quels écrans traduire en priorité ?
+| Question | Réponse | Mise en œuvre |
+|---|---|---|
+| Opérateurs Mobile Money | tous | Orange Money, Moov Money, Wave, Sama Money par défaut ; ajout/désactivation dans Administration → Moyens de paiement |
+| Taux INPS/AMO | saisis à la main | aucun taux pré-rempli, activation impossible sans taux (RG-PAI-07) |
+| Mot de passe pour l'administration | oui | RG-AUT-06, fiche 0011 |
+| Factures distinctes des tickets | non : bon de sortie | ticket de caisse payé = bon de sortie avec code de contrôle, écran « Contrôle de sortie » (RG-SOR-*, fiche 0012) |
+| Bambara | plus tard | architecture de traduction conservée (`ui/src/i18n.ts`) |
+
+## 5. Questions encore ouvertes
+
+1. Modèles d'imprimantes du pack matériel (pour valider la page de code PC858 et l'impression USB).
+2. Restaurant pilote et date de démarrage.

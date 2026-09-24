@@ -52,8 +52,8 @@ pub struct ParametresPaie {
 }
 
 /// RG-PAI-07 : cotisations sociales facultatives, désactivées par défaut.
-/// Taux en points de base (1 % = 100). [HYPOTHÈSE] valeurs indicatives, à faire valider.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Taux en points de base (1 % = 100), saisis à la main par le restaurateur (aucun taux imposé).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Cotisations {
     pub inps_active: bool,
@@ -98,19 +98,6 @@ impl Default for Parametres {
 impl Default for ParametresPaie {
     fn default() -> Self {
         ParametresPaie { deduire_absences: false, jours_ouvrables_mois: 26, plafond_avance_pct: 50 }
-    }
-}
-
-impl Default for Cotisations {
-    fn default() -> Self {
-        Cotisations {
-            inps_active: false,
-            inps_salarie_bp: 360,
-            inps_employeur_bp: 1640,
-            amo_active: false,
-            amo_salarie_bp: 306,
-            amo_employeur_bp: 350,
-        }
     }
 }
 
@@ -208,6 +195,15 @@ pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> R
         op.exiger(crate::permissions::PARAMETRE_GERER)?;
         if !(0..=12).contains(&p.heure_bascule) || p.arrondi < 1 || p.seuil_ecart_caisse < 0 || p.largeur_ticket < 24 {
             return Err(crate::Erreur::validation("Paramètre hors limites"));
+        }
+        // RG-PAI-07 : taux saisis à la main ; activer sans taux n'aurait aucun effet visible.
+        let c = &p.cotisations;
+        let hors = |bp: i64| !(0..=5_000).contains(&bp);
+        if [c.inps_salarie_bp, c.inps_employeur_bp, c.amo_salarie_bp, c.amo_employeur_bp].into_iter().any(hors) {
+            return Err(crate::Erreur::validation("Taux de cotisation entre 0 et 50 %"));
+        }
+        if (c.inps_active && c.inps_salarie_bp == 0) || (c.amo_active && c.amo_salarie_bp == 0) {
+            return Err(crate::Erreur::regle("RG-PAI-07", "Saisissez le taux de cotisation avant de l'activer"));
         }
         let avant = serde_json::to_value(&op.params)?;
         ecrire(op, p)?;

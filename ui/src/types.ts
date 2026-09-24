@@ -2,9 +2,11 @@
 
 export type Session = {
   jeton: string;
-  utilisateur: { id: string; nom: string; role_code: string; role_nom: string; employe_id: string | null };
+  utilisateur: { id: string; nom: string; role_code: string; role_nom: string; employe_id: string | null; a_mot_de_passe: boolean };
   permissions: string[];
   plafond_remise_pct: number;
+  /** Session confirmée par mot de passe (RG-AUT-06). */
+  eleve: boolean;
 };
 
 export type Journee = { id: string; date_exploitation: string; statut: string; ouverte_le: number; cloturee_le: number | null };

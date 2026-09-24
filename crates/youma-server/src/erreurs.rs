@@ -16,7 +16,7 @@ impl IntoResponse for ApiErreur {
     fn into_response(self) -> Response {
         let statut = match &self.0 {
             Erreur::NonTrouve(_) => StatusCode::NOT_FOUND,
-            Erreur::Interdit(_) | Erreur::AutorisationRequise(_) => StatusCode::FORBIDDEN,
+            Erreur::Interdit(_) | Erreur::AutorisationRequise(_) | Erreur::MotDePasseRequis(_) => StatusCode::FORBIDDEN,
             Erreur::Validation(_) | Erreur::Regle { .. } => StatusCode::UNPROCESSABLE_ENTITY,
             Erreur::HorlogeIncoherente(_) => StatusCode::CONFLICT,
             Erreur::NonAuthentifie | Erreur::PinIncorrect => StatusCode::UNAUTHORIZED,

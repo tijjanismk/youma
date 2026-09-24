@@ -14,11 +14,13 @@ export default function Installation() {
   const [nom, setNom] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
-  const ok = restaurant.trim() && nom.trim() && /^\d{4,6}$/.test(pin) && pin === pin2;
+  const [mdp, setMdp] = useState("");
+  const [mdp2, setMdp2] = useState("");
+  const ok = restaurant.trim() && nom.trim() && /^\d{4,6}$/.test(pin) && pin === pin2 && mdp.length >= 6 && mdp === mdp2;
 
   const installer = async () => {
     try {
-      await post("/installation", { restaurant, nom, pin });
+      await post("/installation", { restaurant, nom, pin, mot_de_passe: mdp });
       notifier("Installation terminée. Connectez-vous.", "succes");
       await rechargerEtat();
     } catch (e) {
@@ -36,6 +38,10 @@ export default function Installation() {
         <Champ libelle="Votre code PIN (4 à 6 chiffres)" valeur={pin} changer={setPin} type="password" obligatoire />
         <Champ libelle="Confirmez le code PIN" valeur={pin2} changer={setPin2} type="password" obligatoire />
         {pin2 && pin !== pin2 && <p className="erreur-texte">Les deux codes ne sont pas identiques.</p>}
+        <p className="aide">Le PIN sert au service. Le mot de passe protège l'administration (utilisateurs, paramètres, sauvegardes, licence).</p>
+        <Champ libelle="Mot de passe d'administration (6 caractères au moins)" valeur={mdp} changer={setMdp} type="password" obligatoire />
+        <Champ libelle="Confirmez le mot de passe" valeur={mdp2} changer={setMdp2} type="password" obligatoire />
+        {mdp2 && mdp !== mdp2 && <p className="erreur-texte">Les deux mots de passe ne sont pas identiques.</p>}
         <button className="principal grand" disabled={!ok} onClick={installer}>
           Installer
         </button>

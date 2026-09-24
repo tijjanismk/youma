@@ -30,13 +30,16 @@ fn q<'a>(p: &'a HashMap<String, String>, cle: &str) -> Option<&'a str> {
 }
 
 /// Droit de lecture (les écritures sont contrôlées dans le cœur).
-fn peut(db: &Db, uid: &str, p: &str) -> Resultat<()> {
+/// RG-AUT-06 : l'administration se lit aussi avec une session confirmée par mot de passe.
+fn peut(db: &Db, uid: &str, eleve: bool, p: &str) -> Resultat<()> {
     let (perms, _) = auth::permissions_utilisateur(db.conn(), uid)?;
-    if perms.contains(p) {
-        Ok(())
-    } else {
-        Err(Erreur::Interdit(p.into()))
+    if !perms.contains(p) {
+        return Err(Erreur::Interdit(p.into()));
     }
+    if perm::ADMINISTRATION.contains(&p) && !eleve {
+        return Err(Erreur::MotDePasseRequis(p.into()));
+    }
+    Ok(())
 }
 
 fn aujourdhui(db: &Db) -> String {
@@ -55,10 +58,11 @@ macro_rules! ecrire {
 macro_rules! lire {
     ($etat:expr, $auth:ident, $perm:expr, |$db:ident| $corps:expr) => {{
         let uid = $auth.utilisateur_id.clone();
+        let eleve = $auth.acteur.eleve;
         let r = $etat
             .avec_db(move |$db| {
                 if let Some(p) = $perm {
-                    peut($db, &uid, p)?;
+                    peut($db, &uid, eleve, p)?;
                 }
                 $corps
             })
@@ -78,6 +82,9 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/connexion", post(connexion))
         .route("/deconnexion", post(deconnexion))
         .route("/session", get(session))
+        .route("/session/elever", post(session_elever))
+        .route("/moi/mot-de-passe", post(mon_mot_de_passe))
+        .route("/sortie/controle", post(sortie_controle))
         .route("/horloge/accepter", post(horloge_accepter))
         .route("/ws", get(crate::ws::ws))
         // Journée
@@ -185,6 +192,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/roles", get(roles).put(role_modifier))
         .route("/utilisateurs", get(utilisateurs).post(utilisateur_creer))
         .route("/utilisateurs/{id}", put(utilisateur_modifier))
+        .route("/utilisateurs/{id}/mot-de-passe", post(utilisateur_mot_de_passe))
         .route("/appareils", get(appareils_lister))
         .route("/appareils/code", post(appareil_code))
         .route("/appareils/appairer", post(appareil_appairer))
@@ -235,11 +243,12 @@ async fn etat_general(State(e): State<Etat>, poste: Result<Poste, ApiErreur>) ->
 struct Installation {
     nom: String,
     pin: String,
+    mot_de_passe: String,
     restaurant: String,
 }
 
 async fn installation(State(e): State<Etat>, Json(i): Json<Installation>) -> Rep<Value> {
-    let id = e.avec_db(move |db| auth::installer_proprietaire(db, &i.nom, &i.pin, &i.restaurant)).await?;
+    let id = e.avec_db(move |db| auth::installer_proprietaire(db, &i.nom, &i.pin, &i.mot_de_passe, &i.restaurant)).await?;
     Ok(Json(json!({ "id": id })))
 }
 
@@ -268,6 +277,44 @@ async fn deconnexion(State(e): State<Etat>, a: Auth) -> Rep<Value> {
 async fn session(State(e): State<Etat>, a: Auth) -> Rep<auth::Session> {
     let j = a.jeton.clone();
     Ok(Json(e.avec_db(move |db| auth::session_courante(db, &j)).await?))
+}
+
+#[derive(Deserialize)]
+struct MotDePasse {
+    mot_de_passe: String,
+}
+
+/// RG-AUT-06 : confirme la session pour accéder à l'administration.
+async fn session_elever(State(e): State<Etat>, a: Auth, Json(m): Json<MotDePasse>) -> Rep<auth::Session> {
+    let j = a.jeton.clone();
+    Ok(Json(e.avec_db(move |db| auth::elever_session(db, &j, &m.mot_de_passe)).await?))
+}
+
+#[derive(Deserialize)]
+struct ChangementMotDePasse {
+    #[serde(default)]
+    ancien: Option<String>,
+    nouveau: String,
+}
+
+async fn mon_mot_de_passe(State(e): State<Etat>, a: Auth, Json(c): Json<ChangementMotDePasse>) -> Rep<()> {
+    let uid = a.utilisateur_id.clone();
+    ecrire!(e, a, |db| auth::definir_mot_de_passe(db, &a, &uid, c.ancien.as_deref(), &c.nouveau))
+}
+
+async fn utilisateur_mot_de_passe(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(c): Json<ChangementMotDePasse>) -> Rep<()> {
+    ecrire!(e, a, |db| auth::definir_mot_de_passe(db, &a, &id, c.ancien.as_deref(), &c.nouveau))
+}
+
+#[derive(Deserialize)]
+struct Controle {
+    numero: i64,
+    code: String,
+}
+
+/// Contrôle du bon de sortie (RG-SOR-01 à 03).
+async fn sortie_controle(State(e): State<Etat>, a: Auth, Json(c): Json<Controle>) -> Rep<youma_core::sortie::ResultatControle> {
+    ecrire!(e, a, |db| youma_core::sortie::controler(db, &a, c.numero, &c.code))
 }
 
 async fn horloge_accepter(State(e): State<Etat>, a: Auth) -> Rep<()> {
@@ -879,11 +926,12 @@ async fn tableau_de_bord(State(e): State<Etat>, a: Auth) -> Rep<rapports::Tablea
 
 async fn rapport_periode(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
     let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
     let (debut, fin) = (q(&p, "debut").map(str::to_owned), q(&p, "fin").map(str::to_owned));
     let csv = q(&p, "format") == Some("csv");
     let r = e
         .avec_db(move |db| {
-            peut(db, &uid, perm::RAPPORT_VOIR)?;
+            peut(db, &uid, eleve, perm::RAPPORT_VOIR)?;
             let jour = aujourdhui(db);
             rapports::rapport_periode(db.conn(), debut.as_deref().unwrap_or(&jour), fin.as_deref().unwrap_or(&jour))
         })
@@ -905,16 +953,18 @@ fn csv_reponse(r: &rapports::Rapport) -> Response {
 
 async fn rapport_stock(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
     let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
     let csv = q(&p, "format") == Some("csv");
-    let r = e.avec_db(move |db| { peut(db, &uid, perm::STOCK_VOIR)?; rapports::rapport_stock(db.conn()) }).await?;
+    let r = e.avec_db(move |db| { peut(db, &uid, eleve, perm::STOCK_VOIR)?; rapports::rapport_stock(db.conn()) }).await?;
     Ok(if csv { csv_reponse(&r) } else { Json(r).into_response() })
 }
 
 async fn rapport_dettes(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
     let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
     let csv = q(&p, "format") == Some("csv");
     let r = e
-        .avec_db(move |db| { peut(db, &uid, perm::RAPPORT_VOIR)?; rapports::rapport_dettes(db.conn(), db.maintenant()) })
+        .avec_db(move |db| { peut(db, &uid, eleve, perm::RAPPORT_VOIR)?; rapports::rapport_dettes(db.conn(), db.maintenant()) })
         .await?;
     Ok(if csv { csv_reponse(&r) } else { Json(r).into_response() })
 }
@@ -1042,7 +1092,8 @@ async fn sauvegardes(State(e): State<Etat>, a: Auth) -> Rep<Vec<sauvegarde::Sauv
 async fn sauvegarde_creer(State(e): State<Etat>, a: Auth) -> Rep<sauvegarde::Sauvegarde> {
     let dossier = e.config.dossier_sauvegardes();
     let uid = a.utilisateur_id.clone();
-    let r = e.avec_db(move |db| { peut(db, &uid, perm::SAUVEGARDE_GERER)?; sauvegarde::sauvegarder(db, &dossier, "manuelle") }).await?;
+    let eleve = a.acteur.eleve;
+    let r = e.avec_db(move |db| { peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)?; sauvegarde::sauvegarder(db, &dossier, "manuelle") }).await?;
     Ok(Json(r))
 }
 

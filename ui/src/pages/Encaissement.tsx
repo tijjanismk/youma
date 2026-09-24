@@ -8,7 +8,7 @@ import { t } from "../i18n";
 import { billetsProposes, Part, rendu, sommeParts, verifierPaiement } from "../paiement";
 import type { Client, Commande, Compte, SessionCaisse } from "../types";
 
-type Resultat = { numero: number; montant: number; especes_recues: number; rendu: number; reste: number; commande_payee: boolean };
+type Resultat = { numero: number; montant: number; especes_recues: number; rendu: number; reste: number; commande_payee: boolean; bon_sortie: [number, string] | null };
 
 /** Encaissement standard en moins de 5 secondes : « Espèces » puis « Valider ». */
 export default function Encaissement() {
@@ -86,8 +86,13 @@ export default function Encaissement() {
           </>
         )}
         {resultat.commande_payee ? <p>Addition soldée.</p> : <p>Reste à payer : {fcfa(resultat.reste)}</p>}
+        {resultat.bon_sortie && (
+          <p className="bon-sortie">
+            Bon de sortie n°<strong>{resultat.bon_sortie[0]}</strong> — code <strong>{resultat.bon_sortie[1]}</strong>
+          </p>
+        )}
         <div className="actions">
-          <button onClick={() => agir(() => post(`/commandes/${id}/imprimer`), "Ticket envoyé à l'imprimante")}>Imprimer le ticket</button>
+          <button onClick={() => agir(() => post(`/commandes/${id}/imprimer`), "Ticket envoyé à l'imprimante")}>Imprimer le ticket (bon de sortie)</button>
           {!resultat.commande_payee && <button onClick={() => setResultat(null)}>Encaisser le reste</button>}
           <button className="principal grand" onClick={() => nav(cmd.table_id || resultat.commande_payee ? "/salle" : `/commande/${id}`)}>
             Terminé

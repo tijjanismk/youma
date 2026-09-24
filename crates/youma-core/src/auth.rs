@@ -79,6 +79,17 @@ pub fn permissions_utilisateur(conn: &Connection, utilisateur_id: &str) -> Resul
     Ok((perms, plafond))
 }
 
+/// Permissions d'un rôle par son code (diagnostic, tests de migration).
+pub fn permissions_utilisateur_role(conn: &Connection, code: &str) -> (HashSet<String>, i64) {
+    let r = conn.query_row("SELECT id, plafond_remise_pct FROM roles WHERE code = ?1", params![code], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)));
+    let Ok((id, plafond)) = r else { return (HashSet::new(), 0) };
+    let perms = conn
+        .prepare("SELECT permission FROM role_permissions WHERE role_id = ?1")
+        .and_then(|mut s| s.query_map(params![id], |r| r.get::<_, String>(0))?.collect::<Result<HashSet<_>, _>>())
+        .unwrap_or_default();
+    (perms, plafond)
+}
+
 /// Trouve l'utilisateur actif qui possède ce PIN.
 fn utilisateur_par_pin(conn: &Connection, pin: &str) -> Resultat<Option<String>> {
     let mut stmt = conn.prepare("SELECT id, pin_hash FROM utilisateurs WHERE actif = 1")?;
@@ -162,7 +173,10 @@ fn inserer_utilisateur(op: &Op, u: &NouvelUtilisateur) -> Resultat<String> {
     let rid = role_id(op, &u.role_code)?;
     let id = op.nouvel_id();
     let mdp = match &u.mot_de_passe {
-        Some(m) if !m.is_empty() => Some(hacher(m)?),
+        Some(m) if !m.is_empty() => {
+            valider_mot_de_passe(m)?;
+            Some(hacher(m)?)
+        }
         _ => None,
     };
     op.execute(
@@ -174,8 +188,18 @@ fn inserer_utilisateur(op: &Op, u: &NouvelUtilisateur) -> Resultat<String> {
     Ok(id)
 }
 
+/// RG-AUT-06 : 6 caractères au moins.
+fn valider_mot_de_passe(m: &str) -> Resultat<()> {
+    if m.chars().count() < 6 {
+        return Err(Erreur::regle("RG-AUT-06", "Le mot de passe doit contenir au moins 6 caractères"));
+    }
+    Ok(())
+}
+
 /// Première configuration : crée le propriétaire (uniquement si aucun utilisateur).
-pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, nom_restaurant: &str) -> Resultat<String> {
+/// Le mot de passe protège l'administration (RG-AUT-06).
+pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, mot_de_passe: &str, nom_restaurant: &str) -> Resultat<String> {
+    valider_mot_de_passe(mot_de_passe)?;
     db.executer(&Acteur::systeme(), |op| {
         if nombre_utilisateurs(op)? > 0 {
             return Err(Erreur::validation("L'installation est déjà faite"));
@@ -192,7 +216,7 @@ pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, nom_restaurant:
                 nom: nom.into(),
                 role_code: "proprietaire".into(),
                 pin: pin.into(),
-                mot_de_passe: None,
+                mot_de_passe: Some(mot_de_passe.into()),
                 employe_id: None,
             },
         )
@@ -284,6 +308,8 @@ pub struct Session {
     pub utilisateur: UtilisateurResume,
     pub permissions: Vec<String>,
     pub plafond_remise_pct: i64,
+    /// Session confirmée par mot de passe : administration accessible (RG-AUT-06).
+    pub eleve: bool,
 }
 
 /// Connexion par PIN (RG-AUT-01/02). Hors garde d'horloge : un responsable doit
@@ -326,10 +352,10 @@ pub fn connexion_pin(db: &mut Db, utilisateur_id: &str, pin: &str, appareil_id: 
         Ok(Ok(jeton))
     })?;
     let jeton = r?;
-    session_de(db.conn(), &jeton, utilisateur_id)
+    session_de(db.conn(), &jeton, utilisateur_id, false)
 }
 
-fn session_de(conn: &Connection, jeton: &str, utilisateur_id: &str) -> Resultat<Session> {
+fn session_de(conn: &Connection, jeton: &str, utilisateur_id: &str, eleve: bool) -> Resultat<Session> {
     let utilisateur = lister_utilisateurs(conn, false)?
         .into_iter()
         .find(|u| u.id == utilisateur_id)
@@ -337,22 +363,29 @@ fn session_de(conn: &Connection, jeton: &str, utilisateur_id: &str) -> Resultat<
     let (perms, plafond) = permissions_utilisateur(conn, utilisateur_id)?;
     let mut permissions: Vec<String> = perms.into_iter().collect();
     permissions.sort();
-    Ok(Session { jeton: jeton.to_string(), utilisateur, permissions, plafond_remise_pct: plafond })
+    Ok(Session { jeton: jeton.to_string(), utilisateur, permissions, plafond_remise_pct: plafond, eleve })
+}
+
+#[derive(Debug)]
+pub struct InfoSession {
+    pub utilisateur_id: String,
+    pub appareil_id: Option<String>,
+    pub eleve: bool,
 }
 
 /// Valide un jeton et renouvelle l'activité (RG-AUT-04).
-pub fn verifier_session(db: &Db, jeton: &str) -> Resultat<(String, Option<String>)> {
+pub fn verifier_session(db: &Db, jeton: &str) -> Resultat<InfoSession> {
     let conn = db.conn();
     let maintenant = db.maintenant();
     let delai = crate::parametres::lire(conn)?.verrouillage_minutes.max(1) * 60_000;
     let h = hash_jeton(jeton);
-    let (uid, appareil, activite): (String, Option<String>, i64) = conn
+    let (uid, appareil, activite, eleve): (String, Option<String>, i64, bool) = conn
         .query_row(
-            "SELECT s.utilisateur_id, s.appareil_id, s.derniere_activite FROM sessions s
+            "SELECT s.utilisateur_id, s.appareil_id, s.derniere_activite, s.eleve FROM sessions s
              JOIN utilisateurs u ON u.id = s.utilisateur_id
              WHERE s.jeton_hash = ?1 AND s.fermee = 0 AND u.actif = 1",
             params![h],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         )
         .optional()?
         .ok_or(Erreur::NonAuthentifie)?;
@@ -362,12 +395,80 @@ pub fn verifier_session(db: &Db, jeton: &str) -> Resultat<(String, Option<String
         return Err(Erreur::NonAuthentifie);
     }
     conn.execute("UPDATE sessions SET derniere_activite = ?1 WHERE jeton_hash = ?2", params![maintenant.max(activite), h])?;
-    Ok((uid, appareil))
+    Ok(InfoSession { utilisateur_id: uid, appareil_id: appareil, eleve })
 }
 
 pub fn session_courante(db: &Db, jeton: &str) -> Resultat<Session> {
-    let (uid, _) = verifier_session(db, jeton)?;
-    session_de(db.conn(), jeton, &uid)
+    let s = verifier_session(db, jeton)?;
+    session_de(db.conn(), jeton, &s.utilisateur_id, s.eleve)
+}
+
+/// RG-AUT-06 : confirme la session par le mot de passe de l'utilisateur connecté.
+/// Les échecs comptent avec ceux du PIN (verrouillage RG-AUT-02).
+pub fn elever_session(db: &mut Db, jeton: &str, mot_de_passe: &str) -> Resultat<Session> {
+    let s = verifier_session(db, jeton)?;
+    let uid = s.utilisateur_id.clone();
+    let r = db.executer_sans_garde(&Acteur::systeme(), |op| {
+        let (hash, echecs, verrou): (Option<String>, i64, Option<i64>) = trouver(
+            op.query_row(
+                "SELECT mot_de_passe_hash, echecs_pin, verrouille_jusqu_a FROM utilisateurs WHERE id = ?1",
+                params![uid],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            ),
+            "Utilisateur",
+        )?;
+        if verrou.is_some_and(|v| v > op.maintenant) {
+            return Ok(Err(Erreur::Verrouille));
+        }
+        let Some(hash) = hash else {
+            return Ok(Err(Erreur::regle("RG-AUT-06", "Définissez d'abord votre mot de passe")));
+        };
+        if !verifier(mot_de_passe, &hash) {
+            let echecs = echecs + 1;
+            let verrou = (echecs >= ECHECS_MAX).then_some(op.maintenant + VERROUILLAGE_MS);
+            op.execute(
+                "UPDATE utilisateurs SET echecs_pin = ?1, verrouille_jusqu_a = ?2 WHERE id = ?3",
+                params![if verrou.is_some() { 0 } else { echecs }, verrou, uid],
+            )?;
+            return Ok(Err(if verrou.is_some() { Erreur::Verrouille } else { Erreur::validation("Mot de passe incorrect") }));
+        }
+        op.execute("UPDATE utilisateurs SET echecs_pin = 0, verrouille_jusqu_a = NULL WHERE id = ?1", params![uid])?;
+        op.execute("UPDATE sessions SET eleve = 1 WHERE jeton_hash = ?1", params![hash_jeton(jeton)])?;
+        Ok(Ok(()))
+    })?;
+    r?;
+    session_de(db.conn(), jeton, &s.utilisateur_id, true)
+}
+
+/// Définit ou change un mot de passe. Pour soi : l'ancien est exigé s'il existe.
+/// Pour un autre utilisateur : administration (session confirmée).
+pub fn definir_mot_de_passe(db: &mut Db, acteur: &Acteur, cible: &str, ancien: Option<&str>, nouveau: &str) -> Resultat<()> {
+    valider_mot_de_passe(nouveau)?;
+    db.executer(acteur, |op| {
+        let soi = op.utilisateur() == Some(cible);
+        if soi {
+            let actuel: Option<String> = trouver(
+                op.query_row("SELECT mot_de_passe_hash FROM utilisateurs WHERE id = ?1", params![cible], |r| r.get(0)),
+                "Utilisateur",
+            )?;
+            if let Some(h) = actuel {
+                if !ancien.is_some_and(|a| verifier(a, &h)) {
+                    return Err(Erreur::validation("Ancien mot de passe incorrect"));
+                }
+            }
+        } else {
+            op.exiger(perm::UTILISATEUR_GERER)?;
+        }
+        let n = op.execute(
+            "UPDATE utilisateurs SET mot_de_passe_hash = ?1, modifie_le = ?2 WHERE id = ?3",
+            params![hacher(nouveau)?, op.maintenant, cible],
+        )?;
+        if n == 0 {
+            return Err(Erreur::NonTrouve("Utilisateur".into()));
+        }
+        op.audit("utilisateur.mot_de_passe", "utilisateur", Some(cible), None, None, None, None)?;
+        Ok(())
+    })
 }
 
 pub fn deconnexion(db: &Db, jeton: &str) -> Resultat<()> {

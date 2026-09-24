@@ -456,6 +456,8 @@ pub struct ResultatEncaissement {
     pub rendu: i64,
     pub reste: i64,
     pub commande_payee: bool,
+    /// Addition soldée : numéro et code du bon de sortie (RG-SOR-02).
+    pub bon_sortie: Option<(i64, String)>,
 }
 
 /// RG-CAI-01 à RG-CAI-06, RG-CLI-02, RG-LIV-02.
@@ -572,6 +574,7 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
     }
     let reste = t.reste - montant;
     let payee = reste == 0;
+    let mut bon_sortie = None;
     if payee {
         op.execute(
             "UPDATE commandes SET statut = 'payee', payee_le = ?1, modifie_le = ?1, version = version + 1 WHERE id = ?2",
@@ -581,11 +584,15 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
         if etat.ordre_paiement == "avant" {
             commandes::envoyer_op(op, &e.commande_id)?;
         }
+        // Ticket de caisse = bon de sortie, imprimé d'office si une imprimante de caisse est configurée.
+        let ticket = crate::impression::ticket_client(op, &e.commande_id)?;
+        crate::impression::mettre_en_file(op, None, "ticket_client", Some(&e.commande_id), &ticket)?;
+        bon_sortie = Some((etat.numero, crate::sortie::code_controle(op, &e.commande_id)?));
     }
     op.outbox("paiement", &paiement_id, "creer")?;
     op.evenement("paiement", Some(&e.commande_id));
     op.evenement("table", None);
-    Ok(ResultatEncaissement { paiement_id, numero, montant, especes_recues: recu, rendu, reste, commande_payee: payee })
+    Ok(ResultatEncaissement { paiement_id, numero, montant, especes_recues: recu, rendu, reste, commande_payee: payee, bon_sortie })
 }
 
 fn compte_livreur(op: &Op, commande_id: &str) -> Resultat<String> {

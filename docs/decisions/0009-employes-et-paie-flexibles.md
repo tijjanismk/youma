@@ -24,6 +24,6 @@ sans être payés.
 Paie « officielle » avec cotisations obligatoires : inapplicable à la majorité des établissements ciblés.
 
 ## Conséquences
-* **[HYPOTHÈSE]** Taux par défaut (INPS salarié 3,6 %, employeur 16,4 % ; AMO 3,06 % / 3,5 %) à faire
-  valider par un comptable ; ils n'ont d'effet que si l'utilisateur les active.
+* Taux INPS/AMO **saisis à la main** par le restaurateur (décision du porteur de projet) : aucun taux
+  pré-rempli, et une cotisation ne peut être activée sans son taux.
 * Pas de déclaration automatique à l'INPS ni de DAS : hors périmètre.

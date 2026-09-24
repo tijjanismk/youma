@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Modal, PinPad } from "./composants/Base";
+import { Champ, Modal, PinPad } from "./composants/Base";
 import { definirJeton, ErreurApi, estEnLigne, get, jeton, post, surDeconnexion, surReseau } from "./api";
 import type { EtatGeneral, Session } from "./types";
 
@@ -18,6 +18,8 @@ type Contexte = {
   notifier: (message: string, genre?: "info" | "erreur" | "succes") => void;
   /** Exécute une action ; si un responsable doit autoriser, demande son PIN puis réessaie. */
   agir: <T>(action: (pin?: string) => Promise<T>, succes?: string) => Promise<T | undefined>;
+  /** RG-AUT-06 : confirme la session par mot de passe (administration). */
+  confirmerMotDePasse: () => Promise<boolean>;
 };
 
 const Ctx = createContext<Contexte | null>(null);
@@ -37,6 +39,7 @@ export function Fournisseur({ children }: { children: ReactNode }) {
   const [enLigne, setEnLigne] = useState(estEnLigne());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [demandePin, setDemandePin] = useState<DemandePin | null>(null);
+  const [demandeMdp, setDemandeMdp] = useState<((ok: boolean) => void) | null>(null);
   const abonnes = useRef(new Set<Abonne>());
 
   const rechargerEtat = useCallback(async () => {
@@ -112,6 +115,8 @@ export function Fournisseur({ children }: { children: ReactNode }) {
     setTimeout(() => setNotifications((n) => n.filter((x) => x.id !== id)), genre === "erreur" ? 7000 : 3500);
   }, []);
 
+  const confirmerMotDePasse = useCallback(() => new Promise<boolean>((resoudre) => setDemandeMdp(() => resoudre)), []);
+
   const demanderPin = (message: string) => new Promise<string | null>((resoudre) => setDemandePin({ message, resoudre }));
 
   const agir = useCallback(
@@ -123,6 +128,10 @@ export function Fournisseur({ children }: { children: ReactNode }) {
           if (succes) notifier(succes, "succes");
           return r;
         } catch (e) {
+          if (e instanceof ErreurApi && e.code === "MOT_DE_PASSE_REQUIS") {
+            if (!(await confirmerMotDePasse())) return undefined;
+            continue;
+          }
           if (e instanceof ErreurApi && (e.autorisationRequise || (pin && e.code === "PIN_INCORRECT"))) {
             const msg = e.code === "PIN_INCORRECT" ? "PIN incorrect. Réessayez." : `Autorisation d'un responsable : ${e.message}`;
             const p = await demanderPin(msg);
@@ -136,7 +145,7 @@ export function Fournisseur({ children }: { children: ReactNode }) {
       }
       return undefined;
     },
-    [notifier],
+    [notifier, confirmerMotDePasse],
   );
 
   const valeur: Contexte = {
@@ -165,6 +174,7 @@ export function Fournisseur({ children }: { children: ReactNode }) {
     },
     notifier,
     agir,
+    confirmerMotDePasse,
   };
 
   return (
@@ -177,6 +187,16 @@ export function Fournisseur({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
+      {demandeMdp && (
+        <ConfirmationMotDePasse
+          aUnMotDePasse={!!session?.utilisateur.a_mot_de_passe}
+          fermer={(s) => {
+            if (s) setSession(s);
+            demandeMdp(!!s);
+            setDemandeMdp(null);
+          }}
+        />
+      )}
       {demandePin && (
         <PinResponsable
           message={demandePin.message}
@@ -228,4 +248,44 @@ export function useDonnees<T>(charger: () => Promise<T>, evenements: string[] = 
     });
   }, [cle, abonner, recharger]);
   return { donnees, erreur, recharger, setDonnees };
+}
+
+/** RG-AUT-06 : mot de passe (ou création du premier mot de passe) pour l'administration. */
+function ConfirmationMotDePasse({ aUnMotDePasse, fermer }: { aUnMotDePasse: boolean; fermer: (s: Session | null) => void }) {
+  const [creer, setCreer] = useState(!aUnMotDePasse);
+  const [mdp, setMdp] = useState("");
+  const [mdp2, setMdp2] = useState("");
+  const [erreur, setErreur] = useState("");
+  const valider = async () => {
+    setErreur("");
+    try {
+      if (creer) {
+        if (mdp !== mdp2) return setErreur("Les deux mots de passe sont différents");
+        await post("/moi/mot-de-passe", { nouveau: mdp });
+      }
+      fermer(await post<Session>("/session/elever", { mot_de_passe: mdp }));
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e);
+      if (m.includes("Définissez")) setCreer(true);
+      setErreur(m);
+    }
+  };
+  return (
+    <Modal titre={creer ? "Créer votre mot de passe" : "Mot de passe d'administration"} fermer={() => fermer(null)}>
+      <p className="aide">
+        {creer
+          ? "L'administration est protégée par un mot de passe personnel (6 caractères au moins), en plus du PIN."
+          : "Confirmez votre mot de passe pour accéder à l'administration."}
+      </p>
+      <Champ libelle="Mot de passe" type="password" valeur={mdp} changer={setMdp} autoFocus />
+      {creer && <Champ libelle="Confirmez le mot de passe" type="password" valeur={mdp2} changer={setMdp2} />}
+      {erreur && <p className="erreur-texte">{erreur}</p>}
+      <div className="actions">
+        <button onClick={() => fermer(null)}>Annuler</button>
+        <button className="principal" disabled={mdp.length < 6} onClick={valider}>
+          {creer ? "Créer et continuer" : "Confirmer"}
+        </button>
+      </div>
+    </Modal>
+  );
 }

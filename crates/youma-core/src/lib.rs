@@ -26,6 +26,7 @@ pub mod permissions;
 pub mod rapports;
 pub mod salle;
 pub mod sauvegarde;
+pub mod sortie;
 pub mod stock;
 
 pub use db::{Acteur, Db};

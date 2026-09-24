@@ -7,16 +7,20 @@ import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
 
-type Onglet = "restaurant" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
+type Onglet = "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
+
+/** RG-AUT-06 : onglets protégés par le mot de passe personnel. */
+const PROTEGES: Onglet[] = ["restaurant", "paiements", "utilisateurs", "roles", "appareils", "sauvegardes", "licence"];
 
 export default function Administration() {
-  const { peut } = useApp();
+  const { peut, session, confirmerMotDePasse } = useApp();
   const [onglet, setOnglet] = useState<Onglet>("catalogue");
   const onglets: { cle: Onglet; libelle: string; p: string }[] = [
     { cle: "catalogue", libelle: "Produits", p: "catalogue.gerer" },
     { cle: "salle", libelle: "Salle et tables", p: "salle.gerer" },
     { cle: "postes", libelle: "Postes et imprimantes", p: "catalogue.gerer" },
     { cle: "restaurant", libelle: "Restaurant et règles", p: "parametre.gerer" },
+    { cle: "paiements", libelle: "Moyens de paiement", p: "parametre.gerer" },
     { cle: "utilisateurs", libelle: "Utilisateurs", p: "utilisateur.gerer" },
     { cle: "roles", libelle: "Rôles et droits", p: "utilisateur.gerer" },
     { cle: "appareils", libelle: "Téléphones et tablettes", p: "appareil.gerer" },
@@ -28,6 +32,24 @@ export default function Administration() {
     <div>
       <h1>Administration</h1>
       <Onglets onglets={visibles} actif={onglet} changer={setOnglet} />
+      {PROTEGES.includes(onglet) && !session?.eleve ? (
+        <div className="carte etroite">
+          <h2>🔒 Mot de passe requis</h2>
+          <p>Cette partie de l'administration est protégée par votre mot de passe personnel, en plus du PIN.</p>
+          <button className="principal grand" onClick={() => confirmerMotDePasse()}>
+            Saisir mon mot de passe
+          </button>
+        </div>
+      ) : (
+        <OngletAdmin onglet={onglet} />
+      )}
+    </div>
+  );
+}
+
+function OngletAdmin({ onglet }: { onglet: Onglet }) {
+  return (
+    <>
       {onglet === "catalogue" && <CatalogueAdmin />}
       {onglet === "salle" && <SalleAdmin />}
       {onglet === "postes" && <PostesAdmin />}
@@ -37,6 +59,58 @@ export default function Administration() {
       {onglet === "appareils" && <AppareilsAdmin />}
       {onglet === "sauvegardes" && <SauvegardesAdmin />}
       {onglet === "licence" && <LicenceAdmin />}
+      {onglet === "paiements" && <PaiementsAdmin />}
+    </>
+  );
+}
+
+// ───────────── Moyens de paiement ─────────────
+
+type CompteAdmin = { id: string; nom: string; type: string; operateur: string; employe_id: string | null; actif: boolean; solde: number };
+
+/** Opérateurs Mobile Money : tous proposés, activables un par un ; d'autres s'ajoutent librement. */
+function PaiementsAdmin() {
+  const { agir } = useApp();
+  const { donnees, recharger } = useDonnees(() => get<CompteAdmin[]>("/comptes"), []);
+  const [nouveau, setNouveau] = useState<{ nom: string; type: string } | null>(null);
+  const comptes = (donnees ?? []).filter((c) => c.type !== "livreur");
+  const enregistrer = (c: Partial<CompteAdmin>) => agir((pin) => post("/comptes", c, pin), "Enregistré").then(recharger);
+  return (
+    <div className="carte">
+      <p className="aide">Désactivez les opérateurs que le restaurant n'utilise pas : ils disparaissent de l'écran d'encaissement.</p>
+      <TableauDonnees
+        colonnes={["Compte", "Type", "Solde", "Actif"]}
+        lignes={comptes.map((c) => [
+          c.nom,
+          t(c.type),
+          fcfa(c.solde),
+          <input type="checkbox" aria-label={`${c.nom} actif`} checked={c.actif} onChange={(e) => enregistrer({ ...c, actif: e.target.checked })} />,
+        ])}
+      />
+      <button onClick={() => setNouveau({ nom: "", type: "mobile_money" })}>+ Autre opérateur ou compte</button>
+      {nouveau && (
+        <Modal titre="Nouveau moyen de paiement" fermer={() => setNouveau(null)}>
+          <Champ libelle="Nom (ex. Orange Money pro, Ecobank…)" valeur={nouveau.nom} changer={(v) => setNouveau({ ...nouveau, nom: v })} obligatoire autoFocus />
+          <Choix
+            libelle="Type"
+            valeur={nouveau.type}
+            changer={(v) => setNouveau({ ...nouveau, type: v })}
+            options={[
+              { valeur: "mobile_money", libelle: "Mobile Money" },
+              { valeur: "banque", libelle: "Banque (virement, carte)" },
+              { valeur: "especes", libelle: "Autre caisse espèces" },
+              { valeur: "coffre", libelle: "Coffre" },
+            ]}
+          />
+          <button
+            className="principal"
+            disabled={!nouveau.nom.trim()}
+            onClick={() => enregistrer({ nom: nouveau.nom, type: nouveau.type, operateur: nouveau.nom, actif: true }).then(() => setNouveau(null))}
+          >
+            Ajouter
+          </button>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -423,7 +497,7 @@ function RestaurantAdmin() {
         <h3>Cotisations sociales (facultatives)</h3>
         <p className="aide">
           Désactivées par défaut : la plupart des employés ne sont pas déclarés. Si vous les activez, elles ne s'appliquent qu'aux employés cochés « déclaré INPS » /
-          « affilié AMO ». Taux indicatifs à faire valider par votre comptable.
+          « affilié AMO ». Saisissez vous-même les taux (fournis par votre comptable ou la caisse).
         </p>
         <Case libelle="Prélever la cotisation INPS" valeur={params.cotisations.inps_active} changer={(v) => setParams({ ...params, cotisations: { ...params.cotisations, inps_active: v } })} />
         {params.cotisations.inps_active && (
@@ -472,11 +546,11 @@ function UtilisateursAdmin() {
   const { agir } = useApp();
   const { donnees, recharger } = useDonnees(() => get<Utilisateur[]>("/utilisateurs"), []);
   const { donnees: roles } = useDonnees(() => get<{ roles: Role[] }>("/roles"), []);
-  const [nouveau, setNouveau] = useState<{ nom: string; role_code: string; pin: string } | null>(null);
+  const [nouveau, setNouveau] = useState<{ nom: string; role_code: string; pin: string; mot_de_passe: string } | null>(null);
   return (
     <div>
       <p className="aide">Un employé n'est pas forcément un utilisateur : le plongeur n'a pas besoin de compte.</p>
-      <button className="principal" onClick={() => setNouveau({ nom: "", role_code: "serveur", pin: "" })}>
+      <button className="principal" onClick={() => setNouveau({ nom: "", role_code: "serveur", pin: "", mot_de_passe: "" })}>
         + Utilisateur
       </button>
       <TableauDonnees
@@ -495,6 +569,15 @@ function UtilisateursAdmin() {
             >
               Changer le PIN
             </button>
+            <button
+              className="petit"
+              onClick={() => {
+                const nouveau = prompt(`Nouveau mot de passe d'administration pour ${u.nom} (6 caractères au moins)`);
+                if (nouveau) agir((p) => post(`/utilisateurs/${u.id}/mot-de-passe`, { nouveau }, p), "Mot de passe défini");
+              }}
+            >
+              Mot de passe
+            </button>
             <button className="petit" onClick={() => agir((p) => appel(`/utilisateurs/${u.id}`, { methode: "PUT", corps: { id: u.id, actif: !u.actif }, pin: p }), "Enregistré").then(recharger)}>
               {u.actif ? "Désactiver" : "Réactiver"}
             </button>
@@ -506,7 +589,13 @@ function UtilisateursAdmin() {
           <Champ libelle="Nom" valeur={nouveau.nom} changer={(v) => setNouveau({ ...nouveau, nom: v })} obligatoire autoFocus />
           <Choix libelle="Rôle" valeur={nouveau.role_code} changer={(v) => setNouveau({ ...nouveau, role_code: v })} options={(roles?.roles ?? []).map((r) => ({ valeur: r.code, libelle: r.nom }))} />
           <Champ libelle="Code PIN (4 à 6 chiffres)" type="password" valeur={nouveau.pin} changer={(v) => setNouveau({ ...nouveau, pin: v })} obligatoire />
-          <button className="principal" onClick={() => agir((p) => post("/utilisateurs", nouveau, p), "Utilisateur créé").then((r) => {
+          <Champ
+            libelle="Mot de passe d'administration (gérant, propriétaire ; facultatif)"
+            type="password"
+            valeur={nouveau.mot_de_passe}
+            changer={(v) => setNouveau({ ...nouveau, mot_de_passe: v })}
+          />
+          <button className="principal" onClick={() => agir((p) => post("/utilisateurs", { ...nouveau, mot_de_passe: nouveau.mot_de_passe || null }, p), "Utilisateur créé").then((r) => {
                 if (r !== undefined) {
                   setNouveau(null);
                   recharger();

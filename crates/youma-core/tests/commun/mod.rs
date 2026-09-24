@@ -24,8 +24,9 @@ pub fn banc() -> Banc {
 }
 
 impl Banc {
+    /// Session confirmée par mot de passe (RG-AUT-06) : l'administration est accessible.
     pub fn proprietaire(&self) -> Acteur {
-        Acteur::utilisateur(&self.demo.proprietaire)
+        Acteur::utilisateur(&self.demo.proprietaire).avec_eleve(true)
     }
     pub fn gerant(&self) -> Acteur {
         Acteur::utilisateur(&self.demo.gerant)
