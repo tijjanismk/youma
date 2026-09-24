@@ -205,7 +205,7 @@ pub fn regler(db: &mut Db, acteur: &Acteur, r: &Reglement) -> Resultat<String> {
             "reglement_client",
             r.montant,
             Some(("client", &r.client_id)),
-            &format!("Règlement {nom} {}", r.reference.trim()).trim().to_string(),
+            format!("Règlement {nom} {}", r.reference.trim()).trim(),
             None,
         )?;
         op.execute(

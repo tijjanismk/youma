@@ -1051,19 +1051,6 @@ pub fn montant_lignes(conn: &Connection, commande_id: &str, lignes: &[String]) -
     Ok(total)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parts_egales_ecart_sur_derniere() {
-        assert_eq!(diviser_parts_egales(12_500, 3, 25), vec![4_175, 4_175, 4_150]);
-        assert_eq!(diviser_parts_egales(10_000, 4, 25), vec![2_500; 4]);
-        assert_eq!(diviser_parts_egales(1_000, 3, 1), vec![333, 333, 334]);
-        assert_eq!(diviser_parts_egales(12_500, 3, 25).iter().sum::<i64>(), 12_500);
-    }
-}
-
 /// Associe (ou retire) un client à l'addition : crédit, historique, livraison.
 pub fn definir_client(db: &mut Db, acteur: &Acteur, commande_id: &str, client_id: Option<&str>) -> Resultat<()> {
     db.executer(acteur, |op| {
@@ -1076,4 +1063,17 @@ pub fn definir_client(db: &mut Db, acteur: &Acteur, commande_id: &str, client_id
         op.execute("UPDATE commandes SET client_id = ?1 WHERE id = ?2", params![client_id, commande_id])?;
         toucher(op, commande_id)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parts_egales_ecart_sur_derniere() {
+        assert_eq!(diviser_parts_egales(12_500, 3, 25), vec![4_175, 4_175, 4_150]);
+        assert_eq!(diviser_parts_egales(10_000, 4, 25), vec![2_500; 4]);
+        assert_eq!(diviser_parts_egales(1_000, 3, 1), vec![333, 333, 334]);
+        assert_eq!(diviser_parts_egales(12_500, 3, 25).iter().sum::<i64>(), 12_500);
+    }
 }

@@ -1,6 +1,9 @@
 //! Youma — cœur métier : règles (RG-*), persistance SQLite, rapports, impression, licence.
 //! L'interface ne touche jamais la base : elle passe par l'API du serveur, qui appelle ce crate.
 
+// Lignes SQL lues en tuples, à usage local : plus lisible qu'un type par requête.
+#![allow(clippy::type_complexity)]
+
 pub mod achats;
 pub mod appareils;
 pub mod auth;

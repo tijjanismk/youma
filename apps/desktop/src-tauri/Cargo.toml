@@ -1,0 +1,24 @@
+[package]
+name = "youma-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Youma — poste central (Windows)"
+license = "LicenseRef-Proprietaire"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+youma-server = { path = "../../../crates/youma-server" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

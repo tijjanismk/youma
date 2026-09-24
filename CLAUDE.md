@@ -3,14 +3,14 @@
 Logiciel de gestion de restaurant local-first pour le Mali.
 Référence unique : `docs/CAHIER_DES_CHARGES.md`. Le lire avant toute tâche.
 
-## Phase actuelle : CONCEPTION
+## Phase actuelle : RÉALISATION
 
-- Ne pas écrire de code applicatif tant que l'architecture n'est pas validée.
-- Livrer la conception par phases (section 30 du cahier des charges) dans `docs/conception/`.
-- S'arrêter à la fin de chaque phase et attendre la validation.
-- Décisions techniques : une fiche par décision dans `docs/decisions/NNNN-titre.md`
+- Conception livrée dans `docs/conception/` (phases 1 à 4) ; MVP 0 et MVP 1 codés (voir fiche 0001).
+- Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
   (contexte, décision, alternatives écartées, conséquences).
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
+- Avant de pousser : `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+  `cd ui && npm test && npm run build && npx playwright test`.
 
 ## Règles non négociables (à respecter aussi une fois le code commencé)
 
