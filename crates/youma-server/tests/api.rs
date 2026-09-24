@@ -279,3 +279,52 @@ async fn employes_et_paie_par_api() {
     let (code, _) = s.get(&serveuse, "/employes").await;
     assert_eq!(code, 403);
 }
+
+/// Mode réseau : un appareil distant non appairé ne voit rien ; appairé, il travaille normalement.
+#[tokio::test]
+async fn appareil_distant_doit_etre_appaire() {
+    // Adresse IP locale non bouclée (interface réseau du poste) : sinon, test sans objet sur cette machine.
+    let Some(ip) = std::net::UdpSocket::bind("0.0.0.0:0")
+        .and_then(|s| s.connect("10.255.255.1:80").map(|_| s))
+        .ok()
+        .and_then(|s| s.local_addr().ok())
+        .map(|a| a.ip())
+        .filter(|ip| !ip.is_loopback() && !ip.is_unspecified())
+    else {
+        eprintln!("pas d'interface réseau : test ignoré");
+        return;
+    };
+    let dossier = tempfile::tempdir().unwrap();
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, reseau: true, dossier_ui: None, demo: true, reseau_sans_licence: false };
+    let etat = Etat::ouvrir(config).unwrap();
+    let ecoute = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
+    let port = ecoute.local_addr().unwrap().port();
+    tokio::spawn(youma_server::servir(etat, ecoute));
+    let local = format!("http://127.0.0.1:{port}/api");
+    let distant = format!("http://{ip}:{port}/api");
+    let client = reqwest::Client::new();
+
+    // Téléphone non appairé : invitation à appairer, aucune donnée.
+    let e: Value = client.get(format!("{distant}/etat")).send().await.unwrap().json().await.unwrap();
+    assert_eq!(e["appairage_requis"], true);
+    assert!(e.get("parametres").is_none());
+    let r = client.get(format!("{distant}/connexion/utilisateurs")).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 403);
+
+    // Le propriétaire génère un code sur le poste central.
+    let users: Vec<Value> = client.get(format!("{local}/connexion/utilisateurs")).send().await.unwrap().json().await.unwrap();
+    let proprio = users.iter().find(|u| u["nom"].as_str().unwrap().contains("Mariam")).unwrap();
+    let s: Value = client.post(format!("{local}/connexion")).json(&json!({ "utilisateur_id": proprio["id"], "pin": "1234" })).send().await.unwrap().json().await.unwrap();
+    let code: Value = client.post(format!("{local}/appareils/code")).bearer_auth(s["jeton"].as_str().unwrap()).json(&json!({})).send().await.unwrap().json().await.unwrap();
+
+    // Le téléphone s'appaire puis accède à l'application.
+    let a: Value = client.post(format!("{distant}/appareils/appairer")).json(&json!({ "code": code["code"], "nom": "Tél. Awa" })).send().await.unwrap().json().await.unwrap();
+    let jeton_appareil = a["jeton"].as_str().unwrap().to_string();
+    let e: Value = client.get(format!("{distant}/etat")).header("X-Appareil", &jeton_appareil).send().await.unwrap().json().await.unwrap();
+    assert_eq!(e["restaurant"], "Maquis Le Baobab");
+    let r = client.get(format!("{distant}/connexion/utilisateurs")).header("X-Appareil", &jeton_appareil).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    // Jeton inventé : refusé.
+    let r = client.get(format!("{distant}/connexion/utilisateurs")).header("X-Appareil", "faux").send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 403);
+}

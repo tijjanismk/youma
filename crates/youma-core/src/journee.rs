@@ -127,6 +127,11 @@ pub fn cloturer(db: &mut Db, acteur: &Acteur) -> Resultat<Journee> {
             "UPDATE journees SET statut = 'cloturee', cloturee_le = ?1, cloturee_par = ?2 WHERE id = ?3",
             params![op.maintenant, op.utilisateur(), j.id],
         )?;
+        // Les additions payées de la journée sont clôturées avec elle.
+        op.execute(
+            "UPDATE commandes SET statut = 'cloturee', cloturee_le = ?1 WHERE journee_id = ?2 AND statut = 'payee'",
+            params![op.maintenant, j.id],
+        )?;
         op.audit("journee.cloturer", "journee", Some(&j.id), None, None, None, None)?;
         op.outbox("journee", &j.id, "cloturer")?;
         op.evenement("journee", Some(&j.id));

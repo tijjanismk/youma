@@ -537,3 +537,17 @@ fn base_neuve_initialisee_sans_utilisateur() {
     assert!(s.permissions.len() > 30);
     let _ = Acteur::systeme();
 }
+
+#[test]
+fn rg_rap_03_salaires_rattaches_a_leur_periode() {
+    let mut b = banc();
+    // Paie de mars clôturée le 2 avril : les salaires comptent dans le rapport de mars, pas d'avril.
+    b.horloge.regler_a("2026-04-02", 10, 0);
+    let awa = b.employe("Awa Traoré");
+    let g = b.gerant();
+    paie::cloturer(&mut b.db, &g, &awa, "2026-03-01", "2026-03-31").unwrap();
+    let mars = youma_core::rapports::chiffres(b.db.conn(), "2026-03-01", "2026-03-31").unwrap();
+    let avril = youma_core::rapports::chiffres(b.db.conn(), "2026-04-01", "2026-04-30").unwrap();
+    assert_eq!(mars.salaires, 50_000);
+    assert_eq!(avril.salaires, 0);
+}

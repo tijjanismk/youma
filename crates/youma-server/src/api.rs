@@ -207,8 +207,12 @@ pub fn routeur(etat: Etat) -> Router {
 
 // ───────────── Système ─────────────
 
-async fn etat_general(State(e): State<Etat>) -> Rep<Value> {
+async fn etat_general(State(e): State<Etat>, poste: Result<Poste, ApiErreur>) -> Rep<Value> {
     let config = e.config.clone();
+    if let Err(ApiErreur(err)) = poste {
+        // Appareil du réseau non appairé : aucune donnée, seulement l'invitation à scanner le QR.
+        return Ok(Json(json!({ "installe": true, "appairage_requis": true, "message": err.to_string() })));
+    }
     let v = e
         .avec_db(move |db| {
             let r = parametres::restaurant(db.conn())?;

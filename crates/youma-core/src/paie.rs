@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::db::{trouver, Acteur, Db};
-use crate::employes::{self, employe, inserer_mouvement, presences, Employe};
+use crate::employes::{self, employe, inserer_mouvement, inserer_mouvement_date, presences, Employe};
 use crate::erreur::{Erreur, Resultat};
 use crate::parametres::{appliquer_bp, Parametres};
 use crate::permissions as perm;
@@ -258,7 +258,8 @@ pub fn cloturer(db: &mut Db, acteur: &Acteur, employe_id: &str, debut: &str, fin
             ("cotisation_amo", -c.amo_salarie, None),
         ] {
             if m != 0 {
-                inserer_mouvement(op, employe_id, t, m, q, None, None, Some(&bid), &motif, autorise_par.as_deref())?;
+                // Daté de la fin de période : le rapport du mois compte bien ses salaires (RG-RAP-03).
+                inserer_mouvement_date(op, Some(fin), employe_id, t, m, q, None, None, Some(&bid), &motif, autorise_par.as_deref())?;
             }
         }
         let mvts = mouvements_apres(op, employe_id, prev_seq)?;

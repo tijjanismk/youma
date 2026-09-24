@@ -328,9 +328,29 @@ pub(crate) fn inserer_mouvement(
     motif: &str,
     autorise_par: Option<&str>,
 ) -> Resultat<String> {
-    let date = match crate::journee::ouverte(op)? {
-        Some(j) => j.date_exploitation,
-        None => date_locale(op.maintenant, op.params.fuseau_minutes),
+    inserer_mouvement_date(op, None, employe_id, type_, montant, quantite, compte, commande_id, bulletin_id, motif, autorise_par)
+}
+
+/// `date` : date de rattachement (fin de période pour les salaires d'une clôture de paie),
+/// sinon la journée d'exploitation ouverte.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn inserer_mouvement_date(
+    op: &Op,
+    date: Option<&str>,
+    employe_id: &str,
+    type_: &str,
+    montant: i64,
+    quantite: Option<i64>,
+    compte: Option<(&str, &str)>,
+    commande_id: Option<&str>,
+    bulletin_id: Option<&str>,
+    motif: &str,
+    autorise_par: Option<&str>,
+) -> Resultat<String> {
+    let date = match (date, crate::journee::ouverte(op)?) {
+        (Some(d), _) => d.to_string(),
+        (None, Some(j)) => j.date_exploitation,
+        (None, None) => date_locale(op.maintenant, op.params.fuseau_minutes),
     };
     let id = op.nouvel_id();
     op.execute(

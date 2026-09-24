@@ -72,7 +72,7 @@ function Bandeaux() {
 function Appairage() {
   const loc = useLocation();
   const nav = useNavigate();
-  const { notifier } = useApp();
+  const { notifier, rechargerEtat } = useApp();
   useEffect(() => {
     const code = new URLSearchParams(loc.search).get("appairage");
     if (!code) return;
@@ -82,9 +82,10 @@ function Appairage() {
         definirJetonAppareil(r.jeton);
         notifier("Appareil autorisé", "succes");
         nav("/", { replace: true });
+        rechargerEtat();
       })
       .catch((e) => notifier(e.message, "erreur"));
-  }, [loc.search, nav, notifier]);
+  }, [loc.search, nav, notifier, rechargerEtat]);
   return null;
 }
 
@@ -99,6 +100,18 @@ function Coquille() {
       <div className="plein-ecran">
         <Bandeaux />
         <p className="aide">Connexion au poste central…</p>
+      </div>
+    );
+  }
+  if (etat.appairage_requis) {
+    return (
+      <div className="plein-ecran">
+        <Appairage />
+        <div className="carte etroite">
+          <h1>Appareil non autorisé</h1>
+          <p>{etat.message}</p>
+          <p className="aide">Sur le poste central : Administration → Téléphones et tablettes → « Générer un code », puis scannez le QR code avec ce téléphone.</p>
+        </div>
       </div>
     );
   }

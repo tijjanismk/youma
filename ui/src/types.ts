@@ -11,6 +11,9 @@ export type Journee = { id: string; date_exploitation: string; statut: string; o
 
 export type EtatGeneral = {
   installe: boolean;
+  /** Appareil du réseau pas encore autorisé : seul l'appairage est possible. */
+  appairage_requis?: boolean;
+  message?: string;
   demo: boolean;
   restaurant: string;
   horloge: { maintenant: number; dernier_evenement: number; coherente: boolean };
