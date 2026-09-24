@@ -1,0 +1,10 @@
+/target
+**/target
+node_modules/
+ui/dist/
+ui/test-results/
+ui/playwright-report/
+*.db
+*.db-wal
+*.db-shm
+/donnees/

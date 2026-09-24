@@ -1,0 +1,5 @@
+# Clé de DÉVELOPPEMENT Youma — publique par nature, ne protège rien.
+# Ne JAMAIS l'utiliser en production : compiler avec YOUMA_CLE_PUBLIQUE=<clé réelle>
+# (générée par `youma-licence generer-cles`, clé privée conservée hors du dépôt).
+privee=ep4IEaSAer69JPfsTV2u+yY6LNbW3YRPzTkBlbHpask=
+publique=WP3WQdFMZgUtvk/I0GO67IbJvk6ylvIeUgHGvg27O8s=
