@@ -16,7 +16,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
-    achats, appareils, auth, caisse, catalogue, clients, commandes, demo, employes, entrantes, horloge, impression, journee,
+    achats, appareils, auth, caisse, catalogue, clients, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
     licence, livraison, paie, parametres, rapports, recettes, salle, sauvegarde, stock, zones_risque, Db,
 };
 
@@ -160,6 +160,11 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/fournisseurs", get(fournisseurs).post(fournisseur_enregistrer))
         .route("/fournisseurs/reglement", post(fournisseur_reglement))
         .route("/achats", get(achats_lister).post(achat_receptionner))
+        .route("/emballages", get(emballages_etat).post(emballage_enregistrer))
+        .route("/emballages/mouvement", post(emballage_mouvement))
+        .route("/emballages/retour", post(emballage_retour))
+        .route("/emballages/{id}/inventaire", post(emballage_inventaire))
+        .route("/emballages/{id}/historique", get(emballage_historique))
         // Clients
         .route("/clients", get(clients_rechercher).post(client_enregistrer))
         .route("/clients/{id}", get(client_detail))
@@ -1268,4 +1273,41 @@ async fn recette_definir(State(e): State<Etat>, a: Auth, Path(id): Path<String>,
 
 async fn rapport_cout_matiere(State(e): State<Etat>, a: Auth) -> Rep<Vec<recettes::CoutMatiere>> {
     lire!(e, a, Some(perm::RAPPORT_VOIR), |db| recettes::couts_matiere(db.conn()))
+}
+
+// ───────────── Consignes (fiche 0015) ─────────────
+
+async fn emballages_etat(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    lire!(e, a, Some(perm::STOCK_VOIR), |db| {
+        let fournisseurs: Vec<Value> = consignes::consignes_par_fournisseur(db.conn())?
+            .into_iter()
+            .map(|(id, nom, montant)| json!({ "fournisseur_id": id, "nom": nom, "montant": montant }))
+            .collect();
+        Ok(json!({ "emballages": consignes::etats(db.conn())?, "fournisseurs": fournisseurs }))
+    })
+}
+
+async fn emballage_enregistrer(State(e): State<Etat>, a: Auth, Json(x): Json<consignes::Emballage>) -> Rep<String> {
+    ecrire!(e, a, |db| consignes::enregistrer(db, &a, &x))
+}
+
+async fn emballage_mouvement(State(e): State<Etat>, a: Auth, Json(m): Json<consignes::MouvementEmballage>) -> Rep<String> {
+    ecrire!(e, a, |db| consignes::mouvement(db, &a, &m))
+}
+
+async fn emballage_retour(State(e): State<Etat>, a: Auth, Json(r): Json<consignes::RetourFournisseur>) -> Rep<String> {
+    ecrire!(e, a, |db| consignes::retour_fournisseur(db, &a, &r))
+}
+
+#[derive(Deserialize)]
+struct ComptageVides {
+    comptes: i64,
+}
+
+async fn emballage_inventaire(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(c): Json<ComptageVides>) -> Rep<i64> {
+    ecrire!(e, a, |db| consignes::inventaire(db, &a, &id, c.comptes))
+}
+
+async fn emballage_historique(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Vec<consignes::MouvementLu>> {
+    lire!(e, a, Some(perm::STOCK_VOIR), |db| consignes::historique(db.conn(), &id))
 }

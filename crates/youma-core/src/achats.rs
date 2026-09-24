@@ -94,6 +94,9 @@ pub struct NouvelAchat {
     #[serde(default)]
     pub compte_id: Option<String>,
     pub lignes: Vec<LigneAchatSaisie>,
+    /// Emballages consignés reçus et vides rendus avec la livraison (fiche 0015).
+    #[serde(default)]
+    pub consignes: Vec<crate::consignes::ConsigneAchat>,
     #[serde(default)]
     pub note: String,
 }
@@ -102,11 +105,20 @@ pub struct NouvelAchat {
 pub fn receptionner(db: &mut Db, acteur: &Acteur, a: &NouvelAchat) -> Resultat<String> {
     db.executer(acteur, |op| {
         op.exiger(perm::ACHAT_GERER)?;
-        if a.lignes.is_empty() {
+        if a.lignes.is_empty() && a.consignes.is_empty() {
             return Err(Erreur::validation("Ajoutez au moins un article"));
         }
         let journee = crate::journee::ouverte(op)?.map(|j| j.id);
-        let total: i64 = a.lignes.iter().map(|l| l.prix_total).sum();
+        // RG-CON-02 : la consigne nette (reçus − rendus) × valeur s'ajoute au total, payée ou due comme la marchandise.
+        let mut consigne_nette = 0;
+        for c in &a.consignes {
+            let v: i64 = trouver(op.query_row("SELECT valeur FROM emballages WHERE id = ?1", params![c.emballage_id], |r| r.get(0)), "Emballage")?;
+            consigne_nette += (c.recus - c.rendus) * v;
+        }
+        let total: i64 = a.lignes.iter().map(|l| l.prix_total).sum::<i64>() + consigne_nette;
+        if total < 0 {
+            return Err(Erreur::regle("RG-CON-02", "Les vides rendus dépassent l'achat : enregistrez un retour d'emballages séparé"));
+        }
         let id = op.nouvel_id();
         let numero = op.sequence("achat")?;
         let (compte, session) = match a.mode.as_str() {
@@ -153,6 +165,7 @@ pub fn receptionner(db: &mut Db, acteur: &Acteur, a: &NouvelAchat) -> Resultat<S
                 params![cout, op.maintenant, l.article_id],
             )?;
         }
+        crate::consignes::a_la_reception(op, &id, a.fournisseur_id.as_deref(), &a.consignes)?;
         let fournisseur_nom: String = match &a.fournisseur_id {
             Some(f) => trouver(op.query_row("SELECT nom FROM fournisseurs WHERE id = ?1", params![f], |r| r.get(0)), "Fournisseur")?,
             None => "marché".into(),

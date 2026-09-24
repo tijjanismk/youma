@@ -17,6 +17,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (2, include_str!("../migrations/0002_mot_de_passe_sortie_operateurs.sql")),
     (3, include_str!("../migrations/0003_canaux_zones_risque.sql")),
     (4, include_str!("../migrations/0004_recettes.sql")),
+    (5, include_str!("../migrations/0005_consignes.sql")),
 ];
 
 pub fn version_schema() -> i64 {

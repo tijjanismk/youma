@@ -32,7 +32,8 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Serveur relais Internet facultatif (menu en ligne, code SMS Orange Mali ou simulé, suivi et position du livreur en HTTPS) | ✅ (SMS simulé tant que le contrat Orange n'est pas signé) |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
 | Recettes (ingrédients en g/ml/pièce), consommation théorique, coût matière | ✅ |
-| Consignes, cloud, multi-établissements | V2, non commencé |
+| Consignes : bouteilles et casiers, vides, consigne versée au dépôt, retours | ✅ |
+| Cloud, multi-établissements | V2, non commencé |
 
 ## Démarrer
 

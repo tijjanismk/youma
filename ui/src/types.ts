@@ -342,3 +342,15 @@ export type Recette = {
   cout: number;
 };
 export type CoutMatiere = { produit_id: string; nom: string; prix: number; cout: number; part_bp: number };
+
+/** Consignes (fiche 0015). */
+export type Emballage = { id: string; nom: string; valeur: number; actif: boolean; articles: string[] };
+export type EtatEmballage = {
+  emballage: Emballage;
+  detenus: number;
+  pleins: number | null;
+  vides: number | null;
+  consigne_versee: number;
+  valeur_detenus: number;
+};
+export type ConsigneAchat = { emballage_id: string; recus: number; rendus: number };

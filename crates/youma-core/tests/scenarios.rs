@@ -296,7 +296,7 @@ fn s10_reception_boissons() {
     achats::receptionner(
         &mut b.db,
         &g,
-        &achats::NouvelAchat { fournisseur_id: None, mode: "comptant".into(), compte_id: Some(caisse_id), lignes: vec![achats::LigneAchatSaisie { article_id: coca.clone(), conditionnement_id: Some(casier), quantite: 2, prix_total: 26_400 }], note: "Marché".into() },
+        &achats::NouvelAchat { fournisseur_id: None, mode: "comptant".into(), compte_id: Some(caisse_id), lignes: vec![achats::LigneAchatSaisie { article_id: coca.clone(), conditionnement_id: Some(casier), quantite: 2, prix_total: 26_400 }], consignes: vec![], note: "Marché".into() },
     )
     .unwrap();
     assert_eq!(b.stock("Coca-Cola 33 cl"), avant + 48);

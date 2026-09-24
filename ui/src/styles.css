@@ -1222,3 +1222,14 @@ code {
   align-items: center;
   margin-bottom: 6px;
 }
+
+/* ───── Consignes (fiche 0015) ───── */
+.ligne-consigne {
+  display: grid;
+  grid-template-columns: 1fr 120px 120px;
+  gap: 8px;
+  align-items: end;
+}
+.consignes-achat {
+  margin: 10px 0;
+}

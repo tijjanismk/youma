@@ -105,6 +105,11 @@ const fr = {
   recue: "Reçue",
   refusee: "Refusée",
   acceptee: "Acceptée",
+  // Consignes (fiche 0015)
+  reception: "Réception (livraison)",
+  retour: "Rendu au fournisseur",
+  sortie_client: "Emportée par un client",
+  retour_client: "Rapportée par un client",
 } as const;
 
 export type Cle = keyof typeof fr;

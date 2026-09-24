@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, Choix, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
+import Consignes from "./Consignes";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa } from "../format";
 import { t } from "../i18n";
@@ -16,7 +17,7 @@ type Inventaire = {
 export default function Stock() {
   const { peut } = useApp();
   const { donnees, recharger } = useDonnees(() => get<NiveauStock[]>("/stock"), ["stock"]);
-  const [onglet, setOnglet] = useState<"niveaux" | "inventaire">("niveaux");
+  const [onglet, setOnglet] = useState<"niveaux" | "inventaire" | "consignes">("niveaux");
   const [mouvement, setMouvement] = useState<NiveauStock | null>(null);
   const [article, setArticle] = useState<NiveauStock | "nouveau" | null>(null);
   const [historique, setHistorique] = useState<NiveauStock | null>(null);
@@ -35,6 +36,7 @@ export default function Stock() {
         onglets={[
           { cle: "niveaux", libelle: "Niveaux" },
           ...(peut("stock.inventaire") ? [{ cle: "inventaire" as const, libelle: "Inventaire" }] : []),
+          { cle: "consignes", libelle: "Consignes (bouteilles, casiers)" },
         ]}
         actif={onglet}
         changer={setOnglet}
@@ -74,6 +76,7 @@ export default function Stock() {
         </>
       )}
       {onglet === "inventaire" && <Inventaires articles={donnees ?? []} />}
+      {onglet === "consignes" && <Consignes />}
       {mouvement && <MouvementStock n={mouvement} fermer={() => setMouvement(null)} fait={recharger} />}
       {article && <FormArticle n={article === "nouveau" ? null : article} fermer={() => setArticle(null)} fait={recharger} />}
       {historique && <Historique n={historique} fermer={() => setHistorique(null)} />}

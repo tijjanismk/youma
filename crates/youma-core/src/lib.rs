@@ -11,6 +11,7 @@ pub mod caisse;
 pub mod catalogue;
 pub mod clients;
 pub mod commandes;
+pub mod consignes;
 pub mod db;
 pub mod demo;
 pub mod entrantes;

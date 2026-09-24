@@ -12,7 +12,7 @@ use crate::employes::{self, Employe};
 use crate::erreur::Resultat;
 use crate::parametres::{self, QuartierLivraison};
 use crate::salle::{self, Zone};
-use crate::recettes;
+use crate::{consignes, recettes};
 use crate::stock::{self, Article, Conditionnement};
 
 pub struct Demo {
@@ -288,7 +288,21 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
         LigneAchatSaisie { article_id: a_biere.clone(), conditionnement_id: Some(cond(db, &a_biere)?), quantite: 3, prix_total: 21_600 },
         LigneAchatSaisie { article_id: a_jus.clone(), conditionnement_id: Some(cond(db, &a_jus)?), quantite: 1, prix_total: 3_600 },
     ];
-    achats::receptionner(db, &sys, &NouvelAchat { fournisseur_id: Some(fournisseur), mode: "credit".into(), compte_id: None, lignes, note: "Stock initial".into() })?;
+    // Consignes (fiche 0015) : bouteilles de bière et casiers consignés par le dépôt.
+    let emballage = |db: &mut Db, nom: &str, valeur: i64, articles: Vec<String>| {
+        consignes::enregistrer(db, &sys, &consignes::Emballage { id: String::new(), nom: nom.into(), valeur, actif: true, articles })
+    };
+    let bouteille = emballage(db, "Bouteille bière 65 cl", 150, vec![a_biere.clone()])?;
+    let casier = emballage(db, "Casier bière (12)", 2_500, vec![])?;
+    let consignes_initiales = vec![
+        consignes::ConsigneAchat { emballage_id: bouteille, recus: 36, rendus: 0 },
+        consignes::ConsigneAchat { emballage_id: casier, recus: 3, rendus: 0 },
+    ];
+    achats::receptionner(
+        db,
+        &sys,
+        &NouvelAchat { fournisseur_id: Some(fournisseur), mode: "credit".into(), compte_id: None, lignes, consignes: consignes_initiales, note: "Stock initial".into() },
+    )?;
     Ok(Demo { proprietaire, gerant, caissier, serveur })
 }
 

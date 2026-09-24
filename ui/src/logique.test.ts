@@ -200,3 +200,19 @@ describe("recettes (fiche 0014)", async () => {
     expect(recetteValide([{ article_id: "a", quantite: 1 }, { article_id: "a", quantite: 2 }])).toBe(false);
   });
 });
+
+describe("consignes (fiche 0015)", async () => {
+  const { consigneNette, consignesSaisies } = await import("./consigne");
+
+  it("consigne nette d'une livraison : (reçus − rendus) × valeur", () => {
+    const valeurs = { bouteille: 150, casier: 2_500 };
+    const c = [
+      { emballage_id: "bouteille", recus: 24, rendus: 12 },
+      { emballage_id: "casier", recus: 2, rendus: 1 },
+      { emballage_id: "casier-vide", recus: 0, rendus: 0 },
+    ];
+    expect(consigneNette(c, valeurs)).toBe(12 * 150 + 2_500);
+    expect(consigneNette([{ emballage_id: "casier", recus: 0, rendus: 3 }], valeurs)).toBe(-7_500);
+    expect(consignesSaisies(c)).toHaveLength(2);
+  });
+});

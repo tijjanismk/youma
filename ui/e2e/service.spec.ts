@@ -338,3 +338,26 @@ test("recette d'un plat : coût matière calculé, rapport « Coût matière »"
   await expect(ligne).toContainText("360 FCFA");
   await expect(ligne).toContainText("48,00 %");
 });
+
+test("consignes : casiers reçus et vides rendus à la livraison, comptage", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/achats");
+  await page.getByLabel("Fournisseur").selectOption({ label: "Dépôt de boissons du quartier" });
+  await page.getByLabel("Paiement").selectOption("credit");
+  await page.getByText(/^Emballages consignés/).click();
+  await page.getByLabel("Reçus : Casier bière (12)").fill("2");
+  await page.getByLabel("Rendus : Casier bière (12)").fill("1");
+  await expect(page.getByText("Emballages consignés (consigne 2 500 FCFA)")).toBeVisible();
+  await page.getByRole("button", { name: "Enregistrer la réception" }).click();
+  await expect(page.getByText("Réception enregistrée")).toBeVisible();
+
+  await page.goto("/stock");
+  await page.getByRole("tab", { name: /Consignes/ }).click();
+  // Démo : 3 casiers ; +2 reçus −1 rendu = 4 détenus.
+  const casier = page.getByRole("row", { name: /Casier bière \(12\)/ });
+  await expect(casier.getByRole("cell").nth(2)).toHaveText("4");
+  await page.getByRole("button", { name: "Compter les vides : Casier bière (12)" }).click();
+  await page.getByLabel("Nombre compté").fill("4");
+  await page.getByRole("button", { name: "Valider le comptage" }).click();
+  await expect(page.getByText("Comptage conforme")).toBeVisible();
+});

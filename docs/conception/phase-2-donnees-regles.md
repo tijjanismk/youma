@@ -120,6 +120,21 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   vendue × quantité annulée), jamais plus que ce qui est encore dehors ; avec perte, rien ne revient.
 * **RG-REC-04** Coût matière = Σ quantité × coût unitaire de l'article ; affiché avec sa part du prix de vente.
 
+### Consignes (CON) — fiche 0015
+* **RG-CON-01** Un emballage consigné (bouteille, casier) a une consigne entière ≥ 0 ; il peut être lié aux articles
+  dont une unité pleine le contient (bière 65 cl → bouteille 65 cl).
+* **RG-CON-02** À la réception d'un achat : emballages reçus (+ détenus, + consigne versée au fournisseur) et vides
+  rendus (− détenus, − consigne). La consigne nette (reçus − rendus) × valeur s'ajoute au total de l'achat, payée ou
+  due comme la marchandise. On ne rend pas plus que ce qu'on détient ; un achat ne devient jamais négatif.
+* **RG-CON-03** Détenus = Σ mouvements d'emballages ; vides = détenus − pleins en stock (articles liés). La vente ne
+  change pas les détenus : la bouteille reste au restaurant et devient un vide.
+* **RG-CON-04** Casse, perte, bouteille emportée ou rapportée par un client, régularisation : motif obligatoire,
+  journal en ajout seul.
+* **RG-CON-05** Comptage des vides (ou des emballages détenus, sans article lié) par un détenteur de
+  `stock.valider_inventaire` : un mouvement d'écart (compté − attendu).
+* **RG-CON-06** Vides rendus hors livraison : la consigne revient en caisse (entrée « remboursement_consigne ») ou
+  réduit la dette du fournisseur ; jamais plus que la consigne qu'il détient pour cet emballage.
+
 ### Clients et crédit (CLI)
 * **RG-CLI-01** Le crédit est désactivé par défaut pour chaque client.
 * **RG-CLI-02** Vente à crédit refusée si dette + montant > limite, sauf autorisation ponctuelle (`client.depasser_limite`).
