@@ -94,6 +94,7 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAI-11** Un mouvement de caisse ne peut rendre le solde espèces négatif.
 * **RG-CAI-12** Transfert entre comptes = deux mouvements liés ; frais éventuels = dépense séparée.
 * **RG-CAI-13** Une dépense est catégorisée, liée à un compte et à la journée ; elle crée un mouvement de trésorerie négatif.
+* **RG-CAI-14** Chaque paiement conserve les espèces reçues du client et la monnaie rendue (rendu = reçu − part en espèces). Ils figurent sur le ticket, l'écran de reçu, le rapport Z (total reçu, rendu, gardé) et le rapport d'activité. Sans part en espèces, reçu = rendu = 0.
 
 ### Stock (STK)
 * **RG-STK-01** Vente d'un produit revendu → sortie de 1 unité × quantité (hors lignes annulées) au moment de l'envoi (ou du paiement en comptoir).

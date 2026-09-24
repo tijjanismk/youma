@@ -372,6 +372,18 @@ pub fn rapport_periode(conn: &Connection, debut: &str, fin: &str) -> Resultat<Ra
         )?,
         requete_tableau(
             conn,
+            "Espèces reçues et monnaie rendue",
+            &["Heure", "Reçu n°", "Commande", "Caissier", "Payé en espèces", "Reçu du client", "Monnaie rendue"],
+            "SELECT strftime('%d/%m %H:%M', p.horodatage / 1000, 'unixepoch'), p.numero, c.numero, u.nom,
+                    p.recu - p.rendu, p.recu, p.rendu
+             FROM paiements p JOIN journees j ON j.id = p.journee_id LEFT JOIN commandes c ON c.id = p.commande_id
+             LEFT JOIN utilisateurs u ON u.id = p.utilisateur_id
+             WHERE p.recu > 0 AND p.annule_paiement_id IS NULL AND j.date_exploitation BETWEEN ?1 AND ?2 ORDER BY p.horodatage",
+            p,
+            Some("RG-CAI-14 : monnaie rendue = espèces reçues du client − part payée en espèces"),
+        )?,
+        requete_tableau(
+            conn,
             "Annulations après envoi",
             &["Heure", "Article", "Qté", "Montant", "Motif", "Par", "Autorisé par", "Perte"],
             "SELECT strftime('%d/%m %H:%M', a.horodatage / 1000, 'unixepoch'), l.libelle, a.quantite, a.montant, a.motif,
@@ -630,6 +642,22 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
         if let Some(m) = s.motif_ecart.as_ref().filter(|m| !m.is_empty()) {
             t.push_str(&format!("Motif : {m}\n"));
         }
+    }
+    // RG-CAI-14 : billets reçus des clients et monnaie rendue, pour recouper le comptage.
+    let (recu, rendu, n): (i64, i64, i64) = conn.query_row(
+        "SELECT COALESCE(SUM(recu), 0), COALESCE(SUM(rendu), 0), COUNT(*) FROM paiements
+         WHERE session_id = ?1 AND recu > 0 AND annule_paiement_id IS NULL",
+        params![session_id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+    )?;
+    if n > 0 {
+        t.push_str("--\n**Espèces des clients\n");
+        t.push_str(&ligne_montant(&format!("Reçues des clients ({n})"), &fcfa(recu), w));
+        t.push('\n');
+        t.push_str(&ligne_montant("Monnaie rendue", &fcfa(rendu), w));
+        t.push('\n');
+        t.push_str(&ligne_montant("Gardé en caisse", &fcfa(recu - rendu), w));
+        t.push('\n');
     }
     t.push_str("--\n**Autres encaissements de la session\n");
     let mut stmt = conn.prepare(

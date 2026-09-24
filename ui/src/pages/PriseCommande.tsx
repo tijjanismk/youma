@@ -196,6 +196,7 @@ export default function PriseCommande() {
           <button onClick={() => setPlus(true)}>Plus…</button>
           <button onClick={() => nav("/salle")}>← Salle</button>
         </div>
+        {cmd.totaux.paye !== 0 && <HistoriquePaiements commandeId={id} />}
         {cmd.envois.length > 0 && (
           <details className="envois">
             <summary>Envois ({cmd.envois.length})</summary>
@@ -511,5 +512,28 @@ function ChoixEmploye({ fermer }: { fermer: () => void }) {
         ))}
       </div>
     </Modal>
+  );
+}
+
+type PaiementLu = { id: string; numero: number; montant: number; recu: number; rendu: number; horodatage: number; annule: boolean; est_annulation: boolean; parts: [string, number, string | null][] };
+
+/** Paiements de l'addition : argent reçu et monnaie rendue (RG-CAI-14). */
+function HistoriquePaiements({ commandeId }: { commandeId: string }) {
+  const { donnees } = useDonnees(() => get<PaiementLu[]>(`/commandes/${commandeId}/paiements`), ["paiement"], [commandeId]);
+  return (
+    <details className="envois" open>
+      <summary>Paiements ({donnees?.length ?? 0})</summary>
+      {(donnees ?? []).map((p) => (
+        <div key={p.id} className={`envoi ${p.annule || p.est_annulation ? "probleme" : ""}`}>
+          Reçu n°{p.numero} — {fcfa(p.montant)} ({p.parts.map(([m, v, c]) => `${m === "mobile_money" ? c : t(m)} ${nombre(v)}`).join(", ")})
+          {p.recu > 0 && (
+            <div>
+              Reçu du client {fcfa(p.recu)} · monnaie rendue {fcfa(p.rendu)}
+            </div>
+          )}
+          {p.annule && " — annulé"}
+        </div>
+      ))}
+    </details>
   );
 }

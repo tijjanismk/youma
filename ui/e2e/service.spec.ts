@@ -64,7 +64,9 @@ test("service à table : tournées, envoi, encaissement mixte et rendu monnaie",
   await expect(page.getByText("Rendu : 3 000 FCFA")).toBeVisible();
   await page.getByRole("button", { name: "Valider le paiement" }).click();
   await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
-  await expect(page.getByText("Rendre : 3 000 FCFA")).toBeVisible();
+  await expect(page.getByText("Argent reçu du client")).toBeVisible();
+  await expect(page.locator(".resultat-paiement")).toContainText("5 000 FCFA");
+  await expect(page.getByText("Monnaie à rendre : 3 000 FCFA")).toBeVisible();
   await page.getByRole("button", { name: "Terminé" }).click();
   await expect(page.getByRole("button", { name: /^Table 4 Libre/ })).toBeVisible();
 });

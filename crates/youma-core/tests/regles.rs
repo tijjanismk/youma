@@ -551,3 +551,37 @@ fn rg_rap_03_salaires_rattaches_a_leur_periode() {
     assert_eq!(mars.salaires, 50_000);
     assert_eq!(avril.salaires, 0);
 }
+
+#[test]
+fn rg_cai_14_especes_recues_et_monnaie_rendue() {
+    let mut b = banc();
+    let j = b.ouvrir_journee();
+    let s = b.ouvrir_caisse(10_000);
+    let a = b.caissier();
+    // 4 × Coca = 3 000 ; le client donne un billet de 5 000.
+    let c = b.commande_table("1", &[("Coca-Cola", 4)]);
+    let r = caisse::encaisser(&mut b.db, &a, &Encaissement { commande_id: c.clone(), parts: vec![especes(3_000)], especes_recues: Some(5_000) }).unwrap();
+    assert_eq!((r.especes_recues, r.rendu), (5_000, 2_000));
+    // La caisse ne garde que le prix payé.
+    assert_eq!(b.solde("Caisse principale"), 13_000);
+    let p = &caisse::paiements_commande(b.db.conn(), &c).unwrap()[0];
+    assert_eq!((p.recu, p.rendu), (5_000, 2_000));
+    let ticket = youma_core::impression::ticket_client(b.db.conn(), &c).unwrap();
+    assert!(ticket.contains("Espèces reçues") && ticket.contains("5 000"), "{ticket}");
+    assert!(ticket.contains("Monnaie rendue") && ticket.contains("2 000"), "{ticket}");
+
+    // Paiement 100 % Mobile Money : une saisie « espèces reçues » ne crée pas de monnaie fictive.
+    let c2 = b.commande_table("2", &[("Coca-Cola", 2)]);
+    let om = b.compte("Orange Money");
+    let r2 = caisse::encaisser(&mut b.db, &a, &Encaissement { commande_id: c2, parts: vec![mobile_money(&om, 1_500, "REF-14")], especes_recues: Some(5_000) }).unwrap();
+    assert_eq!((r2.especes_recues, r2.rendu), (0, 0));
+
+    // Rapport Z et rapport d'activité.
+    let z = youma_core::rapports::rapport_z(b.db.conn(), &s).unwrap();
+    assert!(z.contains("Reçues des clients (1)"), "{z}");
+    assert!(z.contains("Monnaie rendue"));
+    let rap = youma_core::rapports::rapport_periode(b.db.conn(), &j.date_exploitation, &j.date_exploitation).unwrap();
+    let t = rap.tableaux.iter().find(|t| t.titre == "Espèces reçues et monnaie rendue").unwrap();
+    assert_eq!(t.lignes.len(), 1);
+    assert_eq!(t.lignes[0][4..], [serde_json::json!(3_000), serde_json::json!(5_000), serde_json::json!(2_000)]);
+}

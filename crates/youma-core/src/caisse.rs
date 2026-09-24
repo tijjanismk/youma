@@ -451,6 +451,8 @@ pub struct ResultatEncaissement {
     pub paiement_id: String,
     pub numero: i64,
     pub montant: i64,
+    /// RG-CAI-14 : espèces tendues par le client et monnaie rendue, conservées sur le paiement.
+    pub especes_recues: i64,
     pub rendu: i64,
     pub reste: i64,
     pub commande_payee: bool,
@@ -487,7 +489,8 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
         ));
     }
     let especes: i64 = e.parts.iter().filter(|p| p.moyen == "especes").map(|p| p.montant).sum();
-    let recu = e.especes_recues.unwrap_or(especes);
+    // Sans part en espèces, rien n'est reçu ni rendu (évite une monnaie rendue fictive).
+    let recu = if especes > 0 { e.especes_recues.unwrap_or(especes) } else { 0 };
     if recu < especes {
         return Err(Erreur::validation("Espèces reçues insuffisantes"));
     }
@@ -582,7 +585,7 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
     op.outbox("paiement", &paiement_id, "creer")?;
     op.evenement("paiement", Some(&e.commande_id));
     op.evenement("table", None);
-    Ok(ResultatEncaissement { paiement_id, numero, montant, rendu, reste, commande_payee: payee })
+    Ok(ResultatEncaissement { paiement_id, numero, montant, especes_recues: recu, rendu, reste, commande_payee: payee })
 }
 
 fn compte_livreur(op: &Op, commande_id: &str) -> Resultat<String> {
@@ -994,6 +997,8 @@ pub struct PaiementLu {
     pub id: String,
     pub numero: i64,
     pub montant: i64,
+    /// Espèces tendues par le client (0 sans espèces).
+    pub recu: i64,
     pub rendu: i64,
     pub horodatage: i64,
     pub annule: bool,
@@ -1004,7 +1009,7 @@ pub struct PaiementLu {
 pub fn paiements_commande(conn: &Connection, commande_id: &str) -> Resultat<Vec<PaiementLu>> {
     let mut s = conn.prepare(
         "SELECT p.id, p.numero, p.montant, p.rendu, p.horodatage,
-                EXISTS(SELECT 1 FROM paiements a WHERE a.annule_paiement_id = p.id), p.annule_paiement_id IS NOT NULL
+                EXISTS(SELECT 1 FROM paiements a WHERE a.annule_paiement_id = p.id), p.annule_paiement_id IS NOT NULL, p.recu
          FROM paiements p WHERE p.commande_id = ?1 ORDER BY p.horodatage",
     )?;
     let base = s
@@ -1017,6 +1022,7 @@ pub fn paiements_commande(conn: &Connection, commande_id: &str) -> Resultat<Vec<
                 horodatage: r.get(4)?,
                 annule: r.get(5)?,
                 est_annulation: r.get(6)?,
+                recu: r.get(7)?,
                 parts: vec![],
             })
         })?

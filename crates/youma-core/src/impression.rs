@@ -361,8 +361,11 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
                 s.push_str(&ligne_montant(&lib, &fcfa(m), w));
                 s.push('\n');
             }
-            if p.rendu > 0 {
-                s.push_str(&ligne_montant("  Rendu", &fcfa(p.rendu), w));
+            // RG-CAI-14 : le client voit ce qu'il a donné et ce qu'on lui a rendu.
+            if p.recu > 0 {
+                s.push_str(&ligne_montant("  Espèces reçues", &fcfa(p.recu), w));
+                s.push('\n');
+                s.push_str(&ligne_montant("  Monnaie rendue", &fcfa(p.rendu), w));
                 s.push('\n');
             }
         }

@@ -5,7 +5,7 @@ import { useApp, useDonnees } from "../contexte";
 import { aujourdhui, dateFr, fcfa, nombre, premierDuMois } from "../format";
 import type { Rapport } from "../types";
 
-const COLONNES_TEXTE = /^(Journée|Produit|Catégorie|Serveur|Type|Moyen|Compte|Heure|Article|Motif|Par|Autorisé|Perte|Date|Fournisseur|Mode|Libellé|Client|Téléphone|Ancienneté|Caissier|Employé|N°|Commande|Unité|Nombre|Sessions|Quantité|Qté|Seuil)/;
+const COLONNES_TEXTE = /^(Journée|Produit|Catégorie|Serveur|Type|Moyen|Compte|Heure|Article|Motif|Par|Autorisé|Perte|Date|Fournisseur|Mode|Libellé|Client|Téléphone|Ancienneté|Caissier|Employé|N°|Reçu n°|Commande|Unité|Nombre|Sessions|Quantité|Qté|Seuil)/;
 
 function cellule(colonne: string, v: string | number | null) {
   if (v === null) return "";

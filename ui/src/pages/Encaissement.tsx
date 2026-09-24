@@ -8,7 +8,7 @@ import { t } from "../i18n";
 import { billetsProposes, Part, rendu, sommeParts, verifierPaiement } from "../paiement";
 import type { Client, Commande, Compte, SessionCaisse } from "../types";
 
-type Resultat = { numero: number; montant: number; rendu: number; reste: number; commande_payee: boolean };
+type Resultat = { numero: number; montant: number; especes_recues: number; rendu: number; reste: number; commande_payee: boolean };
 
 /** Encaissement standard en moins de 5 secondes : « Espèces » puis « Valider ». */
 export default function Encaissement() {
@@ -70,10 +70,20 @@ export default function Encaissement() {
     return (
       <div className="carte resultat-paiement">
         <h1>Reçu n°{resultat.numero}</h1>
-        {resultat.rendu > 0 && (
-          <p className="rendu">
-            Rendre : <strong>{fcfa(resultat.rendu)}</strong>
-          </p>
+        <div className="ligne-valeur">
+          <span>Montant payé</span>
+          <strong>{fcfa(resultat.montant)}</strong>
+        </div>
+        {resultat.especes_recues > 0 && (
+          <>
+            <div className="ligne-valeur">
+              <span>Argent reçu du client</span>
+              <strong>{fcfa(resultat.especes_recues)}</strong>
+            </div>
+            <p className="rendu">
+              Monnaie à rendre : <strong>{fcfa(resultat.rendu)}</strong>
+            </p>
+          </>
         )}
         {resultat.commande_payee ? <p>Addition soldée.</p> : <p>Reste à payer : {fcfa(resultat.reste)}</p>}
         <div className="actions">
