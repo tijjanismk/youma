@@ -82,7 +82,7 @@ pub fn lister(dossier: &Path) -> Resultat<Vec<Sauvegarde>> {
         let motif = nom.trim_end_matches(".db").splitn(4, '-').nth(3).unwrap_or("").to_string();
         v.push(Sauvegarde { chemin: e.path().to_string_lossy().into(), taille: meta.len(), horodatage, motif });
     }
-    v.sort_by(|a, b| b.horodatage.cmp(&a.horodatage));
+    v.sort_by_key(|s| std::cmp::Reverse(s.horodatage));
     Ok(v)
 }
 
