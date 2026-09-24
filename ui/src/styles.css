@@ -1213,3 +1213,12 @@ code {
   font-weight: 700;
   background: #f0fdf4;
 }
+
+/* ───── Recettes (fiche 0014) ───── */
+.ligne-recette {
+  display: grid;
+  grid-template-columns: 1fr 110px auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}

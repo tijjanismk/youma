@@ -692,7 +692,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 3);
+    assert_eq!(v, 4);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);

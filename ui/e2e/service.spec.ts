@@ -318,3 +318,23 @@ test("commandes à distance : QR sur la table, en ligne, zone à risque, validat
   await expect(web.getByText("Rupture")).toBeVisible();
   await client.close();
 });
+
+test("recette d'un plat : coût matière calculé, rapport « Coût matière »", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/administration");
+  await page.getByRole("button", { name: "Recette de Frites" }).click();
+  const d = page.getByRole("dialog", { name: "Recette — Frites" });
+  // Démo : 250 g de pommes de terre (1 FCFA/g) + 30 ml d'huile (2 FCFA/ml) = 310 FCFA pour 750 FCFA.
+  await expect(d).toContainText("Coût matière : 310 FCFA");
+  await expect(d).toContainText("41,33 %");
+  await expect(d.getByText(/Taille : Grande \(\+ 150 FCFA\)/)).toBeVisible();
+  await d.getByLabel("Plat : quantité de Pommes de terre").fill("300");
+  await expect(d).toContainText("Coût matière : 360 FCFA");
+  await d.getByRole("button", { name: "Enregistrer la recette" }).click();
+  await expect(page.getByText("Recette enregistrée")).toBeVisible();
+  await page.goto("/rapports");
+  await page.getByRole("tab", { name: "Coût matière" }).click();
+  const ligne = page.getByRole("row", { name: /Frites/ });
+  await expect(ligne).toContainText("360 FCFA");
+  await expect(ligne).toContainText("48,00 %");
+});

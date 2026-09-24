@@ -171,7 +171,7 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 |---|---|
 | Système | `GET /etat`, `POST /installation`, `POST /session/elever`, `POST /moi/mot-de-passe`, `POST /utilisateurs/{id}/mot-de-passe`, `POST /sortie/controle`, `GET /connexion/utilisateurs`, `POST /connexion`, `POST /deconnexion`, `GET /session`, `POST /horloge/accepter`, `GET /ws?jeton=` |
 | Journée | `GET /journees`, `POST /journee/ouvrir`, `POST /journee/cloturer` |
-| Catalogue | `GET /catalogue`, `POST /categories`, `POST /produits`, `POST /produits/import` (CSV), `POST /produits/{id}/disponibilite`, `GET /produits/{id}/historique`, `POST /postes` |
+| Catalogue | `GET /catalogue`, `POST /categories`, `POST /produits`, `POST /produits/import` (CSV), `POST /produits/{id}/disponibilite`, `GET /produits/{id}/historique`, `GET|POST /produits/{id}/recette`, `POST /postes` |
 | Salle | `GET /salle`, `POST /zones`, `POST /tables`, `POST /tables/serie`, `POST /tables/{id}/marquer` |
 | Commandes | `GET /commandes?statut=`, `POST /commandes`, `GET /commandes/{id}`, `POST /commandes/{id}/lignes`, `POST /commandes/{id}/envoyer`, `POST /commandes/{id}/remise`, `POST /commandes/{id}/transferer`, `POST /commandes/{id}/fusionner`, `POST /commandes/{id}/abandonner`, `POST /commandes/{id}/imputer`, `POST /commandes/{id}/client`, `GET /commandes/{id}/ticket`, `POST /commandes/{id}/imprimer`, `GET /commandes/{id}/diviser?parts=`, `POST /commandes/{id}/montant-lignes`, `GET /commandes/{id}/paiements`, `PUT /lignes/{id}`, `POST /lignes/{id}/annuler`, `POST /lignes/{id}/offrir` |
 | Cuisine | `GET /cuisine?poste=`, `POST /envois/{id}/statut`, `GET /impressions`, `POST /impressions/{id}/reimprimer` |
@@ -180,7 +180,7 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 | Clients | `GET /clients?q=`, `POST /clients`, `GET /clients/{id}`, `POST /clients/reglement` |
 | Employés, paie | `GET|POST /employes`, `GET /employes/references`, `GET /employes/{id}`, `POST /employes/avance`, `POST /employes/evenement`, `GET|POST /presences`, `GET /paie/apercu`, `POST /paie/cloturer`, `POST /paie/payer`, `GET /paie/bulletins`, `GET /paie/bulletins/{id}` |
 | Livraison | `GET /livraisons`, `POST /livraisons/{id}/assigner`, `POST /livraisons/{id}/statut`, `GET /livreurs`, `POST /livreurs/{id}/remise` |
-| Rapports | `GET /tableau-de-bord`, `GET /rapports/periode?debut&fin[&format=csv]`, `GET /rapports/stock`, `GET /rapports/dettes`, `GET /audit?action=` |
+| Rapports | `GET /tableau-de-bord`, `GET /rapports/periode?debut&fin[&format=csv]`, `GET /rapports/stock`, `GET /rapports/dettes`, `GET /rapports/cout-matiere`, `GET /audit?action=` |
 | Commandes à distance | `GET /entrantes`, `POST /entrantes/{id}/valider`, `GET|POST /zones-risque`, `GET|POST /numeros-bloques`, `POST /numeros-bloques/debloquer`, `GET|POST /tables/codes-qr`, `POST /commandes/{id}/liens` |
 | Public (sans connexion ni appairage) | `GET /public/menu[?table=]` (403 si le canal est inactif), `POST /public/commandes`, `GET /public/suivi/{code}`, `POST /public/position/{code_livreur}` |
 | Relais | `GET /relais/etat` (poste) ; sur le relais : `POST /relais/synchroniser` (clé), `POST /public/verification` (code SMS), plus les routes publiques ci-dessus |

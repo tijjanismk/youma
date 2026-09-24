@@ -6,6 +6,7 @@ import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import CommandesDistance from "./CommandesDistance";
+import EditeurRecette from "./Recette";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
 
 type Onglet = "distance" | "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
@@ -146,6 +147,7 @@ function CatalogueAdmin() {
   const { agir } = useApp();
   const { donnees: cat, recharger } = useDonnees(() => get<Catalogue>("/catalogue"), ["catalogue"]);
   const [produit, setProduit] = useState<Produit | null>(null);
+  const [recette, setRecette] = useState<Produit | null>(null);
   const [categorie, setCategorie] = useState<Categorie | null>(null);
   const [csv, setCsv] = useState<string | null>(null);
   if (!cat) return null;
@@ -176,22 +178,28 @@ function CatalogueAdmin() {
                 `${p.nom}${p.actif ? "" : " (inactif)"}`,
                 fcfa(p.prix) + (p.prix_zones.length ? " *" : ""),
                 cat.postes.find((x) => x.id === p.poste_id)?.nom ?? "—",
-                p.suivi_stock === "revendu" ? "Suivi à l'unité" : "—",
+                p.suivi_stock === "revendu" ? "Suivi à l'unité" : p.suivi_stock === "recette" ? "Recette" : "—",
                 <input
                   type="checkbox"
                   checked={p.disponible}
                   aria-label={`${p.nom} disponible`}
                   onChange={(e) => agir((pin) => post(`/produits/${p.id}/disponibilite`, { disponible: e.target.checked }, pin)).then(recharger)}
                 />,
-                <button className="petit" onClick={() => setProduit(p)}>
-                  Modifier
-                </button>,
+                <span className="boutons-ligne">
+                  <button className="petit" onClick={() => setProduit(p)}>
+                    Modifier
+                  </button>
+                  <button className="petit" onClick={() => setRecette(p)} aria-label={`Recette de ${p.nom}`}>
+                    Recette
+                  </button>
+                </span>,
               ])}
           />
         </section>
       ))}
       <p className="aide">* prix différent selon la zone (VIP, terrasse…).</p>
       {produit && <FormProduit p={produit} cat={cat} fermer={() => setProduit(null)} fait={recharger} />}
+      {recette && <EditeurRecette p={recette} fermer={() => setRecette(null)} fait={recharger} />}
       {categorie && (
         <Modal titre="Catégorie" fermer={() => setCategorie(null)}>
           <Champ libelle="Nom" valeur={categorie.nom} changer={(v) => setCategorie({ ...categorie, nom: v })} obligatoire />
@@ -252,6 +260,7 @@ function FormProduit({ p, cat, fermer, fait }: { p: Produit; cat: Catalogue; fer
           options={[
             { valeur: "aucun", libelle: "Aucun" },
             { valeur: "revendu", libelle: "Article revendu (1 vente = 1 unité)" },
+            { valeur: "recette", libelle: "Recette (ingrédients, bouton « Recette »)" },
           ]}
         />
         {x.suivi_stock === "revendu" && (

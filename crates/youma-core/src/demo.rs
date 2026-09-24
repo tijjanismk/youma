@@ -12,6 +12,7 @@ use crate::employes::{self, Employe};
 use crate::erreur::Resultat;
 use crate::parametres::{self, QuartierLivraison};
 use crate::salle::{self, Zone};
+use crate::recettes;
 use crate::stock::{self, Article, Conditionnement};
 
 pub struct Demo {
@@ -189,7 +190,40 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
             OptionProduit { id: String::new(), nom: "Grande".into(), supplement: 500 },
         ],
     }];
-    catalogue::enregistrer_produit(db, &sys, &frites)?;
+    let frites_id = catalogue::enregistrer_produit(db, &sys, &frites)?;
+    // Recette (fiche 0014) : ingrédients en unités fines (g, ml) pour rester en entiers.
+    let ingredient = |db: &mut Db, nom: &str, unite: &str, cout: i64, cond: &str, contenance: i64| {
+        stock::enregistrer_article(
+            db,
+            &sys,
+            &Article {
+                id: String::new(),
+                nom: nom.into(),
+                unite: unite.into(),
+                seuil_alerte: 0,
+                cout_unitaire: cout,
+                famille: "Cuisine".into(),
+                actif: true,
+                conditionnements: vec![Conditionnement { id: String::new(), nom: cond.into(), contenance }],
+            },
+        )
+    };
+    let a_pdt = ingredient(db, "Pommes de terre", "g", 1, "Sac de 25 kg", 25_000)?;
+    let a_huile = ingredient(db, "Huile", "ml", 2, "Bidon de 20 L", 20_000)?;
+    let grande = catalogue::produit(db.conn(), &frites_id)?.groupes_options[0].options.iter().find(|o| o.nom == "Grande").map(|o| o.id.clone());
+    let ligne = |a: &str, q: i64| recettes::LigneRecette { article_id: a.into(), quantite: q, article_nom: String::new(), unite: String::new(), cout_unitaire: 0 };
+    recettes::definir(
+        db,
+        &sys,
+        &recettes::Recette {
+            produit_id: frites_id,
+            lignes: vec![ligne(&a_pdt, 250), ligne(&a_huile, 30)],
+            options: grande
+                .map(|g| vec![recettes::RecetteOption { option_id: g, option_nom: String::new(), lignes: vec![ligne(&a_pdt, 150)] }])
+                .unwrap_or_default(),
+            cout: 0,
+        },
+    )?;
     catalogue::enregistrer_produit(db, &sys, &produit(&c_acc, "Alloco", 500, Some(&cuisine)))?;
     catalogue::enregistrer_produit(db, &sys, &produit(&c_acc, "Attiéké", 500, Some(&cuisine)))?;
 

@@ -17,7 +17,7 @@ use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
     achats, appareils, auth, caisse, catalogue, clients, commandes, demo, employes, entrantes, horloge, impression, journee,
-    licence, livraison, paie, parametres, rapports, salle, sauvegarde, stock, zones_risque, Db,
+    licence, livraison, paie, parametres, rapports, recettes, salle, sauvegarde, stock, zones_risque, Db,
 };
 
 use crate::erreurs::{ApiErreur, Rep};
@@ -98,6 +98,8 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/produits/import", post(produits_import))
         .route("/produits/{id}/disponibilite", post(produit_disponibilite))
         .route("/produits/{id}/historique", get(produit_historique))
+        .route("/produits/{id}/recette", get(recette_lire).post(recette_definir))
+        .route("/rapports/cout-matiere", get(rapport_cout_matiere))
         .route("/postes", post(poste_enregistrer))
         // Salle
         .route("/salle", get(salle_plan))
@@ -1251,4 +1253,19 @@ struct Position {
 
 async fn public_position(State(e): State<Etat>, Path(code): Path<String>, Json(p): Json<Position>) -> Rep<()> {
     Ok(Json(e.avec_db(move |db| entrantes::ajouter_position(db, &code, p.lat, p.lon)).await?))
+}
+
+// ───────────── Recettes (fiche 0014) ─────────────
+
+async fn recette_lire(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<recettes::Recette> {
+    lire!(e, a, Some(perm::CATALOGUE_GERER), |db| recettes::lire(db.conn(), &id))
+}
+
+async fn recette_definir(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(mut r): Json<recettes::Recette>) -> Rep<()> {
+    r.produit_id = id;
+    ecrire!(e, a, |db| recettes::definir(db, &a, &r))
+}
+
+async fn rapport_cout_matiere(State(e): State<Etat>, a: Auth) -> Rep<Vec<recettes::CoutMatiere>> {
+    lire!(e, a, Some(perm::RAPPORT_VOIR), |db| recettes::couts_matiere(db.conn()))
 }

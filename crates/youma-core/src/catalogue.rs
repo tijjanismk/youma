@@ -370,6 +370,17 @@ pub(crate) fn enregistrer_produit_op(op: &Op, p: &Produit) -> Resultat<String> {
         .prepare("SELECT id FROM groupes_options WHERE produit_id = ?1")?
         .query_map(params![id], |r| r.get(0))?
         .collect::<Result<_, _>>()?;
+    // Recettes des options (fiche 0014) : mises de côté, remises si l'option existe toujours.
+    let recettes_options: Vec<(String, String, String, i64, i64)> = op
+        .prepare(
+            "SELECT r.id, r.option_id, r.article_id, r.quantite, r.modifie_le FROM recettes r
+             JOIN options o ON o.id = r.option_id JOIN groupes_options g ON g.id = o.groupe_id WHERE g.produit_id = ?1",
+        )?
+        .query_map(params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+        .collect::<Result<_, _>>()?;
+    for r in &recettes_options {
+        op.execute("DELETE FROM recettes WHERE id = ?1", params![r.0])?;
+    }
     for g in &groupes {
         op.execute("DELETE FROM options WHERE groupe_id = ?1", params![g])?;
     }
@@ -390,6 +401,13 @@ pub(crate) fn enregistrer_produit_op(op: &Op, p: &Produit) -> Resultat<String> {
                 params![oid, gid, o.nom, o.supplement],
             )?;
         }
+    }
+    for (rid, option, article, quantite, modifie) in recettes_options {
+        op.execute(
+            "INSERT INTO recettes(id, option_id, article_id, quantite, modifie_le)
+             SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM options WHERE id = ?2)",
+            params![rid, option, article, quantite, modifie],
+        )?;
     }
     if nouveau {
         op.audit("produit.creer", "produit", Some(&id), None, Some(json!({ "nom": p.nom, "prix": p.prix })), None, None)?;

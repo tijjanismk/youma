@@ -332,3 +332,13 @@ export type NiveauStock = {
   alerte: boolean;
   conditionnements: { id: string; nom: string; contenance: number }[];
 };
+
+/** Recette (fiche 0014) : quantités entières dans l'unité de base de l'article (g, ml, pièce). */
+export type LigneRecette = { article_id: string; quantite: number; article_nom?: string; unite?: string; cout_unitaire?: number };
+export type Recette = {
+  produit_id: string;
+  lignes: LigneRecette[];
+  options: { option_id: string; option_nom?: string; lignes: LigneRecette[] }[];
+  cout: number;
+};
+export type CoutMatiere = { produit_id: string; nom: string; prix: number; cout: number; part_bp: number };

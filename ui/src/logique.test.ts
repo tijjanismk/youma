@@ -176,3 +176,27 @@ describe("commandes à distance (fiche 0013)", async () => {
     expect(cleOptions("b", ["y", "x"])).toBe(cleOptions("b", ["x", "y"]));
   });
 });
+
+describe("recettes (fiche 0014)", async () => {
+  const { coutRecette, partBp, pourcentage, recetteValide } = await import("./recette");
+
+  it("coût matière en FCFA entiers et part du prix", () => {
+    const couts = { pdt: 1, huile: 2 };
+    const lignes = [
+      { article_id: "pdt", quantite: 250 },
+      { article_id: "huile", quantite: 30 },
+    ];
+    expect(coutRecette(lignes, couts)).toBe(310);
+    expect(partBp(310, 750)).toBe(4_133);
+    expect(pourcentage(4_133)).toBe("41,33 %");
+    expect(partBp(100, 0)).toBe(0);
+  });
+
+  it("recette valide : quantités entières positives, pas de doublon", () => {
+    expect(recetteValide([{ article_id: "a", quantite: 10 }])).toBe(true);
+    expect(recetteValide([{ article_id: "a", quantite: 0 }])).toBe(false);
+    expect(recetteValide([{ article_id: "a", quantite: 1.5 }])).toBe(false);
+    expect(recetteValide([{ article_id: "", quantite: 3 }])).toBe(false);
+    expect(recetteValide([{ article_id: "a", quantite: 1 }, { article_id: "a", quantite: 2 }])).toBe(false);
+  });
+});

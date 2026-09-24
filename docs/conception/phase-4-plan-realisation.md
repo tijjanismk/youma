@@ -15,7 +15,8 @@
 | 9 | Livraison et remise livreur | livraisons en moto | ✅ (base) |
 | 10 | Coquille Windows, installateur hors ligne | installation chez le pilote | ⚠️ code prêt, installateur à construire sur Windows |
 | 11 | Canaux de commande : téléphone, QR sur la table, en ligne ; file de validation, zones à risque, liste noire, suivi en direct (fiche 0013) | QR collés sur les tables, 1 journée | ✅ réseau local et relais Internet facultatif (`youma-relais`) |
-| V2 | Recettes, consignes, cloud, relevés MM, promotions, multi-sites | — | ❌ conçu, non implémenté |
+| 12 | Recettes et consommation théorique, coût matière (fiche 0014) | recette de 3 plats, inventaire du soir | ✅ |
+| V2 | Consignes, cloud, relevés MM, promotions, multi-sites | — | ❌ conçu, non implémenté |
 
 Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imprimante cuisine), puis mode réseau.
 
@@ -33,7 +34,8 @@ Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imp
 | Interface (logique) | Vitest | `ui/src/logique.test.ts` | panier local, paiement mixte, rendu, formats |
 | Interface (composants) | Vitest + Testing Library | `ui/src/composants.test.tsx` | PinPad, connexion, rejeu avec PIN du responsable, hors ligne |
 | Canaux, zones | `cargo test` | `crates/youma-core/tests/canaux.rs` | RG-CAN-01 à 05, RG-ZON-01 à 03, RG-LIV-04 (12 tests) |
-| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 12 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi |
+| Recettes | `cargo test` | `crates/youma-core/tests/recettes.rs` | RG-REC-01 à 04 |
+| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 13 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi, recette et coût matière |
 
 Commandes :
 

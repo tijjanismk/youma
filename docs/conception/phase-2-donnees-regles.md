@@ -109,6 +109,17 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-STK-06** Le coût unitaire estimé d'un article = coût de la dernière réception.
 * **RG-STK-07** Le stock peut devenir négatif (vente non bloquée) mais apparaît en alerte.
 
+### Recettes (REC) — fiche 0014
+* **RG-REC-01** Une recette (facultative) liste des ingrédients avec une quantité **entière** dans l'unité de base de
+  l'article (g, ml, pièce) ; un ingrédient n'apparaît qu'une fois ; une option (« Grande », « avec œuf ») peut ajouter
+  ses propres ingrédients. Définir une recette passe le produit en suivi « recette » ; la vider le repasse en « aucun ».
+* **RG-REC-02** Vente d'un plat avec recette → sortie de chaque ingrédient (plat + options choisies) × quantité, au
+  moment de l'envoi ; type « vente », « offert » ou « consommation employé » comme pour un article revendu. Le coût
+  d'une unité est copié sur la ligne (bénéfice estimé).
+* **RG-REC-03** Annulation après envoi : sans perte, les ingrédients reviennent au prorata (sortie totale ÷ quantité
+  vendue × quantité annulée), jamais plus que ce qui est encore dehors ; avec perte, rien ne revient.
+* **RG-REC-04** Coût matière = Σ quantité × coût unitaire de l'article ; affiché avec sa part du prix de vente.
+
 ### Clients et crédit (CLI)
 * **RG-CLI-01** Le crédit est désactivé par défaut pour chaque client.
 * **RG-CLI-02** Vente à crédit refusée si dette + montant > limite, sauf autorisation ponctuelle (`client.depasser_limite`).
