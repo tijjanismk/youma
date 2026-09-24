@@ -189,7 +189,7 @@ export default function PriseCommande() {
             </button>
           )}
           {modifiable && !cmd.employe_id && peut("caisse.encaisser") && (cmd.totaux.reste > 0 || panier.length > 0) && (
-            <button className={cmd.ordre_paiement === "avant" ? "principal grand" : "grand"} onClick={encaisser}>
+            <button className={cmd.ordre_paiement === "avant" ? "principal grand" : "grand"} onClick={encaisser} disabled={envoiEnCours}>
               Encaisser {fcfa(cmd.totaux.reste + totalPanier(panier))}
             </button>
           )}

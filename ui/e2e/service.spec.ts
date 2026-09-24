@@ -10,7 +10,9 @@ let bonSortie: { numero: string; code: string } | null = null;
 async function connexion(page: Page, nom: RegExp, pin: string) {
   await page.goto("/");
   const changer = page.getByRole("button", { name: "Changer d'utilisateur" });
-  if (await changer.isVisible().catch(() => false)) await changer.click();
+  // Attendre que l'application ait chargé la session : connectée (changer) ou écran de connexion.
+  await expect(changer.or(page.getByRole("button", { name: nom }))).toBeVisible();
+  if (await changer.isVisible()) await changer.click();
   await page.getByRole("button", { name: nom }).click();
   for (const c of pin) await page.getByRole("button", { name: `Chiffre ${c}` }).click();
   await page.getByRole("button", { name: "Entrer" }).click();
