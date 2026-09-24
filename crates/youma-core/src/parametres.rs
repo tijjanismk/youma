@@ -166,3 +166,90 @@ mod tests {
         assert_eq!(appliquer_bp(75_000, 306), 2_295);
     }
 }
+
+// ───────────── Restaurant, paramètres, journal d'audit (écriture auditée) ─────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Restaurant {
+    pub nom: String,
+    #[serde(default)]
+    pub adresse: String,
+    #[serde(default)]
+    pub telephone: String,
+    #[serde(default)]
+    pub ville: String,
+    #[serde(default)]
+    pub nif: String,
+    #[serde(default)]
+    pub pied_ticket: String,
+}
+
+pub fn restaurant(conn: &Connection) -> Resultat<Restaurant> {
+    Ok(conn.query_row("SELECT nom, adresse, telephone, ville, nif, pied_ticket FROM restaurant LIMIT 1", [], |r| {
+        Ok(Restaurant { nom: r.get(0)?, adresse: r.get(1)?, telephone: r.get(2)?, ville: r.get(3)?, nif: r.get(4)?, pied_ticket: r.get(5)? })
+    })?)
+}
+
+pub fn modifier_restaurant(db: &mut crate::Db, acteur: &crate::Acteur, r: &Restaurant) -> Resultat<()> {
+    db.executer(acteur, |op| {
+        op.exiger(crate::permissions::PARAMETRE_GERER)?;
+        crate::catalogue::non_vide(&r.nom, "nom du restaurant")?;
+        op.execute(
+            "UPDATE restaurant SET nom = ?1, adresse = ?2, telephone = ?3, ville = ?4, nif = ?5, pied_ticket = ?6, modifie_le = ?7",
+            params![r.nom.trim(), r.adresse, r.telephone, r.ville, r.nif, r.pied_ticket, op.maintenant],
+        )?;
+        op.audit("restaurant.modifier", "restaurant", None, None, Some(serde_json::json!(r)), None, None)?;
+        Ok(())
+    })
+}
+
+pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> Resultat<()> {
+    db.executer(acteur, |op| {
+        op.exiger(crate::permissions::PARAMETRE_GERER)?;
+        if !(0..=12).contains(&p.heure_bascule) || p.arrondi < 1 || p.seuil_ecart_caisse < 0 || p.largeur_ticket < 24 {
+            return Err(crate::Erreur::validation("Paramètre hors limites"));
+        }
+        let avant = serde_json::to_value(&op.params)?;
+        ecrire(op, p)?;
+        op.audit("parametres.modifier", "parametres", None, Some(avant), Some(serde_json::to_value(p)?), None, None)?;
+        Ok(())
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct LigneAudit {
+    pub horodatage: i64,
+    pub utilisateur: Option<String>,
+    pub autorise_par: Option<String>,
+    pub appareil: Option<String>,
+    pub action: String,
+    pub entite: String,
+    pub avant: Option<String>,
+    pub apres: Option<String>,
+    pub motif: Option<String>,
+}
+
+pub fn journal_audit(conn: &Connection, action: Option<&str>, limite: i64) -> Resultat<Vec<LigneAudit>> {
+    let mut s = conn.prepare(
+        "SELECT a.horodatage, u.nom, v.nom, p.nom, a.action, a.entite, a.avant, a.apres, a.motif FROM journal_audit a
+         LEFT JOIN utilisateurs u ON u.id = a.utilisateur_id LEFT JOIN utilisateurs v ON v.id = a.autorise_par
+         LEFT JOIN appareils p ON p.id = a.appareil_id
+         WHERE (?1 IS NULL OR a.action LIKE ?1 || '%') ORDER BY a.horodatage DESC, a.rowid DESC LIMIT ?2",
+    )?;
+    let v = s
+        .query_map(params![action, limite], |r| {
+            Ok(LigneAudit {
+                horodatage: r.get(0)?,
+                utilisateur: r.get(1)?,
+                autorise_par: r.get(2)?,
+                appareil: r.get(3)?,
+                action: r.get(4)?,
+                entite: r.get(5)?,
+                avant: r.get(6)?,
+                apres: r.get(7)?,
+                motif: r.get(8)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(v)
+}

@@ -2,6 +2,7 @@
 //! L'interface ne touche jamais la base : elle passe par l'API du serveur, qui appelle ce crate.
 
 pub mod achats;
+pub mod appareils;
 pub mod auth;
 pub mod caisse;
 pub mod catalogue;
