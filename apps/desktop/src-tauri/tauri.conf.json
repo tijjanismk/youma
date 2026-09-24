@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Youma",
+  "version": "0.1.0",
+  "identifier": "ml.youma.poste",
+  "build": {
+    "frontendDist": "../../../ui/dist",
+    "beforeBuildCommand": "npm --prefix ../../ui run build"
+  },
+  "app": {
+    "windows": [],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "resources": { "../../../ui/dist/": "ui/" },
+    "windows": {
+      "webviewInstallMode": { "type": "offlineInstaller" },
+      "nsis": {
+        "languages": ["French"],
+        "installMode": "perMachine",
+        "installerHooks": "windows/hooks.nsh"
+      }
+    }
+  }
+}
