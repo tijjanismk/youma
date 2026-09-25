@@ -96,7 +96,7 @@ test("écran cuisine : les envois arrivent par poste et passent à « prêt »",
 test("annulation après envoi : motif puis PIN du gérant", async ({ page }) => {
   await connexion(page, /Awa/, "4444");
   await page.goto("/salle");
-  await page.getByRole("button", { name: /^Table 7 Libre/ }).click();
+  await page.getByRole("button", { name: /^Table T3 Libre/ }).click();
   await page.getByRole("tab", { name: /Grillades/ }).click();
   await page.getByRole("button", { name: /^Poulet braisé \d/ }).click();
   await page.getByRole("button", { name: /^Envoyer \(1\)/ }).click();
@@ -378,4 +378,30 @@ test("Mobile Money : relevé de l'opérateur importé, paiement vérifié d'un c
   await expect(bilan).toContainText("INCONNU1");
   await page.getByRole("tab", { name: "Tous" }).click();
   await expect(page.getByRole("row", { name: /PP260314\.1830\.A12345/ })).toContainText("Vérifié");
+});
+
+test("happy hour : le prix réduit s'affiche et s'applique à la saisie", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Promotions" }).click();
+  await page.getByRole("button", { name: "+ Promotion" }).click();
+  const d = page.getByRole("dialog", { name: "Promotion" });
+  await d.getByLabel("Nom").fill("Coca à 500");
+  await d.getByLabel("Produit").selectOption({ label: "Coca-Cola (750 FCFA)" });
+  await d.getByLabel("Prix pendant la promotion").fill("500");
+  await d.getByLabel("De (heure)").fill("00:00");
+  await d.getByLabel("À (heure)").fill("24:00");
+  await d.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByRole("cell", { name: "Coca à 500" })).toBeVisible();
+
+  // Vente à emporter : indépendante des tables occupées par les tests précédents.
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Boissons/ }).click();
+  const coca = page.getByRole("button", { name: "Coca-Cola 500 FCFA" });
+  await expect(coca).toContainText("Coca à 500");
+  await coca.click();
+  // À emporter : on paie d'abord ; le montant à encaisser est celui du happy hour.
+  await expect(page.getByRole("button", { name: /^Encaisser 500 FCFA/ })).toBeVisible();
 });

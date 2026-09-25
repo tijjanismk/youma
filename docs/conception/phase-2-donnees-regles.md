@@ -111,6 +111,16 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-RMM-04** Une référence n'est importée qu'une fois par compte : recharger un relevé ne compte rien deux fois.
 * **RG-RMM-05** « Relancer le rapprochement » reprend les relevés déjà importés (paiement saisi après l'import).
 
+### Promotions (PRO) — fiche 0017
+* **RG-PRO-01** Une promotion porte sur un produit **ou** une catégorie : prix fixe (FCFA ≥ 0) ou remise de 1 à 100 %,
+  plage horaire (qui peut passer minuit), jours de la semaine, dates de début et de fin facultatives.
+* **RG-PRO-02** À la saisie d'un article, le prix de la zone est remplacé par le plus bas des prix promotionnels actifs
+  à cet instant (la promotion la plus avantageuse pour le client). Un « prix » promotionnel supérieur au prix normal
+  n'est jamais appliqué. Remise en % arrondie au franc le plus proche.
+* **RG-PRO-03** Le prix est copié sur la ligne avec la promotion et le prix normal (RG-CAT-01) : un article saisi à
+  19 h 59 garde le prix du happy hour, même envoyé ou payé après 20 h.
+* **RG-PRO-04** Rapport : ventes en promotion et manque à gagner = Σ (prix normal − prix promotionnel) × quantité vendue.
+
 ### Stock (STK)
 * **RG-STK-01** Vente d'un produit revendu → sortie de 1 unité × quantité (hors lignes annulées) au moment de l'envoi (ou du paiement en comptoir).
 * **RG-STK-02** Annulation d'une ligne envoyée → retour en stock, sauf si « perdu » (préparé puis jeté) est indiqué.

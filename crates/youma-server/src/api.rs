@@ -17,7 +17,7 @@ use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
     achats, appareils, auth, caisse, catalogue, clients, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
-    licence, livraison, paie, parametres, rapports, recettes, releves_mm, salle, sauvegarde, stock, zones_risque, Db,
+    licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, stock, zones_risque, Db,
 };
 
 use crate::erreurs::{ApiErreur, Rep};
@@ -100,6 +100,8 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/produits/{id}/historique", get(produit_historique))
         .route("/produits/{id}/recette", get(recette_lire).post(recette_definir))
         .route("/rapports/cout-matiere", get(rapport_cout_matiere))
+        .route("/promotions", get(promotions_lister).post(promotion_enregistrer))
+        .route("/promotions/prix", get(promotions_prix))
         .route("/postes", post(poste_enregistrer))
         // Salle
         .route("/salle", get(salle_plan))
@@ -1228,7 +1230,7 @@ async fn public_menu(State(e): State<Etat>, Query(p): Q) -> Rep<entrantes::MenuP
     let table = q(&p, "table").map(str::to_owned);
     let m = e
         .avec_db(move |db| {
-            let m = entrantes::menu_public(db.conn(), table.as_deref())?;
+            let m = entrantes::menu_public(db.conn(), table.as_deref(), db.maintenant())?;
             let actif = if table.is_some() { m.qr_table } else { m.en_ligne };
             if !actif {
                 return Err(Erreur::Interdit("Commande à distance non activée dans ce restaurant".into()));
@@ -1339,4 +1341,20 @@ struct CompteReleve {
 
 async fn releves_relancer(State(e): State<Etat>, a: Auth, Json(c): Json<CompteReleve>) -> Rep<usize> {
     ecrire!(e, a, |db| releves_mm::relancer(db, &a, &c.compte_id))
+}
+
+// ───────────── Promotions (fiche 0017) ─────────────
+
+async fn promotions_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<promotions::Promotion>> {
+    lire!(e, a, AUCUNE, |db| promotions::lister(db.conn()))
+}
+
+async fn promotion_enregistrer(State(e): State<Etat>, a: Auth, Json(p): Json<promotions::Promotion>) -> Rep<String> {
+    ecrire!(e, a, |db| promotions::enregistrer(db, &a, &p))
+}
+
+/// Prix du happy hour en cours pour une zone (boutons de la prise de commande).
+async fn promotions_prix(State(e): State<Etat>, a: Auth, Query(p): Q) -> Rep<std::collections::HashMap<String, promotions::PrixDuMoment>> {
+    let zone = q(&p, "zone").map(str::to_owned);
+    lire!(e, a, AUCUNE, |db| promotions::prix_en_cours(db.conn(), zone.as_deref(), db.maintenant()))
 }

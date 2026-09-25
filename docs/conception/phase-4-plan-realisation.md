@@ -18,7 +18,8 @@
 | 12 | Recettes et consommation théorique, coût matière (fiche 0014) | recette de 3 plats, inventaire du soir | ✅ |
 | 13 | Consignes : bouteilles et casiers, vides, consigne versée, retours (fiche 0015) | une livraison du dépôt de boissons | ✅ |
 | 14 | Rapprochement Mobile Money par relevé d'opérateur (fiche 0016) | relevés réels Orange Money, Moov, Wave | ✅ (formats à valider sur de vrais relevés) |
-| V2 | Cloud, promotions, multi-sites | — | ❌ conçu, non implémenté |
+| 15 | Promotions et happy hours (fiche 0017) | un happy hour réel en fin de journée | ✅ |
+| V2 | Cloud, statistiques avancées, multi-sites | — | ❌ conçu, non implémenté |
 
 Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imprimante cuisine), puis mode réseau.
 
@@ -39,7 +40,8 @@ Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imp
 | Recettes | `cargo test` | `crates/youma-core/tests/recettes.rs` | RG-REC-01 à 04 |
 | Consignes | `cargo test` | `crates/youma-core/tests/consignes.rs` | RG-CON-01 à 06 |
 | Relevés MM | `cargo test` | `crates/youma-core/tests/releves_mm.rs` + lecture CSV | RG-RMM-01 à 05 |
-| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 15 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi, recette et coût matière, consignes, relevé Mobile Money |
+| Promotions | `cargo test` | `crates/youma-core/tests/promotions.rs` + plages horaires | RG-PRO-01 à 04 |
+| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 16 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi, recette et coût matière, consignes, relevé Mobile Money, happy hour |
 
 Commandes :
 

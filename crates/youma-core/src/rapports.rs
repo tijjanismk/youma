@@ -467,6 +467,16 @@ pub fn rapport_periode(conn: &Connection, debut: &str, fin: &str) -> Resultat<Ra
         p,
         Some(F_SAL),
     )?);
+    // RG-PRO-04 : promotions et happy hours.
+    let promos = crate::promotions::bilan(conn, debut, fin)?;
+    if !promos.is_empty() {
+        tableaux.push(Tableau {
+            titre: "Promotions et happy hours".into(),
+            colonnes: vec!["Promotion".into(), "Quantité".into(), "Ventes".into(), "Manque à gagner".into()],
+            lignes: promos.iter().map(|b| vec![b.promotion.clone().into(), b.quantite.into(), b.ventes.into(), b.manque_a_gagner.into()]).collect(),
+            formule: Some("Manque à gagner = Σ (prix normal − prix promotionnel) × quantité vendue".into()),
+        });
+    }
     Ok(Rapport { titre: "Rapport d'activité".into(), debut: debut.into(), fin: fin.into(), indicateurs, tableaux })
 }
 

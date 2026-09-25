@@ -216,3 +216,14 @@ describe("consignes (fiche 0015)", async () => {
     expect(consignesSaisies(c)).toHaveLength(2);
   });
 });
+
+describe("promotions (fiche 0017)", () => {
+  it("le prix du happy hour remplace celui de la zone", () => {
+    const biere = produit({ id: "b", prix: 1000, prix_zones: [{ zone_id: "vip", prix: 1500 }] });
+    expect(prixZone(biere, "vip")).toBe(1500);
+    expect(prixZone(biere, "vip", { b: 750 })).toBe(750);
+    expect(prixZone(biere, null, { autre: 10 })).toBe(1000);
+    const p = ajouter([], biere, null, [], "", { b: 750 });
+    expect(totalPanier(p)).toBe(750);
+  });
+});

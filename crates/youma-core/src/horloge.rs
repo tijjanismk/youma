@@ -77,9 +77,38 @@ pub fn date_locale(ms: i64, fuseau_minutes: i64) -> String {
     date_exploitation(ms, fuseau_minutes, 0)
 }
 
+/// Plage horaire (minutes depuis minuit, fin exclue) sur des jours donnés (lundi = 1 … dimanche = 64).
+/// Une plage qui passe minuit (21 h → 6 h) appartient au jour où elle commence.
+/// Sert aux zones à risque (RG-ZON-02) et aux happy hours (RG-PRO-02).
+pub fn plage_active(debut_min: i64, fin_min: i64, jours: i64, ms: i64, fuseau_minutes: i64) -> bool {
+    use chrono::{Datelike, Timelike};
+    let local = DateTime::<Utc>::from_timestamp_millis(ms).unwrap_or_default() + Duration::minutes(fuseau_minutes);
+    let minute = (local.hour() * 60 + local.minute()) as i64;
+    let dedans = if debut_min < fin_min { (debut_min..fin_min).contains(&minute) } else { minute >= debut_min || minute < fin_min };
+    if !dedans {
+        return false;
+    }
+    let jour = if debut_min > fin_min && minute < fin_min { local - Duration::days(1) } else { local };
+    jours & (1_i64 << jour.weekday().num_days_from_monday()) != 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plage_horaire_et_jours() {
+        // Samedi 14 mars 2026.
+        let samedi = 32;
+        assert!(plage_active(18 * 60, 20 * 60, 127, ms_de("2026-03-14", 19, 0), 0));
+        assert!(!plage_active(18 * 60, 20 * 60, 127, ms_de("2026-03-14", 20, 0), 0), "fin exclue");
+        assert!(!plage_active(18 * 60, 20 * 60, 127 - samedi, ms_de("2026-03-14", 19, 0), 0));
+        // 21 h → 6 h du samedi : dimanche 1 h compte pour samedi.
+        assert!(plage_active(21 * 60, 6 * 60, samedi, ms_de("2026-03-15", 1, 0), 0));
+        assert!(!plage_active(21 * 60, 6 * 60, samedi, ms_de("2026-03-14", 1, 0), 0));
+        // Toute la journée.
+        assert!(plage_active(0, 1440, 127, ms_de("2026-03-14", 23, 59), 0));
+    }
 
     #[test]
     fn apres_minuit_appartient_a_la_veille() {

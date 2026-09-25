@@ -133,7 +133,7 @@ fn rg_can_02_qr_table_file_de_validation_et_addition_unique() {
     let t3 = b.table("3");
     let code: String = b.db.conn().query_row("SELECT code_qr FROM tables_salle WHERE id = ?1", [&t3], |r| r.get(0)).unwrap();
 
-    let menu = entrantes::menu_public(b.db.conn(), Some(&code.to_lowercase())).unwrap();
+    let menu = entrantes::menu_public(b.db.conn(), Some(&code.to_lowercase()), b.db.maintenant()).unwrap();
     assert_eq!(menu.table.as_deref(), Some("3"));
     assert!(menu.ouvert && menu.qr_table && !menu.en_ligne);
 

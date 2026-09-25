@@ -59,7 +59,7 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
                 return Ok(None);
             }
             let corps = json!({
-                "menu": entrantes::menu_public(db.conn(), None)?,
+                "menu": entrantes::menu_public(db.conn(), None, db.maintenant())?,
                 "config": { "verification_numero": c.verification_numero },
                 "suivis": entrantes::suivis_recents(db.conn(), db.maintenant() - 24 * 3_600_000)?,
                 "resultats": envoyes,

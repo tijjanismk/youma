@@ -1,7 +1,6 @@
 //! Zones à risque (fiche 0013) : une livraison dans tel quartier (ou tel cercle GPS), à telle heure,
 //! tel jour, est bloquée, payée d'avance ou soumise à la validation d'un responsable.
 
-use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -140,23 +139,10 @@ pub fn distance_m(lat1: i64, lon1: i64, lat2: i64, lon2: i64) -> i64 {
     (2.0 * r * h.sqrt().asin()).round() as i64
 }
 
-fn dans_plage(minute: i64, debut: i64, fin: i64) -> bool {
-    if debut < fin {
-        (debut..fin).contains(&minute)
-    } else {
-        // Plage qui passe minuit : 21 h → 6 h.
-        minute >= debut || minute < fin
-    }
-}
-
 /// RG-ZON-02 : règle applicable à ce lieu et à cette heure ; la plus stricte l'emporte
 /// (bloquer > paiement d'avance > validation manuelle).
 pub fn evaluer(conn: &Connection, quartier: Option<&str>, position: Option<(i64, i64)>, ms: i64) -> Resultat<Option<Decision>> {
     let fuseau = crate::parametres::lire(conn)?.fuseau_minutes;
-    let local = DateTime::<Utc>::from_timestamp_millis(ms).unwrap_or_default() + Duration::minutes(fuseau);
-    let minute = (local.hour() * 60 + local.minute()) as i64;
-    // Une plage qui passe minuit appartient au jour où elle commence.
-    let bit_jour = |d: DateTime<Utc>| 1_i64 << d.weekday().num_days_from_monday();
     let q = quartier.map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty());
     let mut retenue: Option<Decision> = None;
     for z in lister(conn)?.into_iter().filter(|z| z.actif) {
@@ -165,11 +151,7 @@ pub fn evaluer(conn: &Connection, quartier: Option<&str>, position: Option<(i64,
                 (Some((la, lo)), Some(zla), Some(zlo), Some(r)) => distance_m(la, lo, zla, zlo) <= r,
                 _ => false,
             };
-        if !lieu || !dans_plage(minute, z.debut_min, z.fin_min) {
-            continue;
-        }
-        let jour = if z.debut_min > z.fin_min && minute < z.fin_min { local - Duration::days(1) } else { local };
-        if z.jours & bit_jour(jour) == 0 {
+        if !lieu || !crate::horloge::plage_active(z.debut_min, z.fin_min, z.jours, ms, fuseau) {
             continue;
         }
         if retenue.as_ref().is_none_or(|r| gravite(&z.action) > gravite(&r.action)) {
@@ -246,10 +228,6 @@ mod tests {
 
     #[test]
     fn plages_et_distances() {
-        assert!(dans_plage(22 * 60, 21 * 60, 6 * 60));
-        assert!(dans_plage(60, 21 * 60, 6 * 60));
-        assert!(!dans_plage(12 * 60, 21 * 60, 6 * 60));
-        assert!(dans_plage(12 * 60, 11 * 60, 14 * 60));
         // Bamako : ~1,1 km entre ces deux points.
         let d = distance_m(12_639_000, -8_002_000, 12_649_000, -8_002_000);
         assert!((1_100..1_120).contains(&d), "{d}");

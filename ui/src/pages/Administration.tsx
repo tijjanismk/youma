@@ -6,10 +6,11 @@ import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import CommandesDistance from "./CommandesDistance";
+import Promotions from "./Promotions";
 import EditeurRecette from "./Recette";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
 
-type Onglet = "distance" | "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
+type Onglet = "promotions" | "distance" | "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
 
 /** RG-AUT-06 : onglets protégés par le mot de passe personnel. */
 const PROTEGES: Onglet[] = ["restaurant", "paiements", "utilisateurs", "roles", "appareils", "sauvegardes", "licence"];
@@ -19,6 +20,7 @@ export default function Administration() {
   const [onglet, setOnglet] = useState<Onglet>("catalogue");
   const onglets: { cle: Onglet; libelle: string; p: string }[] = [
     { cle: "catalogue", libelle: "Produits", p: "catalogue.gerer" },
+    { cle: "promotions", libelle: "Promotions", p: "catalogue.gerer" },
     { cle: "salle", libelle: "Salle et tables", p: "salle.gerer" },
     { cle: "postes", libelle: "Postes et imprimantes", p: "catalogue.gerer" },
     { cle: "restaurant", libelle: "Restaurant et règles", p: "parametre.gerer" },
@@ -64,6 +66,7 @@ function OngletAdmin({ onglet }: { onglet: Onglet }) {
       {onglet === "licence" && <LicenceAdmin />}
       {onglet === "paiements" && <PaiementsAdmin />}
       {onglet === "distance" && <CommandesDistance />}
+      {onglet === "promotions" && <Promotions />}
     </>
   );
 }

@@ -1233,3 +1233,7 @@ code {
 .consignes-achat {
   margin: 10px 0;
 }
+.pastille.promo {
+  background: var(--orange);
+  color: #fff;
+}

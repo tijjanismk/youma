@@ -25,6 +25,7 @@ pub mod livraison;
 pub mod paie;
 pub mod parametres;
 pub mod permissions;
+pub mod promotions;
 pub mod rapports;
 pub mod recettes;
 pub mod releves_mm;

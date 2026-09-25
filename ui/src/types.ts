@@ -354,3 +354,20 @@ export type EtatEmballage = {
   valeur_detenus: number;
 };
 export type ConsigneAchat = { emballage_id: string; recus: number; rendus: number };
+
+/** Promotions et happy hours (fiche 0017). valeur : prix en FCFA, ou remise en points de base (2 500 = 25 %). */
+export type Promotion = {
+  id: string;
+  nom: string;
+  produit_id: string | null;
+  categorie_id: string | null;
+  type: "prix" | "pourcentage";
+  valeur: number;
+  debut_min: number;
+  fin_min: number;
+  jours: number;
+  date_debut: string | null;
+  date_fin: string | null;
+  actif: boolean;
+};
+export type PrixDuMoment = { prix: number; prix_normal: number; promotion_id: string | null; promotion: string | null };

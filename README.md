@@ -34,6 +34,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Recettes (ingrédients en g/ml/pièce), consommation théorique, coût matière | ✅ |
 | Consignes : bouteilles et casiers, vides, consigne versée au dépôt, retours | ✅ |
 | Rapprochement Mobile Money par relevé d'opérateur (CSV) | ✅ |
+| Promotions et happy hours (prix fixe ou %, horaires, jours, dates) | ✅ |
 | Cloud, multi-établissements | V2, non commencé |
 
 ## Démarrer

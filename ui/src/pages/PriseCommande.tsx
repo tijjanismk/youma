@@ -6,7 +6,7 @@ import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import { ajouter, ArticlePanier, changerQuantite, chargerPanier, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "../panier";
-import type { Catalogue, Client, Commande, Employe, Ligne, Produit, TablePlan } from "../types";
+import type { Catalogue, Client, Commande, Employe, Ligne, PrixDuMoment, Produit, TablePlan } from "../types";
 
 export default function PriseCommande() {
   const { id = "" } = useParams();
@@ -14,6 +14,17 @@ export default function PriseCommande() {
   const { agir, peut, notifier } = useApp();
   const { donnees: cmd, recharger } = useDonnees(() => get<Commande>(`/commandes/${id}`), ["commande", "envoi", "envoi_pret", "paiement"], [id]);
   const { donnees: cat } = useDonnees(() => get<Catalogue>("/catalogue"), ["catalogue"]);
+  // Happy hour (fiche 0017) : prix en cours pour la zone de la table, rafraîchis chaque minute.
+  const { donnees: enCours, recharger: rechargerPromos } = useDonnees(
+    () => get<Record<string, PrixDuMoment>>(`/promotions/prix${cmd?.zone_id ? `?zone=${cmd.zone_id}` : ""}`).catch(() => ({}) as Record<string, PrixDuMoment>),
+    ["catalogue"],
+    [cmd?.zone_id],
+  );
+  useEffect(() => {
+    const t = setInterval(rechargerPromos, 60_000);
+    return () => clearInterval(t);
+  }, [rechargerPromos]);
+  const promos: Record<string, number> = Object.fromEntries(Object.entries(enCours ?? {}).map(([k, v]) => [k, v.prix]));
   const [categorie, setCategorie] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [panier, setPanier] = useState<ArticlePanier[]>(() => chargerPanier(id));
@@ -42,7 +53,7 @@ export default function PriseCommande() {
     if (!p.disponible) return notifier(`${p.nom} : rupture aujourd'hui`, "erreur");
     // Options obligatoires seulement : sinon ajout direct, options modifiables en touchant la ligne.
     if (p.groupes_options.some((g) => g.min_choix > 0)) return setProduitOptions(p);
-    setPanier((x) => ajouter(x, p, cmd.zone_id));
+    setPanier((x) => ajouter(x, p, cmd.zone_id, [], "", promos));
   };
 
   /** Pousse le panier sur le serveur ; envoie en cuisine sauf « payer d'abord ». */
@@ -102,11 +113,12 @@ export default function PriseCommande() {
               style={{ borderTopColor: couleur(p) }}
               onClick={() => modifiable && toucherProduit(p)}
               disabled={!modifiable}
-              aria-label={`${p.nom} ${nombre(prixZone(p, cmd.zone_id))} FCFA`}
+              aria-label={`${p.nom} ${nombre(prixZone(p, cmd.zone_id, promos))} FCFA`}
             >
               {p.photo && <img src={p.photo} alt="" />}
               <strong>{p.nom}</strong>
-              <span>{p.disponible ? fcfa(prixZone(p, cmd.zone_id)) : "Rupture"}</span>
+              <span>{p.disponible ? fcfa(prixZone(p, cmd.zone_id, promos)) : "Rupture"}</span>
+              {p.disponible && enCours?.[p.id] && <span className="pastille promo">{enCours[p.id].promotion}</span>}
             </button>
           ))}
         </div>
@@ -214,7 +226,7 @@ export default function PriseCommande() {
           produit={produitOptions}
           fermer={() => setProduitOptions(null)}
           valider={(options, commentaire) => {
-            setPanier((x) => ajouter(x, produitOptions, cmd.zone_id, options, commentaire));
+            setPanier((x) => ajouter(x, produitOptions, cmd.zone_id, options, commentaire, promos));
             setProduitOptions(null);
           }}
         />

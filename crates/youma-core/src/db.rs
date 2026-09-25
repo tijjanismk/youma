@@ -19,6 +19,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (4, include_str!("../migrations/0004_recettes.sql")),
     (5, include_str!("../migrations/0005_consignes.sql")),
     (6, include_str!("../migrations/0006_releves_mm.sql")),
+    (7, include_str!("../migrations/0007_promotions.sql")),
 ];
 
 pub fn version_schema() -> i64 {
