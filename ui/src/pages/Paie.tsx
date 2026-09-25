@@ -1,6 +1,8 @@
+import { Banknote, MinusCircle, Users, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Modal, Montant, TableauDonnees } from "../composants/Base";
+import { Chiffre, Chiffres } from "../composants/Chiffres";
 import { useApp, useDonnees } from "../contexte";
 import { dateFr, fcfa, finDuMois, premierDuMois } from "../format";
 import { t } from "../i18n";
@@ -109,24 +111,47 @@ export default function Paie() {
       }
     });
 
+  const calcules = Object.values(apercus).filter((a): a is Bulletin => typeof a !== "string");
+  const somme = (f: (b: Bulletin) => number) => calcules.reduce((s, b) => s + f(b), 0);
+  const du = somme((a) => a.total_gains + a.report_precedent);
+  const deductions = somme((a) => a.total_retenues + a.cotisations_salarie + a.deja_paye);
+  const net = somme((a) => Math.max(0, a.net_a_payer));
+
   return (
     <div>
       <h1>Paie</h1>
-      <div className="carte filtres">
+      <div className="carte filtres periode">
         <Champ libelle="Du" type="date" valeur={debut} changer={setDebut} />
         <Champ libelle="Au" type="date" valeur={fin} changer={setFin} />
-        <p className="aide">
-          Mensuels : salaire fixe (absences déduites si activé). Journaliers : jours pointés présents × taux. À la tâche : tâches saisies. Les avances, retenues et
-          consommations sont déduites ; un net négatif est reporté.
-        </p>
+        <details className="explication">
+          <summary>Comment la paie est-elle calculée ?</summary>
+          <p className="aide">
+            Mensuels : salaire fixe (absences déduites si activé). Journaliers : jours pointés présents × taux. À la tâche : tâches saisies. Les avances,
+            retenues et consommations sont déduites ; un net négatif est reporté.
+          </p>
+        </details>
       </div>
+      <Chiffres>
+        <Chiffre libelle="Employés" valeur={actifs.length} Icone={Users} ton="bleu" />
+        <Chiffre libelle="Total dû" valeur={fcfa(du)} Icone={Banknote} />
+        <Chiffre libelle="Déductions" valeur={fcfa(deductions)} Icone={MinusCircle} ton="rouge" detail="avances, retenues, déjà payé" />
+        <Chiffre libelle="Net à payer" valeur={fcfa(net)} Icone={Wallet} ton="vert" />
+      </Chiffres>
       <TableauDonnees
         colonnes={["Employé", "Mode", "Dû", "Déductions", "Net", ""]}
         lignes={actifs.map((e) => {
           const a = apercus[e.id];
-          if (!a || typeof a === "string") return [e.nom, t(e.type_remuneration), "", "", a ?? "…", ""];
+          const nom = (
+            <span className="nom-employe">
+              <span className="avatar-mini" aria-hidden>
+                {e.nom.charAt(0).toUpperCase()}
+              </span>
+              {e.nom}
+            </span>
+          );
+          if (!a || typeof a === "string") return [nom, t(e.type_remuneration), "", "", a ?? "…", ""];
           return [
-            e.nom,
+            nom,
             t(e.type_remuneration),
             <Montant valeur={a.total_gains + a.report_precedent} />,
             <Montant valeur={-(a.total_retenues + a.cotisations_salarie + a.deja_paye)} />,
@@ -147,7 +172,13 @@ export default function Paie() {
         <Modal titre="Bulletin" fermer={() => setAffiche(null)} large>
           <BulletinImprimable b={affiche} />
           {affiche.id && affiche.reste_a_payer > 0 && (
-            <button className="principal grand" onClick={() => { setPaiement(affiche); setAffiche(null); }}>
+            <button
+              className="principal grand"
+              onClick={() => {
+                setPaiement(affiche);
+                setAffiche(null);
+              }}
+            >
               Payer {fcfa(affiche.reste_a_payer)}
             </button>
           )}

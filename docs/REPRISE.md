@@ -1,4 +1,4 @@
-# Reprise du projet — où on en est (25/09/2026)
+# Reprise du projet — où on en est (25/09/2026, mis à jour après la refonte des écrans secondaires)
 
 Fiche à lire en premier pour reprendre après une pause. Tout le code est sur `main` (PR #1 et #2 fusionnées),
 tous les tests passent (CI verte).
@@ -37,8 +37,9 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
    identifiants Orange Developer pour les vrais SMS (aujourd'hui : simulation).
 6. **Mettre le relais/cloud en ligne** (facultatif) : petit serveur (VPS) derrière Caddy en HTTPS,
    inscription des restaurants (`youma-relais --ajouter-restaurant`).
-7. **Finir la refonte des écrans secondaires** : tableau de bord, caisse, stock, paie ont le nouveau thème
-   mais pas encore de mise en page dédiée comme la prise de commande.
+7. ~~Finir la refonte des écrans secondaires~~ : fait (tableau de bord, caisse, stock, paie ; tableaux en
+   cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
+   des tableaux en cartes et du thème).
 8. **Plus tard** : interface en bambara (`ui/src/i18n.ts` est prêt pour la traduction).
 
 ## Questions ouvertes (réponses du porteur de projet attendues)

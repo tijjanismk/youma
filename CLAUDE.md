@@ -53,7 +53,8 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   modifiée (utiliser `minmax(0, 1fr)` pour ne pas faire déborder l'écran).
 - Icônes `lucide-react`, police Poppins embarquée (`@fontsource/poppins`). Pas de CDN.
 - PC : menu latéral repliable. Téléphone : barre du bas, prise de commande avec la commande en tiroir
-  (« Voir la commande (n) »). Photos des plats en URL `data:` compressées côté navigateur (`composants/Plat.tsx`).
+  (« Voir la commande (n) »). Écrans secondaires : chiffres clés `composants/Chiffres.tsx` ; `TableauDonnees`
+  devient des cartes sur téléphone (`data-label`). Photos des plats en URL `data:` compressées côté navigateur (`composants/Plat.tsx`).
 - Les tests e2e ciblent les rôles et `aria-label` (« Menu », « Autres écrans », « Changer d'utilisateur »,
   « Ajouter un X »…) : ne pas les renommer sans mettre à jour `ui/e2e/`.
 - PWA : `ui/public/manifest*.webmanifest`, icônes produites par `cd ui && node outils/icones.mjs`, service worker

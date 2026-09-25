@@ -1,6 +1,8 @@
+import { AlertTriangle, Boxes, PackageX, Search, Wallet } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, Choix, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
+import { Chiffre, Chiffres, Etat } from "../composants/Chiffres";
 import Consignes from "./Consignes";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa } from "../format";
@@ -21,7 +23,13 @@ export default function Stock() {
   const [mouvement, setMouvement] = useState<NiveauStock | null>(null);
   const [article, setArticle] = useState<NiveauStock | "nouveau" | null>(null);
   const [historique, setHistorique] = useState<NiveauStock | null>(null);
-  const valeur = (donnees ?? []).reduce((s, n) => s + n.valeur, 0);
+  const [recherche, setRecherche] = useState("");
+  const [aRemplir, setARemplir] = useState(false);
+  const tous = donnees ?? [];
+  const valeur = tous.reduce((s, n) => s + n.valeur, 0);
+  const ruptures = tous.filter((n) => n.quantite <= 0).length;
+  const sousSeuil = tous.filter((n) => n.alerte && n.quantite > 0).length;
+  const visibles = tous.filter((n) => (!aRemplir || n.alerte) && n.nom.toLowerCase().includes(recherche.trim().toLowerCase()));
   return (
     <div>
       <div className="titre-ligne">
@@ -43,18 +51,31 @@ export default function Stock() {
       />
       {onglet === "niveaux" && (
         <>
-          <p>
-            Valeur du stock : <strong>{fcfa(valeur)}</strong> <small className="aide">(quantité × dernier prix d'achat)</small>
-          </p>
+          <Chiffres>
+            <Chiffre libelle="Valeur du stock" valeur={fcfa(valeur)} Icone={Wallet} detail="quantité × dernier prix d'achat" />
+            <Chiffre libelle="Articles suivis" valeur={tous.length} Icone={Boxes} ton="bleu" />
+            <Chiffre libelle="Sous le seuil" valeur={sousSeuil} Icone={AlertTriangle} ton={sousSeuil ? "accent" : "vert"} />
+            <Chiffre libelle="En rupture" valeur={ruptures} Icone={PackageX} ton={ruptures ? "rouge" : "vert"} />
+          </Chiffres>
+          <div className="barre-filtres">
+            <label className="recherche-icone">
+              <Search size={18} aria-hidden />
+              <input placeholder="Rechercher un article…" value={recherche} onChange={(e) => setRecherche(e.target.value)} aria-label="Rechercher un article" />
+            </label>
+            <button className={`pilule ${aRemplir ? "actif" : ""}`} aria-pressed={aRemplir} onClick={() => setARemplir(!aRemplir)}>
+              À réapprovisionner ({sousSeuil + ruptures})
+            </button>
+          </div>
+          {visibles.length === 0 && <Vide>Aucun article ne correspond.</Vide>}
           <TableauDonnees
-            colonnes={["Article", "Quantité", "Seuil", "Coût unitaire", "Valeur", ""]}
-            lignes={(donnees ?? []).map((n) => [
+            colonnes={["Article", "État", "Quantité", "Seuil", "Coût unitaire", "Valeur", ""]}
+            lignes={visibles.map((n) => [
               <button className="lien" onClick={() => setHistorique(n)}>
                 {n.nom}
               </button>,
+              n.quantite <= 0 ? <Etat ton="rouge">Rupture</Etat> : n.alerte ? <Etat ton="accent">À commander</Etat> : <Etat ton="vert">OK</Etat>,
               <strong className={n.alerte ? "negatif" : ""}>
                 {n.quantite} {n.unite}
-                {n.alerte ? " ⚠️" : ""}
               </strong>,
               n.seuil_alerte,
               fcfa(n.cout_unitaire),
@@ -113,9 +134,10 @@ function MouvementStock({ n, fermer, fait }: { n: NiveauStock; fermer: () => voi
           className="principal"
           disabled={!motif.trim() || quantite === 0}
           onClick={() =>
-            agir((pin) => post("/stock/mouvements", { article_id: n.article_id, type, quantite, motif, conditionnement_id: cond || null }, pin), "Mouvement enregistré").then(
-              (r) => r !== undefined && (fait(), fermer()),
-            )
+            agir(
+              (pin) => post("/stock/mouvements", { article_id: n.article_id, type, quantite, motif, conditionnement_id: cond || null }, pin),
+              "Mouvement enregistré",
+            ).then((r) => r !== undefined && (fait(), fermer()))
           }
         >
           Enregistrer
@@ -147,7 +169,11 @@ function FormArticle({ n, fermer, fait }: { n: NiveauStock | null; fermer: () =>
           <Champ libelle="Nom" valeur={c.nom} changer={(v) => setConds(conds.map((x, j) => (j === i ? { ...x, nom: v } : x)))} />
           <label className="champ">
             <span>Contient ({unite})</span>
-            <input type="number" value={c.contenance} onChange={(e) => setConds(conds.map((x, j) => (j === i ? { ...x, contenance: Number(e.target.value) } : x)))} />
+            <input
+              type="number"
+              value={c.contenance}
+              onChange={(e) => setConds(conds.map((x, j) => (j === i ? { ...x, contenance: Number(e.target.value) } : x)))}
+            />
           </label>
         </div>
       ))}
@@ -161,7 +187,12 @@ function FormArticle({ n, fermer, fait }: { n: NiveauStock | null; fermer: () =>
           disabled={!nom.trim()}
           onClick={() =>
             agir(
-              (pin) => post("/stock/articles", { id: n?.article_id ?? "", nom, unite, famille, seuil_alerte: seuil, conditionnements: conds.filter((c) => c.nom && c.contenance > 0) }, pin),
+              (pin) =>
+                post(
+                  "/stock/articles",
+                  { id: n?.article_id ?? "", nom, unite, famille, seuil_alerte: seuil, conditionnements: conds.filter((c) => c.nom && c.contenance > 0) },
+                  pin,
+                ),
               "Article enregistré",
             ).then((r) => r !== undefined && (fait(), fermer()))
           }
@@ -174,17 +205,29 @@ function FormArticle({ n, fermer, fait }: { n: NiveauStock | null; fermer: () =>
 }
 
 function Historique({ n, fermer }: { n: NiveauStock; fermer: () => void }) {
-  type H = { mouvements: { type_: string; quantite: number; motif: string; horodatage: number; utilisateur: string | null }[]; prix_achat: [number, number, string | null][] };
+  type H = {
+    mouvements: { type_: string; quantite: number; motif: string; horodatage: number; utilisateur: string | null }[];
+    prix_achat: [number, number, string | null][];
+  };
   const { donnees } = useDonnees(() => get<H>(`/stock/articles/${n.article_id}/mouvements`), []);
   return (
     <Modal titre={n.nom} fermer={fermer} large>
       <h3>Mouvements</h3>
       <TableauDonnees
         colonnes={["Date", "Type", "Quantité", "Motif", "Par"]}
-        lignes={(donnees?.mouvements ?? []).map((m) => [dateHeure(m.horodatage), t(m.type_), m.quantite > 0 ? `+${m.quantite}` : m.quantite, m.motif, m.utilisateur ?? ""])}
+        lignes={(donnees?.mouvements ?? []).map((m) => [
+          dateHeure(m.horodatage),
+          t(m.type_),
+          m.quantite > 0 ? `+${m.quantite}` : m.quantite,
+          m.motif,
+          m.utilisateur ?? "",
+        ])}
       />
       <h3>Historique des prix d'achat</h3>
-      <TableauDonnees colonnes={["Date", "Coût unitaire", "Fournisseur"]} lignes={(donnees?.prix_achat ?? []).map(([h, c, f]) => [dateHeure(h), fcfa(c), f ?? "Marché"])} />
+      <TableauDonnees
+        colonnes={["Date", "Coût unitaire", "Fournisseur"]}
+        lignes={(donnees?.prix_achat ?? []).map(([h, c, f]) => [dateHeure(h), fcfa(c), f ?? "Marché"])}
+      />
     </Modal>
   );
 }
@@ -193,7 +236,11 @@ function Inventaires({ articles }: { articles: NiveauStock[] }) {
   const { agir, peut } = useApp();
   const { donnees: liste, recharger } = useDonnees(() => get<{ id: string; libelle: string; statut: string; cree_le: number }[]>("/inventaires"), ["stock"]);
   const enCours = liste?.find((i) => i.statut === "en_cours");
-  const { donnees: inv, recharger: rechargerInv } = useDonnees(() => (enCours ? get<Inventaire>(`/inventaires/${enCours.id}`) : Promise.resolve(null)), ["stock"], [enCours?.id]);
+  const { donnees: inv, recharger: rechargerInv } = useDonnees(
+    () => (enCours ? get<Inventaire>(`/inventaires/${enCours.id}`) : Promise.resolve(null)),
+    ["stock"],
+    [enCours?.id],
+  );
   const [famille, setFamille] = useState("");
   const familles = [...new Set(articles.map((a) => a.famille))];
   if (!liste) return null;
@@ -201,19 +248,25 @@ function Inventaires({ articles }: { articles: NiveauStock[] }) {
     return (
       <div className="carte">
         <p>Inventaire complet ou partiel (ex. « boissons » chaque soir).</p>
-        <button className="principal grand" onClick={() => agir((pin) => post("/inventaires", { libelle: `Inventaire ${famille || "complet"}` }, pin), "Inventaire commencé").then(recharger)}>
+        <button
+          className="principal grand"
+          onClick={() => agir((pin) => post("/inventaires", { libelle: `Inventaire ${famille || "complet"}` }, pin), "Inventaire commencé").then(recharger)}
+        >
           Commencer un inventaire
         </button>
-        {liste.length > 0 && (
-          <TableauDonnees colonnes={["Date", "Libellé", "Statut"]} lignes={liste.map((i) => [dateHeure(i.cree_le), i.libelle, i.statut])} />
-        )}
+        {liste.length > 0 && <TableauDonnees colonnes={["Date", "Libellé", "Statut"]} lignes={liste.map((i) => [dateHeure(i.cree_le), i.libelle, i.statut])} />}
       </div>
     );
   const comptes = new Map(inv?.lignes.map((l) => [l.article_id, l]) ?? []);
   return (
     <div className="carte">
       <h2>{enCours.libelle}</h2>
-      <Choix libelle="Famille" valeur={famille} changer={setFamille} options={[{ valeur: "", libelle: "Toutes" }, ...familles.map((f) => ({ valeur: f, libelle: f }))]} />
+      <Choix
+        libelle="Famille"
+        valeur={famille}
+        changer={setFamille}
+        options={[{ valeur: "", libelle: "Toutes" }, ...familles.map((f) => ({ valeur: f, libelle: f }))]}
+      />
       <TableauDonnees
         colonnes={["Article", "Compté", "Théorique", "Écart"]}
         lignes={articles
@@ -228,7 +281,12 @@ function Inventaires({ articles }: { articles: NiveauStock[] }) {
                 className="petit-champ"
                 defaultValue={l?.compte ?? ""}
                 aria-label={`Compté ${a.nom}`}
-                onBlur={(e) => e.target.value !== "" && agir((pin) => post(`/inventaires/${enCours.id}/comptage`, { article_id: a.article_id, compte: Number(e.target.value) }, pin)).then(rechargerInv)}
+                onBlur={(e) =>
+                  e.target.value !== "" &&
+                  agir((pin) => post(`/inventaires/${enCours.id}/comptage`, { article_id: a.article_id, compte: Number(e.target.value) }, pin)).then(
+                    rechargerInv,
+                  )
+                }
               />,
               l ? l.theorique : "",
               l ? <strong className={l.ecart < 0 ? "negatif" : ""}>{l.ecart}</strong> : "",
@@ -239,7 +297,10 @@ function Inventaires({ articles }: { articles: NiveauStock[] }) {
       <div className="actions">
         <button onClick={() => agir((pin) => post(`/inventaires/${enCours.id}/abandonner`, {}, pin)).then(recharger)}>Abandonner</button>
         {peut("stock.inventaire") && (
-          <button className="principal" onClick={() => agir((pin) => post(`/inventaires/${enCours.id}/valider`, {}, pin), "Inventaire validé : écarts enregistrés").then(recharger)}>
+          <button
+            className="principal"
+            onClick={() => agir((pin) => post(`/inventaires/${enCours.id}/valider`, {}, pin), "Inventaire validé : écarts enregistrés").then(recharger)}
+          >
             Valider (responsable)
           </button>
         )}
