@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { appel, get, post } from "../api";
-import { Case, Champ, ChampMontant, Choix, Modal, Onglets, TableauDonnees } from "../composants/Base";
+import { Case, Champ, ChampMontant, Choix, ChoixOuAutre, Modal, Onglets, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import { ChoixPhoto } from "../composants/Plat";
+import { quartiersDeLaVille, VILLES } from "../quartiers";
 import CloudAdmin from "./CloudAdmin";
 import CommandesDistance from "./CommandesDistance";
 import Promotions from "./Promotions";
@@ -599,6 +600,7 @@ function RestaurantAdmin() {
       <div className="carte">
         <h2>Restaurant</h2>
         <Champ libelle="Nom" valeur={resto.nom} changer={(v) => setResto({ ...resto, nom: v })} />
+        <ChoixOuAutre libelle="Ville" valeur={resto.ville} changer={(v) => setResto({ ...resto, ville: v })} groupes={[{ nom: "", options: VILLES }]} />
         <Champ libelle="Adresse" valeur={resto.adresse} changer={(v) => setResto({ ...resto, adresse: v })} />
         <Champ libelle="Téléphone" valeur={resto.telephone} changer={(v) => setResto({ ...resto, telephone: v })} />
         <Champ libelle="NIF (facultatif)" valeur={resto.nif} changer={(v) => setResto({ ...resto, nif: v })} />
@@ -731,10 +733,11 @@ function RestaurantAdmin() {
         <h3>Livraison</h3>
         {params.quartiers.map((q, i) => (
           <div key={i} className="grille-2">
-            <Champ
+            <ChoixOuAutre
               libelle="Quartier"
               valeur={q.nom}
               changer={(v) => setParams({ ...params, quartiers: params.quartiers.map((x, j) => (j === i ? { ...x, nom: v } : x)) })}
+              groupes={quartiersDeLaVille(resto.ville).map((g) => ({ nom: g.nom, options: g.quartiers }))}
             />
             <ChampMontant
               libelle="Frais"

@@ -9,7 +9,7 @@ export function teinte(couleur: string, alpha = 0.16): string {
 }
 
 /** Photo ronde du plat ; sans photo, l'icône de sa catégorie sur un cercle teinté (lisible hors ligne). */
-export function VisuelPlat({ photo, categorie, petit }: { photo?: string | null; categorie?: Categorie; petit?: boolean }) {
+export function VisuelPlat({ photo, categorie, petit }: { photo?: string | null; categorie?: Pick<Categorie, "icone" | "couleur">; petit?: boolean }) {
   const classe = `visuel-plat ${petit ? "petit" : ""}`;
   if (photo) return <img className={classe} src={photo} alt="" loading="lazy" />;
   return (

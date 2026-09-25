@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { appel, get, post } from "../api";
-import { Case, Champ, ChampMontant, Choix, Modal, TableauDonnees } from "../composants/Base";
+import { Case, Champ, ChampMontant, Choix, ChoixOuAutre, Modal, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, depuisMicro, hhmm, JOURS, joursLibelle, lireHhmm, versMicro } from "../format";
 import { t } from "../i18n";
@@ -175,15 +175,7 @@ function FormZone({ z: initiale, quartiers, fermer, enregistrer }: { z: ZoneRisq
   return (
     <Modal titre="Zone à risque" fermer={fermer}>
       <Champ libelle="Nom" valeur={z.nom} changer={(v) => setZ({ ...z, nom: v })} placeholder="Kalaban la nuit" obligatoire autoFocus />
-      <label className="champ">
-        <span>Quartier</span>
-        <input list="quartiers-zone" value={z.quartier ?? ""} onChange={(e) => setZ({ ...z, quartier: e.target.value })} aria-label="Quartier" />
-        <datalist id="quartiers-zone">
-          {quartiers.map((q) => (
-            <option key={q} value={q} />
-          ))}
-        </datalist>
-      </label>
+      <ChoixOuAutre libelle="Quartier" valeur={z.quartier ?? ""} changer={(v) => setZ({ ...z, quartier: v })} groupes={[{ nom: "", options: quartiers }]} />
       <Case libelle="Cercle autour d'un point GPS" valeur={gps} changer={setGps} />
       {gps && (
         <div className="grille-2">

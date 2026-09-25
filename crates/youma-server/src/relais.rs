@@ -7,7 +7,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::{json, Value};
 use youma_core::entrantes::{self, CommandeEntrante};
-use youma_core::parametres;
+use youma_core::{auth, parametres};
 
 use crate::Etat;
 
@@ -34,11 +34,12 @@ pub fn lancer(etat: Etat) {
     tokio::spawn(async move {
         let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().unwrap_or_default();
         let mut resultats: Vec<Value> = Vec::new();
+        let mut menu_du_relais: Option<String> = None;
         loop {
             let intervalle = etat.relais.lock().map(|r| r.intervalle_ms).unwrap_or(10_000);
             tokio::time::sleep(Duration::from_millis(intervalle)).await;
             // Des commandes viennent d'arriver : on renvoie aussitôt les résultats au relais.
-            while let Ok(n) = synchroniser(&etat, &client, &mut resultats).await {
+            while let Ok(n) = synchroniser(&etat, &client, &mut resultats, &mut menu_du_relais).await {
                 if n == 0 {
                     break;
                 }
@@ -48,9 +49,11 @@ pub fn lancer(etat: Etat) {
 }
 
 /// Un aller-retour avec le relais ; renvoie le nombre de commandes reçues.
-async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec<Value>) -> Result<usize, ()> {
+/// `menu_du_relais` : empreinte du menu que le relais dit détenir ; le menu (photos comprises) n'est renvoyé que s'il a changé.
+async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec<Value>, menu_du_relais: &mut Option<String>) -> Result<usize, ()> {
     let envoyes = resultats.clone();
     let nb_envoyes = envoyes.len();
+    let deja = menu_du_relais.clone();
     let preparation = etat
         .avec_db(move |db| {
             let p = parametres::lire(db.conn())?;
@@ -58,8 +61,11 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
             if c.relais_url.trim().is_empty() || !c.en_ligne {
                 return Ok(None);
             }
+            let menu = serde_json::to_value(entrantes::menu_public(db.conn(), None, db.maintenant())?).unwrap_or_default();
+            let empreinte = auth::hash_jeton(&menu.to_string());
             let corps = json!({
-                "menu": entrantes::menu_public(db.conn(), None, db.maintenant())?,
+                "menu": if deja.as_deref() == Some(empreinte.as_str()) { Value::Null } else { menu },
+                "menu_empreinte": empreinte,
                 "config": { "verification_numero": c.verification_numero },
                 "suivis": entrantes::suivis_recents(db.conn(), db.maintenant() - 24 * 3_600_000)?,
                 "resultats": envoyes,
@@ -90,6 +96,7 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
     };
     // Les résultats envoyés sont acquittés.
     resultats.drain(..nb_envoyes.min(resultats.len()));
+    *menu_du_relais = reponse["menu_empreinte"].as_str().map(str::to_owned);
 
     let commandes = reponse["commandes"].as_array().cloned().unwrap_or_default();
     let n = commandes.len();

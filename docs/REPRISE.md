@@ -18,6 +18,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
   (résumés, sauvegardes chiffrées, espace propriétaire).
 - **Interface refaite** (fiche 0019) : thème, menu repliable sur PC, écrans téléphone, photos des plats.
 - **Application installable (PWA)** (fiche 0020) : icône sur le téléphone, HTTPS du réseau local.
+- **Photos au menu client, listes de villes et quartiers** (fiche 0021) : le menu n'est renvoyé au relais que
+  s'il a changé (les photos ne repartent plus toutes les 10 s).
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
@@ -48,6 +50,9 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 - Restaurant pilote et date de démarrage.
 - **[HYPOTHÈSE]** installer un certificat sur chaque téléphone est acceptable (fiche 0020).
 - **[HYPOTHÈSE]** le PC du restaurant aura une IP fixe (bail DHCP réservé).
+- **[HYPOTHÈSE]** liste des quartiers de Bamako par commune (`ui/src/quartiers.ts`) à faire valider ; autres villes à compléter.
+- Plusieurs restaurants d'un même propriétaire : aujourd'hui regroupés dans l'espace propriétaire (fiche 0018) et
+  un relais par restaurant (fiche 0013). Une page en ligne commune à plusieurs restaurants reste à décider.
 
 ## Rappels techniques
 

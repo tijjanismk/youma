@@ -291,3 +291,21 @@ async fn cloud_resumes_proprietaire_et_sauvegardes() {
     assert_eq!(youma_core::cloud::dechiffrer(&octets, "phrase du maquis A !").unwrap(), b"base du maquis A");
     assert_eq!(c.get(format!("{url}/cloud/sauvegardes/{id}")).bearer_auth(&cle_b).send().await.unwrap().status().as_u16(), 404);
 }
+
+#[tokio::test]
+async fn menu_renvoye_seulement_s_il_change() {
+    let r = relais().await;
+    let config = json!({ "verification_numero": "rappel" });
+    let (_, s) = r.synchroniser(CLE, json!({ "menu": menu(), "menu_empreinte": "e1", "config": config })).await;
+    assert_eq!(s["menu_empreinte"], "e1");
+    // Menu déjà détenu : le poste n'envoie que l'empreinte, le relais garde son menu.
+    let (code, s) = r.synchroniser(CLE, json!({ "menu": null, "menu_empreinte": "e1", "config": config })).await;
+    assert_eq!(code, 200);
+    assert_eq!(s["menu_empreinte"], "e1");
+    assert_eq!(r.get("/public/menu").await.1["restaurant"], "Maquis Le Baobab");
+    let mut m = menu();
+    m["restaurant"] = json!("Maquis Le Fromager");
+    let (_, s) = r.synchroniser(CLE, json!({ "menu": m, "menu_empreinte": "e2", "config": config })).await;
+    assert_eq!(s["menu_empreinte"], "e2");
+    assert_eq!(r.get("/public/menu").await.1["restaurant"], "Maquis Le Fromager");
+}
