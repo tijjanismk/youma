@@ -32,5 +32,5 @@ une cinquantaine de couleurs écrites en dur, illisibles dans un thème sombre.
 ## Conséquences
 Les manifestes gardent un seul `theme_color` (clair, `#f5f6fa`). Toute nouvelle règle CSS prend les jetons ; une
 couleur posée sur un plein d'état utilise `sur-etat`, sur le menu `menu-texte`, sur l'accent `sur-accent`.
-Captures : `docs/captures/mali-vivant/`. Reste hors de ce lot : la graisse 800 de Poppins (`montant-fort`, non
-importée : affichée en 700).
+Captures : `docs/captures/mali-vivant/`. Poppins est embarqué en 400, 500, 600, 700 et 800 (`montant-fort`,
+ligne de total).
