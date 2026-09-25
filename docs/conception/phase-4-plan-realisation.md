@@ -21,6 +21,8 @@
 | 15 | Promotions et happy hours (fiche 0017) | un happy hour réel en fin de journée | ✅ |
 | 16 | Statistiques : panier moyen, heures, jours, serveurs, comparaison de périodes | un mois d'activité | ✅ |
 | 17 | Cloud facultatif : résumés, SMS de clôture, sauvegardes chiffrées, espace propriétaire multi-restaurants (fiche 0018) | un propriétaire avec deux maquis | ✅ |
+| 18 | Refonte de l'interface : menu repliable, écrans téléphone, photos des plats (fiche 0019) | service sur téléphone | ✅ |
+| 19 | Application installable (PWA), HTTPS du réseau local (fiche 0020) | 2 téléphones Android + 1 iPhone | ✅ (à éprouver sur vrais téléphones) |
 
 Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imprimante cuisine), puis mode réseau.
 

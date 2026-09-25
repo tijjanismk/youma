@@ -2,6 +2,7 @@
 
 Logiciel de gestion de restaurant local-first pour le Mali.
 Référence unique : `docs/CAHIER_DES_CHARGES.md`. Le lire avant toute tâche.
+Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvertes) et le tenir à jour.
 
 ## Phase actuelle : RÉALISATION
 
