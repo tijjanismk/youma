@@ -232,8 +232,19 @@ test("interface utilisable sur le téléphone d'un serveur", async ({ browser })
   // Pas de débordement horizontal.
   const largeur = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(largeur).toBeLessThanOrEqual(390);
-  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "Menu principal" })).toBeVisible();
+  // Prise de commande : les plats occupent l'écran, la commande monte en tiroir.
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Voir la commande \(1\)/ }).click();
+  await expect(page.getByRole("button", { name: "Ajouter un Bière blonde" })).toBeInViewport();
+  await page.getByRole("button", { name: "Fermer la commande" }).click();
+  await expect(page.getByRole("button", { name: /^Voir la commande/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await contexte.close();
 });
 

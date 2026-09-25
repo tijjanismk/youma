@@ -5,6 +5,7 @@ import { Case, Champ, ChampMontant, Choix, Modal, Onglets, TableauDonnees } from
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
+import { ChoixPhoto } from "../composants/Plat";
 import CloudAdmin from "./CloudAdmin";
 import CommandesDistance from "./CommandesDistance";
 import Promotions from "./Promotions";
@@ -279,7 +280,7 @@ function FormProduit({ p, cat, fermer, fait }: { p: Produit; cat: Catalogue; fer
         )}
         <ChampMontant libelle="Coût d'achat estimé (pour le bénéfice)" valeur={x.prix_achat_estime} changer={(v) => setX({ ...x, prix_achat_estime: v })} />
         <Champ libelle="Code" valeur={x.code} changer={(v) => setX({ ...x, code: v })} />
-        <Champ libelle="Photo (adresse d'image)" valeur={x.photo} changer={(v) => setX({ ...x, photo: v })} />
+        <ChoixPhoto valeur={x.photo} changer={(v) => setX({ ...x, photo: v })} categorie={cat.categories.find((c) => c.id === x.categorie_id)} />
         <Case libelle="Actif" valeur={x.actif} changer={(v) => setX({ ...x, actif: v })} />
       </div>
       {salle && salle.zones.length > 0 && (

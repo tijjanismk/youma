@@ -554,3 +554,27 @@ pub(crate) fn non_vide(s: &str, quoi: &str) -> Resultat<()> {
     }
     Ok(())
 }
+
+/// Quantité disponible par produit suivi en stock (affichage « 12 disponibles » à la prise de commande) :
+/// article revendu → stock de l'article ; recette → portions possibles avec le stock des ingrédients
+/// (le plus petit stock ÷ quantité par portion). Produits sans suivi : absents. Jamais bloquant (RG-STK-07).
+pub fn disponibles(conn: &Connection) -> Resultat<std::collections::HashMap<String, i64>> {
+    let mut v = std::collections::HashMap::new();
+    let mut s = conn.prepare(
+        "SELECT p.id, COALESCE(SUM(m.quantite), 0) FROM produits p JOIN mouvements_stock m ON m.article_id = p.article_stock_id
+         WHERE p.actif = 1 AND p.suivi_stock = 'revendu' GROUP BY p.id",
+    )?;
+    for r in s.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
+        let (id, q) = r?;
+        v.insert(id, q.max(0));
+    }
+    let mut s = conn.prepare(
+        "SELECT r.produit_id, MIN(COALESCE((SELECT SUM(m.quantite) FROM mouvements_stock m WHERE m.article_id = r.article_id), 0) / r.quantite)
+         FROM recettes r JOIN produits p ON p.id = r.produit_id WHERE p.actif = 1 AND p.suivi_stock = 'recette' GROUP BY r.produit_id",
+    )?;
+    for r in s.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
+        let (id, q) = r?;
+        v.insert(id, q.max(0));
+    }
+    Ok(v)
+}

@@ -383,6 +383,7 @@ async fn catalogue_tout(State(e): State<Etat>, a: Auth) -> Rep<Value> {
         "categories": catalogue::lister_categories(db.conn())?,
         "produits": catalogue::lister_produits(db.conn(), false)?,
         "postes": catalogue::lister_postes(db.conn())?,
+        "disponibles": catalogue::disponibles(db.conn())?,
     })))
 }
 

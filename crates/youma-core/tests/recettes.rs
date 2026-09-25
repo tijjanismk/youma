@@ -122,3 +122,20 @@ fn rg_rec_04_cout_matiere_et_options_conservees() {
     assert!(recettes::lire(b.db.conn(), &frites_id).unwrap().options.is_empty());
     assert_eq!(recettes::lire(b.db.conn(), &frites_id).unwrap().cout, 310);
 }
+
+#[test]
+fn disponibles_articles_et_portions() {
+    let mut b = banc();
+    let d = youma_core::catalogue::disponibles(b.db.conn()).unwrap();
+    // Démo : 36 bières reçues ; frites sans stock de pommes de terre → 0 portion.
+    assert_eq!(d[&b.produit("Bière blonde")], 36);
+    assert_eq!(d[&b.produit("Frites")], 0);
+    assert!(!d.contains_key(&b.produit("Poulet braisé")), "sans suivi de stock");
+    // 1 kg de pommes de terre et 1 L d'huile : 1000 ÷ 250 = 4 portions, 1000 ÷ 30 = 33 → 4.
+    let g = b.gerant();
+    for (article, q) in [("Pommes de terre", 1_000), ("Huile", 1_000)] {
+        let a = b.article(article);
+        youma_core::stock::mouvement_manuel(&mut b.db, &g, &youma_core::stock::MouvementManuel { article_id: a, type_: "regularisation".into(), quantite: q, motif: "Achat au marché".into(), conditionnement_id: None }).unwrap();
+    }
+    assert_eq!(youma_core::catalogue::disponibles(b.db.conn()).unwrap()[&b.produit("Frites")], 4);
+}

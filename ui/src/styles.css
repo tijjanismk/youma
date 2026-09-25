@@ -1,20 +1,27 @@
-/* Youma — contraste élevé (terrasses en plein soleil), grands boutons, lisible sur téléphone. */
+/* Youma — clair et chaleureux (maquette de référence), lisible au soleil, grands boutons, fluide sur téléphone. */
 :root {
-  --vert: #14532d;
-  --vert-clair: #166534;
-  --fond: #f4f4f0;
+  /* Accent orange : texte blanc dessus en gras (≥ 3:1), texte orange foncé sur blanc (≥ 4,5:1). */
+  --accent: #e0680a;
+  --accent-fonce: #b4520a;
+  --accent-doux: #fdebd7;
+  --vert: #15803d;
+  --vert-clair: #16a34a;
+  --fond: #f6f1ea;
   --carte: #ffffff;
-  --texte: #111111;
-  --doux: #4b5563;
-  --bord: #c9c9c1;
+  --texte: #1c1917;
+  --doux: #6b625a;
+  --bord: #e7dfd5;
   --rouge: #b91c1c;
   --orange: #c2410c;
   --jaune: #a16207;
   --bleu: #1d4ed8;
-  --rayon: 10px;
+  --rayon: 12px;
+  --rayon-carte: 20px;
+  --ombre: 0 4px 18px rgba(92, 60, 26, 0.07);
   --tactile: 52px;
-  font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-  font-size: 17px;
+  --rail: 232px;
+  font-family: "Poppins", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 16px;
   color: var(--texte);
   background: var(--fond);
 }
@@ -1274,4 +1281,623 @@ code {
   .entete .changer .texte-court {
     display: none;
   }
+}
+
+/* ═════════════ Thème (maquette de référence) ═════════════ */
+h1 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+button,
+.bouton {
+  border-width: 1.5px;
+  font-weight: 600;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+button.principal,
+.bouton.principal {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(224, 104, 10, 0.25);
+}
+button.principal:hover:not(:disabled) {
+  background: var(--accent-fonce);
+}
+button.actif,
+.onglets button.actif {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  border-color: var(--accent);
+}
+button.lien {
+  color: var(--accent-fonce);
+}
+input,
+select,
+textarea {
+  border-width: 1.5px;
+}
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(224, 104, 10, 0.45);
+  outline-offset: 1px;
+}
+.carte,
+.indicateur,
+.tuile,
+.ticket,
+.produit,
+.table-salle,
+.carte-cuisine {
+  background: var(--carte);
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon-carte);
+  box-shadow: var(--ombre);
+}
+.carte {
+  padding: 18px;
+}
+.modal {
+  border-radius: var(--rayon-carte);
+}
+.modal-entete {
+  border-bottom: 1px solid var(--bord);
+}
+.onglets button {
+  border-radius: 999px;
+  background: #efe9e1;
+  border-color: transparent;
+  min-height: 44px;
+}
+.tableau th {
+  color: var(--doux);
+  font-weight: 600;
+}
+.statut {
+  border-radius: 999px;
+  background: #f1ece5;
+}
+
+/* ── Coquille : en-tête clair, barre latérale rétractable, barre du bas sur téléphone ── */
+.entete {
+  background: var(--carte);
+  color: var(--texte);
+  border-bottom: 1px solid var(--bord);
+  min-height: 64px;
+}
+.entete .marque {
+  color: var(--texte);
+}
+.entete .journee {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 1;
+}
+.entete button {
+  background: #fff;
+  color: var(--texte);
+  border-color: var(--bord);
+}
+.entete .avatar-mini {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex: none;
+}
+.menu {
+  width: var(--rail);
+  background: var(--carte);
+  border-right: 1px solid var(--bord);
+  padding: 10px;
+  gap: 4px;
+  transition: width 0.2s;
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+.menu a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: var(--doux);
+  font-weight: 500;
+  min-height: 48px;
+}
+.menu a svg {
+  flex: none;
+}
+.menu a.actif {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  font-weight: 600;
+}
+.menu a:hover {
+  background: #f7f1ea;
+  color: var(--texte);
+}
+.menu .replier {
+  margin-bottom: 6px;
+  align-self: flex-end;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-color: var(--bord);
+}
+/* Rail replié : icônes, libellé court dessous (comme la maquette). */
+.application.replie .menu {
+  width: 92px;
+  align-items: stretch;
+}
+.application.replie .menu a {
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 4px;
+  font-size: 0.72rem;
+  text-align: center;
+  line-height: 1.15;
+}
+.application.replie .menu .replier {
+  align-self: center;
+}
+.menu .badge {
+  margin-left: auto;
+}
+.application.replie .menu .badge {
+  margin-left: 0;
+}
+.barre-bas {
+  display: none;
+}
+
+/* ── Accueil ── */
+.tuile {
+  min-height: 118px;
+  gap: 10px;
+  font-weight: 600;
+}
+.tuile .icone {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+}
+.tuile:hover {
+  border-color: var(--accent);
+}
+.avatar {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  font-weight: 700;
+}
+
+/* ── Salle ── */
+.table-salle {
+  min-height: 108px;
+  border-width: 2px;
+}
+.table-salle.libre {
+  border-color: #bfe3cb;
+  background: #fff;
+}
+.table-salle.libre small {
+  color: var(--vert);
+}
+.table-salle.occupee {
+  border-color: var(--accent);
+  background: #fff8f0;
+}
+.table-salle.occupee small {
+  color: var(--accent-fonce);
+}
+
+/* ── Prise de commande (maquette : puces, cartes à photo ronde, ticket à droite) ── */
+.prise-commande {
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 18px;
+}
+.recherche {
+  border-radius: 999px;
+  padding-left: 20px;
+  background: #fff;
+  border-color: var(--bord);
+  min-height: 50px;
+}
+.categories {
+  gap: 10px;
+}
+.categories button {
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  background: #efe9e1;
+  color: var(--doux);
+  min-height: 46px;
+  font-weight: 600;
+}
+.categories button.actif {
+  background: var(--accent-doux);
+  border-color: var(--accent);
+  color: var(--accent-fonce);
+}
+.titre-catalogue {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 6px 0 12px;
+}
+.titre-catalogue h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.produits {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+}
+.produit {
+  min-height: 0;
+  padding: 16px 10px 14px;
+  gap: 6px;
+  border-top-width: 1px;
+  justify-content: flex-start;
+}
+.produit:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.visuel-plat {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.1rem;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+  margin-bottom: 6px;
+  flex: none;
+}
+.visuel-plat.petit {
+  width: 46px;
+  height: 46px;
+  font-size: 1.4rem;
+  box-shadow: none;
+  margin: 0;
+}
+.produit .nom-plat {
+  font-weight: 600;
+  line-height: 1.2;
+}
+.produit .prix-plat {
+  color: var(--accent-fonce);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.produit .dispo {
+  color: var(--doux);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.produit .dispo strong {
+  color: var(--texte);
+}
+.produit.rupture {
+  opacity: 0.5;
+  text-decoration: none;
+}
+.produit .pastille {
+  top: 10px;
+  right: 10px;
+}
+.ticket {
+  padding: 18px;
+  top: 82px;
+}
+.ticket-entete {
+  align-items: flex-start;
+}
+.ticket-entete small {
+  color: var(--doux);
+  display: block;
+}
+.ticket-entete h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.types-commande {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.type-pastille {
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #f1ece5;
+  color: var(--doux);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.type-pastille.actif {
+  background: var(--accent);
+  color: #fff;
+}
+.ligne {
+  border-bottom: 1px solid var(--bord);
+}
+.ligne-bouton,
+.ligne.panier {
+  grid-template-columns: 46px 1fr auto;
+  gap: 10px;
+  padding: 10px 2px;
+}
+.ligne.panier {
+  background: none;
+}
+.ligne .lib {
+  font-weight: 600;
+}
+.ligne .lib small {
+  display: block;
+  font-weight: 400;
+  color: var(--doux);
+}
+.ligne .detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ligne .prix {
+  color: var(--accent-fonce);
+}
+.ligne .etat {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f1ece5;
+  font-size: 0.75rem;
+}
+.boutons-qte {
+  align-items: center;
+  gap: 8px;
+}
+.boutons-qte button {
+  min-height: 34px;
+  min-width: 34px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+}
+.boutons-qte strong {
+  min-width: 18px;
+  text-align: center;
+}
+.total {
+  border-top: 1px dashed var(--bord);
+  font-size: 1.2rem;
+}
+.resume-ticket {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--doux);
+}
+.resume-ticket div {
+  display: flex;
+  justify-content: space-between;
+}
+.actions-ticket .principal {
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 1.1rem;
+}
+.barre-ticket,
+.fermer-ticket {
+  display: none;
+}
+
+/* ── Tableau de bord ── */
+.indicateur {
+  padding: 16px;
+}
+.indicateur summary strong {
+  font-size: 1.6rem;
+}
+.indicateur summary small {
+  color: var(--accent-fonce);
+}
+.indicateur.benefice {
+  border-color: var(--accent);
+}
+
+/* ═════════════ Téléphone ═════════════ */
+@media (max-width: 900px) {
+  .contenu {
+    padding: 12px 12px 96px;
+  }
+  .menu {
+    position: fixed;
+    top: 64px;
+    height: calc(100vh - 64px);
+    width: 280px;
+    padding-bottom: 90px;
+  }
+  .application.replie .menu {
+    width: 280px;
+  }
+  .application.replie .menu a {
+    flex-direction: row;
+    font-size: 1rem;
+    text-align: left;
+  }
+  .menu .replier {
+    display: none;
+  }
+  /* Barre du bas : les écrans du quotidien à portée de pouce. */
+  .barre-bas {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 25;
+    background: var(--carte);
+    border-top: 1px solid var(--bord);
+    box-shadow: 0 -6px 18px rgba(92, 60, 26, 0.08);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+  }
+  .barre-bas a,
+  .barre-bas button {
+    flex: 1;
+    min-width: 0;
+    min-height: 58px;
+    border: none;
+    background: none;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--doux);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0 2px;
+  }
+  .barre-bas a.actif {
+    color: var(--accent-fonce);
+    background: var(--accent-doux);
+  }
+  .barre-bas .libelle {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .barre-bas .avec-badge {
+    position: relative;
+  }
+  .barre-bas .badge {
+    position: absolute;
+    top: -6px;
+    right: -14px;
+    margin: 0;
+  }
+  /* Prise de commande : 2 colonnes de plats, ticket en tiroir qui monte du bas. */
+  .produits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .visuel-plat {
+    width: 84px;
+    height: 84px;
+    font-size: 2.5rem;
+  }
+  .ticket {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 40;
+    max-height: 86vh;
+    overflow-y: auto;
+    border-radius: 24px 24px 0 0;
+    transform: translateY(105%);
+    transition: transform 0.25s ease;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .ticket.ouvert {
+    transform: none;
+  }
+  .ticket .poignee {
+    display: block;
+    width: 48px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--bord);
+    margin: -6px auto 10px;
+  }
+  .barre-ticket {
+    display: flex;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    z-index: 30;
+    min-height: 60px;
+    border-radius: 16px;
+    justify-content: space-between;
+    padding: 0 18px;
+  }
+  .prise-commande {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .prise-commande .catalogue {
+    padding-bottom: 80px;
+  }
+  .fermer-ticket {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .voile-ticket {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 35;
+  }
+}
+@media (min-width: 901px) {
+  .ticket .poignee,
+  .voile-ticket {
+    display: none;
+  }
+}
+
+/* Photo d'un plat (administration). */
+.choix-photo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+label.bouton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon);
+  background: var(--carte);
+  font-weight: 600;
+  cursor: pointer;
 }

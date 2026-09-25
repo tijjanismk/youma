@@ -181,7 +181,13 @@ export type Produit = {
   groupes_options: GroupeOptions[];
 };
 export type Poste = { id: string; nom: string; imprimante: string; ecran: boolean; actif: boolean };
-export type Catalogue = { categories: Categorie[]; produits: Produit[]; postes: Poste[] };
+export type Catalogue = {
+  categories: Categorie[];
+  produits: Produit[];
+  postes: Poste[];
+  /** Quantité disponible des produits suivis en stock (revendus ou avec recette). */
+  disponibles?: Record<string, number>;
+};
 
 export type Zone = { id: string; nom: string; ordre: number; actif: boolean };
 export type TablePlan = {
