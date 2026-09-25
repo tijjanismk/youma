@@ -1901,3 +1901,36 @@ label.bouton {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Application installable (fiche 0020). */
+.bandeau.info {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+}
+.installation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  border: 1.5px dashed var(--accent);
+}
+.installation p {
+  margin: 4px 0 0;
+}
+.installation a {
+  color: var(--accent-fonce);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.installation button svg {
+  vertical-align: -4px;
+  margin-right: 6px;
+}
+/* Ouverte comme une application : on respecte l'encoche et la barre système. */
+@media (display-mode: standalone) {
+  .entete {
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+}

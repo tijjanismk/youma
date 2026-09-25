@@ -210,6 +210,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/appareils/appairer", post(appareil_appairer))
         .route("/appareils/{id}/revoquer", post(appareil_revoquer))
         .route("/reseau", get(reseau))
+        .route("/reseau/certificat", get(certificat_reseau))
         .route("/diagnostic", get(diagnostic))
         .route("/sauvegardes", get(sauvegardes).post(sauvegarde_creer))
         .route("/sauvegardes/exporter", post(sauvegarde_exporter))
@@ -1095,15 +1096,32 @@ async fn appareil_revoquer(State(e): State<Etat>, a: Auth, Path(id): Path<String
 async fn reseau(State(e): State<Etat>, _a: Auth) -> Rep<Value> {
     let port = e.config.port;
     let ip = adresse_locale();
+    let https = e.config.port_https.filter(|_| e.autorite.is_some() && ip.is_some_and(|ip| crate::tls::adresse_locale_permise(&ip)));
     Ok(Json(json!({
         "actif": e.config.reseau,
         "port": port,
         "adresses": ip.map(|ip| vec![format!("http://{ip}:{port}/")]).unwrap_or_default(),
+        "adresses_https": ip.zip(https).map(|(ip, p)| vec![format!("https://{ip}:{p}/")]).unwrap_or_default(),
+        "certificat": ip.filter(|_| https.is_some()).map(|ip| format!("http://{ip}:{port}/api/reseau/certificat")),
     })))
 }
 
+/// Certificat de l'autorité locale, à installer une fois sur chaque téléphone (public : il ne contient
+/// aucun secret, la clé reste sur le poste central).
+async fn certificat_reseau(State(e): State<Etat>) -> Result<Response, ApiErreur> {
+    let a = e.autorite.as_ref().ok_or_else(|| ApiErreur(Erreur::NonTrouve("Certificat HTTPS".into())))?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
+            (header::CONTENT_DISPOSITION, "attachment; filename=\"youma-restaurant.crt\""),
+        ],
+        a.der()?,
+    )
+        .into_response())
+}
+
 /// Adresse IP locale (sans envoyer de paquet : `connect` UDP ne fait que choisir la route).
-fn adresse_locale() -> Option<std::net::IpAddr> {
+pub(crate) fn adresse_locale() -> Option<std::net::IpAddr> {
     let s = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
     s.connect("192.168.1.1:80").or_else(|_| s.connect("10.0.0.1:80")).ok()?;
     s.local_addr().ok().map(|a| a.ip()).filter(|ip| !ip.is_unspecified())

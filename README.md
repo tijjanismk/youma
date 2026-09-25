@@ -26,6 +26,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Mot de passe personnel pour l'administration (en plus du PIN) | ✅ |
 | Sauvegardes, intégrité, restauration, licence hors ligne, diagnostic | ✅ |
 | Mode réseau (téléphones via navigateur, appairage par QR) | ✅ |
+| Application installable (PWA) : écran d'accueil, plein écran, ouverture sans Wi-Fi | ✅ |
 | Commandes par téléphone, QR sur la table, en ligne ; file de validation | ✅ (réseau local) |
 | Zones à risque (quartier ou cercle GPS × heure × jours), liste noire de numéros | ✅ |
 | Suivi en direct pour le client, position du livreur | ✅ (position : via relais HTTPS) |
@@ -49,7 +50,22 @@ cd ui && npm ci && npm run build && cd ..
 cargo run -p youma-server -- --demo --donnees ./donnees --ui ui/dist
 # → http://127.0.0.1:7878
 # Mode réseau (téléphones des serveurs) : ajouter --reseau
+#   → aussi https://<IP du PC>:7879 (HTTPS local, pour installer l'application ; --port-https 0 pour le couper)
 ```
+
+### Installer Youma sur les téléphones (PWA)
+
+Les navigateurs n'installent une application web qu'en HTTPS. En mode réseau, le poste central crée
+son autorité de certification (conservée dans la base, limitée aux adresses du réseau local) et sert
+l'application en HTTPS sur le port suivant. Pour chaque téléphone, **une seule fois** :
+
+1. Administration → Appareils : scanner le QR « certificat du restaurant » et installer le certificat
+   (Android : Paramètres → Sécurité → Installer un certificat → Certificat CA ; iPhone : Réglages →
+   Profil téléchargé, puis Général → Informations → Réglages des certificats).
+2. Scanner le QR d'appairage (adresse `https://…:7879`), puis « Installer l'application » sur l'accueil.
+
+L'espace propriétaire (`/proprietaire` sur le relais, déjà en HTTPS) s'installe de la même façon, avec
+sa propre icône. Icônes : `ui/public/icone.svg`, PNG produits par `cd ui && node outils/icones.mjs`.
 
 ### Relais Internet (facultatif)
 

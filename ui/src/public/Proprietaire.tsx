@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Champ, TableauDonnees } from "../composants/Base";
+import { CarteInstallation } from "../composants/Installation";
 import { dateFr, dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import type { ResumeJournee } from "../types";
@@ -53,6 +54,7 @@ export default function Proprietaire() {
   const aujourdhui = donnees.totaux[0];
   return (
     <Page titre="Mes restaurants" sousTitre={aujourdhui ? `Dernière journée : ${dateFr(aujourdhui.date)}` : undefined}>
+      <CarteInstallation reseauLocal={false} />
       {donnees.restaurants.length > 1 && (
         <div className="carte" aria-label="Tous les restaurants">
           <h2>Tous les restaurants</h2>

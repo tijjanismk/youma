@@ -7,6 +7,7 @@ pub mod erreurs;
 pub mod imprimantes;
 pub mod relais;
 pub mod taches;
+pub mod tls;
 pub mod ws;
 
 use std::net::{IpAddr, SocketAddr};
@@ -34,6 +35,8 @@ pub struct Config {
     pub demo: bool,
     /// Désactive le contrôle de licence du module réseau (tests, démonstration).
     pub reseau_sans_licence: bool,
+    /// Port HTTPS du réseau local (application installable sur les téléphones, fiche 0020).
+    pub port_https: Option<u16>,
 }
 
 impl Config {
@@ -54,6 +57,8 @@ pub struct Etat {
     pub relais: Arc<Mutex<relais::EtatRelais>>,
     /// État de la synchronisation avec le cloud facultatif (fiche 0018).
     pub cloud: Arc<Mutex<cloud::EtatCloud>>,
+    /// Autorité de certification locale, si l'HTTPS est actif.
+    pub autorite: Option<Arc<tls::Autorite>>,
 }
 
 impl Etat {
@@ -76,7 +81,11 @@ impl Etat {
         if !r.ok {
             tracing::error!("Contrôle d'intégrité en échec : {:?}", r.messages);
         }
-        Ok(Etat { db: Arc::new(Mutex::new(db)), evenements: tx, config: Arc::new(config), relais: Arc::default(), cloud: Arc::default() })
+        let autorite = match config.port_https {
+            Some(_) => Some(Arc::new(tls::Autorite::charger_ou_creer(&db)?)),
+            None => None,
+        };
+        Ok(Etat { db: Arc::new(Mutex::new(db)), evenements: tx, config: Arc::new(config), relais: Arc::default(), cloud: Arc::default(), autorite })
     }
 
     /// Exécute une fonction bloquante sur la base (un seul écrivain, cf. fiche 0003).
@@ -168,7 +177,26 @@ pub async fn demarrer(config: Config) -> Resultat<()> {
     let adresse: IpAddr = if config.reseau { [0, 0, 0, 0].into() } else { [127, 0, 0, 1].into() };
     let ecoute = tokio::net::TcpListener::bind(SocketAddr::new(adresse, config.port)).await?;
     tracing::info!("Youma à l'écoute sur http://{}", ecoute.local_addr()?);
+    if let Some(port) = config.port_https {
+        let ecoute_https = tokio::net::TcpListener::bind(SocketAddr::new(adresse, port)).await?;
+        tracing::info!("HTTPS local sur https://{}", ecoute_https.local_addr()?);
+        lancer_https(&etat, ecoute_https)?;
+    }
     servir(etat, ecoute).await
+}
+
+/// Sert aussi l'application en HTTPS, certificat fait pour les adresses actuelles du poste.
+pub fn lancer_https(etat: &Etat, ecoute: tokio::net::TcpListener) -> Resultat<()> {
+    let Some(autorite) = &etat.autorite else { return Ok(()) };
+    let mut ips: Vec<IpAddr> = vec![[127, 0, 0, 1].into()];
+    match api::adresse_locale() {
+        Some(ip) if tls::adresse_locale_permise(&ip) => ips.push(ip),
+        Some(ip) => tracing::warn!("HTTPS local : {ip} n'est pas une adresse de réseau local, les téléphones ne pourront pas l'utiliser"),
+        None => {}
+    }
+    let config = tls::config_serveur(autorite, &ips)?;
+    tokio::spawn(tls::servir(api::routeur(etat.clone()), ecoute, config));
+    Ok(())
 }
 
 pub async fn servir(etat: Etat, ecoute: tokio::net::TcpListener) -> Resultat<()> {

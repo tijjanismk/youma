@@ -49,6 +49,8 @@ fn main() {
             dossier_ui: ui,
             demo: conf.demo,
             reseau_sans_licence: false,
+            // HTTPS local pour installer l'application sur les téléphones (fiche 0020).
+            port_https: conf.reseau.then_some(port + 1),
         };
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().expect("runtime tokio");

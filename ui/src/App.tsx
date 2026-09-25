@@ -2,6 +2,7 @@ import { ArrowLeftRight, House, Menu as MenuIcone, PanelLeftClose, PanelLeftOpen
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { definirJetonAppareil, get, post } from "./api";
+import { BandeauMiseAJour } from "./composants/Installation";
 import { Fournisseur, useApp } from "./contexte";
 import { dateFr, dateHeure } from "./format";
 import Connexion from "./pages/Connexion";
@@ -37,6 +38,10 @@ const Proprietaire = lazy(() => import("./public/Proprietaire"));
 /** Pages ouvertes par un QR ou un lien envoyé au client : hors de l'application du personnel. */
 function PagePublique() {
   const chemin = location.pathname;
+  // Espace propriétaire : installable à part, avec sa propre icône d'accueil.
+  useEffect(() => {
+    if (chemin.startsWith("/proprietaire")) document.querySelector("link[rel=manifest]")?.setAttribute("href", "/manifest-proprietaire.webmanifest");
+  }, [chemin]);
   const code = decodeURIComponent(chemin.split("/")[2] ?? "");
   return (
     <Suspense fallback={<p className="aide">Chargement…</p>}>
@@ -69,6 +74,7 @@ function Bandeaux() {
   const { etat, enLigne, session, agir, rechargerEtat, peut } = useApp();
   return (
     <>
+      <BandeauMiseAJour />
       {!enLigne && (
         <div className="bandeau erreur" role="alert">
           Poste central injoignable — vos saisies sont conservées, reconnexion automatique…

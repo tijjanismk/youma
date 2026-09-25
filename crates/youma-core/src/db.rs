@@ -447,6 +447,16 @@ pub fn installation_id(conn: &Connection) -> Resultat<String> {
     Ok(conn.query_row("SELECT valeur FROM systeme WHERE cle = 'installation_id'", [], |r| r.get(0))?)
 }
 
+/// Valeur technique de la table `systeme` (hors métier, sans audit), incluse dans les sauvegardes.
+pub fn valeur_systeme(conn: &Connection, cle: &str) -> Resultat<Option<String>> {
+    Ok(conn.query_row("SELECT valeur FROM systeme WHERE cle = ?1", params![cle], |r| r.get(0)).optional()?)
+}
+
+pub fn definir_valeur_systeme(conn: &Connection, cle: &str, valeur: &str) -> Resultat<()> {
+    conn.execute("INSERT OR REPLACE INTO systeme(cle, valeur) VALUES (?1, ?2)", params![cle, valeur])?;
+    Ok(())
+}
+
 /// Aide : lit une ligne ou renvoie `NonTrouve`.
 pub fn trouver<T>(r: rusqlite::Result<T>, quoi: &str) -> Resultat<T> {
     match r {

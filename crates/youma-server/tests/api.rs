@@ -25,6 +25,7 @@ async fn serveur() -> Serveur {
         dossier_ui: Some(ui),
         demo: true,
         reseau_sans_licence: false,
+        port_https: None,
     };
     let etat = Etat::ouvrir(config).unwrap();
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -308,7 +309,7 @@ async fn appareil_distant_doit_etre_appaire() {
         return;
     };
     let dossier = tempfile::tempdir().unwrap();
-    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, reseau: true, dossier_ui: None, demo: true, reseau_sans_licence: false };
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, reseau: true, dossier_ui: None, demo: true, reseau_sans_licence: false, port_https: None };
     let etat = Etat::ouvrir(config).unwrap();
     let ecoute = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let port = ecoute.local_addr().unwrap().port();
@@ -482,7 +483,7 @@ async fn relais_internet_de_bout_en_bout() {
     tokio::spawn(youma_relais::servir(youma_relais::Etat::ouvrir(&rc).unwrap(), None, ecoute));
 
     let dossier = tempfile::tempdir().unwrap();
-    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, reseau: false, dossier_ui: None, demo: true, reseau_sans_licence: false };
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, reseau: false, dossier_ui: None, demo: true, reseau_sans_licence: false, port_https: None };
     let etat = Etat::ouvrir(config).unwrap();
     etat.relais.lock().unwrap().intervalle_ms = 100;
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -647,4 +648,46 @@ async fn cloud_de_bout_en_bout() {
     let (_, etat_public) = s.get("", "/etat").await;
     assert_eq!(etat_public["parametres"]["cloud"]["phrase_chiffrement"], "********");
     assert_eq!(etat_public["parametres"]["cloud"]["cle"], "********");
+}
+
+/// Fiche 0020 : HTTPS local signé par l'autorité du restaurant, conservée d'un démarrage à l'autre.
+#[tokio::test]
+async fn https_local_avec_autorite_du_restaurant() {
+    let dossier = tempfile::tempdir().unwrap();
+    let config = || Config {
+        dossier_donnees: dossier.path().to_path_buf(),
+        port: 0,
+        reseau: false,
+        dossier_ui: None,
+        demo: true,
+        reseau_sans_licence: false,
+        port_https: Some(0),
+    };
+    let etat = Etat::ouvrir(config()).unwrap();
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ecoute_https = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (http, https) = (ecoute.local_addr().unwrap(), ecoute_https.local_addr().unwrap());
+    youma_server::lancer_https(&etat, ecoute_https).unwrap();
+    tokio::spawn(youma_server::servir(etat, ecoute));
+
+    // Le téléphone télécharge le certificat en HTTP (public), puis l'approuve.
+    let r = reqwest::get(format!("http://{http}/api/reseau/certificat")).await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    assert_eq!(r.headers()["content-type"], "application/x-x509-ca-cert");
+    let der = r.bytes().await.unwrap().to_vec();
+    let telephone = reqwest::Client::builder()
+        .tls_built_in_root_certs(false)
+        .add_root_certificate(reqwest::Certificate::from_der(&der).unwrap())
+        .build()
+        .unwrap();
+    let e: Value = telephone.get(format!("https://{https}/api/etat")).send().await.unwrap().json().await.unwrap();
+    assert!(e.get("version").is_some() || e.get("parametres").is_some(), "{e}");
+
+    // Sans le certificat installé, la connexion est refusée.
+    let inconnu = reqwest::Client::builder().tls_built_in_root_certs(false).build().unwrap();
+    assert!(inconnu.get(format!("https://{https}/api/etat")).send().await.is_err());
+
+    // Redémarrage : même autorité, le téléphone n'a rien à réinstaller.
+    let etat2 = Etat::ouvrir(config()).unwrap();
+    assert_eq!(etat2.autorite.unwrap().der().unwrap(), der);
 }

@@ -12,6 +12,8 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     viewport: { width: 1280, height: 800 },
     locale: "fr-FR",
+    // Le service worker (application installable) est testé à part, dans pwa.spec.ts.
+    serviceWorkers: "block",
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {},
   },
   webServer: {

@@ -18,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { CarteInstallation } from "../composants/Installation";
 import { post } from "../api";
 import { useApp } from "../contexte";
 import { dateFr } from "../format";
@@ -119,6 +120,7 @@ export default function Accueil() {
           </Link>
         ))}
       </div>
+      <CarteInstallation />
     </div>
   );
 }
