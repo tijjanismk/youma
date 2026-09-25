@@ -10,7 +10,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0020.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0022.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
@@ -46,10 +46,11 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   livreur, propriétaire : sans connexion), `src/composants`, `src/contexte.tsx` (`useApp().agir` : PIN/mot de
   passe redemandés automatiquement), `src/api.ts`, `src/pwa.ts`.
 
-## Interface (fiches 0019, 0020)
+## Interface (fiches 0019, 0020, 0022)
 
-- Thème par variables CSS dans `ui/src/styles.css` (`--accent`, `--fond`, `--carte`, `--rayon`…) ; le bloc
-  « Téléphone » (`@media (max-width: 900px)`) est en fin de fichier et l'emporte : y reporter toute grille
+- Design system « Mali vivant » (fiche 0022) : jetons CSS dans `ui/src/styles.css`, thème clair dans `:root`, sombre sous
+  `[data-theme="sombre"]` (choix par poste, `src/theme.ts`). **Jamais de couleur en dur** : `--accent`, `--carte`, `--sur-etat`… ; le bloc
+  « Téléphone » (`@media (max-width: 900px)`) vient juste avant la couche « Mali vivant » (fin de fichier) : y reporter toute grille
   modifiée (utiliser `minmax(0, 1fr)` pour ne pas faire déborder l'écran).
 - Icônes `lucide-react`, police Poppins embarquée (`@fontsource/poppins`). Pas de CDN.
 - PC : menu latéral repliable. Téléphone : barre du bas, prise de commande avec la commande en tiroir

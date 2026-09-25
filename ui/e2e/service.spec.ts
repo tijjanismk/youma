@@ -466,3 +466,18 @@ test("aucun écran ne déborde sur un téléphone (propriétaire, nom long)", as
   expect((await changer.boundingBox())!.width).toBeGreaterThanOrEqual(44);
   await contexte.close();
 });
+
+test("thème Clair / Sombre choisi et mémorisé par poste", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "clair");
+  const theme = page.getByRole("button", { name: "Thème sombre" });
+  await theme.click();
+  await expect(html).toHaveAttribute("data-theme", "sombre");
+  await expect(theme).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#12152b");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "sombre");
+  await page.getByRole("button", { name: "Thème sombre" }).click();
+  await expect(html).toHaveAttribute("data-theme", "clair");
+});
