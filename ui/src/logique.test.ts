@@ -237,3 +237,15 @@ describe("statistiques", async () => {
     expect(valeurIndicateur("panier_moyen", 3_875)).toBe("3 875 FCFA");
   });
 });
+
+describe("messages du menu client", async () => {
+  const { messageClient } = await import("./public/MenuClient");
+  const { ErreurApi } = await import("./api");
+  it("jamais de vocabulaire du personnel", () => {
+    const interdit = new ErreurApi("INTERDIT", "Permission manquante : Commande à distance non activée", undefined, undefined, 403);
+    expect(messageClient(interdit, false)).toBe("Ce restaurant ne prend pas de commandes en ligne pour le moment.");
+    expect(messageClient(interdit, true)).toBe("La commande depuis la table n'est pas active : appelez le serveur.");
+    expect(messageClient(new ErreurApi("HORS_LIGNE", "x"), false)).toMatch(/injoignable/);
+    expect(messageClient(new ErreurApi("REGLE_METIER", "QR code inconnu", "RG-CAN-02", undefined, 422), true)).toMatch(/QR code/);
+  });
+});

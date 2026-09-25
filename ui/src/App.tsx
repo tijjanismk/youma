@@ -181,8 +181,11 @@ function Coquille() {
         </Link>
         <span className="journee">{etat.journee ? `Journée du ${dateFr(etat.journee.date_exploitation)}` : "Journée fermée"}</span>
         <span className="utilisateur">{session.utilisateur.nom}</span>
-        <button className="petit" onClick={deconnecter}>
-          Changer d'utilisateur
+        <button className="petit changer" onClick={deconnecter} aria-label="Changer d'utilisateur" title="Changer d'utilisateur">
+          <span className="texte-long">Changer d'utilisateur</span>
+          <span className="texte-court" aria-hidden>
+            ⇄
+          </span>
         </button>
       </header>
       <div className="corps">

@@ -430,3 +430,28 @@ test("cloud : réglages protégés par mot de passe, mot de passe de l'espace pr
   await page.getByRole("button", { name: "Enregistrer le mot de passe" }).click();
   await expect(page.getByText("Mot de passe distant enregistré")).toBeVisible();
 });
+
+test("aucun écran ne déborde sur un téléphone (propriétaire, nom long)", async ({ browser }) => {
+  const contexte = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
+  const page = await contexte.newPage();
+  await connexion(page, /Mariam/, "1234");
+  const routes = ["/", "/salle", "/entrantes", "/caisse", "/cuisine", "/livraisons", "/sortie", "/tableau-de-bord", "/mobile-money", "/stock", "/achats", "/clients", "/employes", "/paie", "/rapports", "/journal", "/administration"];
+  // Prise de commande : l'écran principal des serveurs.
+  await page.goto("/");
+  await page.getByRole("button", { name: /Vente comptoir/ }).click();
+  await expect(page.getByPlaceholder("Rechercher un produit…")).toBeVisible();
+  routes.push(new URL(page.url()).pathname);
+  const debordements: string[] = [];
+  for (const r of routes) {
+    await page.goto(r);
+    await page.waitForLoadState("networkidle");
+    const largeur = await page.evaluate(() => document.documentElement.scrollWidth);
+    if (largeur > 390) debordements.push(`${r} : ${largeur} px`);
+  }
+  expect(debordements).toEqual([]);
+  // L'en-tête garde le bouton pour changer d'utilisateur, visible et utilisable au doigt.
+  const changer = page.getByRole("button", { name: "Changer d'utilisateur" });
+  await expect(changer).toBeVisible();
+  expect((await changer.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+  await contexte.close();
+});

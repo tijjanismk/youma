@@ -1016,7 +1016,8 @@ code {
 /* ───── Téléphones et petites tablettes ───── */
 @media (max-width: 900px) {
   .prise-commande {
-    grid-template-columns: 1fr;
+    /* minmax(0, …) : la barre des catégories défile au lieu d'élargir la page. */
+    grid-template-columns: minmax(0, 1fr);
   }
   .ticket {
     position: static;
@@ -1039,6 +1040,37 @@ code {
   }
   .entete .journee {
     display: none;
+  }
+  /* Téléphone : noms longs tronqués, bouton court ; jamais de défilement horizontal. */
+  .entete {
+    gap: 8px;
+    padding: 6px 8px;
+  }
+  .entete .marque,
+  .entete .utilisateur {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .entete .marque {
+    flex: 1 1 auto;
+  }
+  .entete .utilisateur {
+    margin-left: 0;
+    max-width: 38vw;
+    font-size: 0.9rem;
+  }
+  .entete .changer {
+    flex: none;
+    min-width: var(--tactile);
+  }
+  .entete .changer .texte-long {
+    display: none;
+  }
+  .entete .changer .texte-court {
+    display: inline;
+    font-size: 1.3rem;
   }
   .grille-2,
   .grille-3 {
@@ -1236,4 +1268,10 @@ code {
 .pastille.promo {
   background: var(--orange);
   color: #fff;
+}
+
+@media (min-width: 901px) {
+  .entete .changer .texte-court {
+    display: none;
+  }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { get, post } from "../api";
+import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
 import { fcfa, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante } from "../types";
@@ -28,7 +28,7 @@ export default function MenuClient() {
         setMenu(m);
         setCategorie(m.categories.find((c) => m.produits.some((p) => p.categorie_id === c.id))?.id ?? "");
       })
-      .catch((e) => setErreur(e.message));
+      .catch((e) => setErreur(messageClient(e, !!table)));
   }, [table]);
 
   useEffect(() => {
@@ -135,6 +135,17 @@ export default function MenuClient() {
       )}
     </Page>
   );
+}
+
+/** Message pour le client : jamais le vocabulaire du personnel (« permission », codes d'erreur). */
+export function messageClient(e: unknown, qr: boolean): string {
+  if (e instanceof ErreurApi) {
+    if (e.horsLigne) return "Le restaurant est injoignable pour le moment. Réessayez dans un instant.";
+    if (e.statut === 403) return qr ? "La commande depuis la table n'est pas active : appelez le serveur." : "Ce restaurant ne prend pas de commandes en ligne pour le moment.";
+    if (e.statut === 503) return "Le restaurant n'est pas encore connecté. Réessayez plus tard.";
+    if (e.regle === "RG-CAN-02") return "Ce QR code n'est plus valable : demandez au serveur.";
+  }
+  return e instanceof Error ? e.message : String(e);
 }
 
 export function Page({ titre, sousTitre, children }: { titre: string; sousTitre?: string; children: React.ReactNode }) {
