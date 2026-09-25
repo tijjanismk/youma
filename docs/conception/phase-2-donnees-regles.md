@@ -100,6 +100,17 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAI-13** Une dépense est catégorisée, liée à un compte et à la journée ; elle crée un mouvement de trésorerie négatif.
 * **RG-CAI-14** Chaque paiement conserve les espèces reçues du client et la monnaie rendue (rendu = reçu − part en espèces). Ils figurent sur le ticket, l'écran de reçu, le rapport Z (total reçu, rendu, gardé) et le rapport d'activité. Sans part en espèces, reçu = rendu = 0.
 
+### Relevés Mobile Money (RMM) — fiche 0016
+* **RG-RMM-01** Import d'un relevé CSV d'opérateur sur un compte Mobile Money : séparateur et colonnes reconnus par
+  leur nom (référence et montant obligatoires, date et payeur facultatifs) ; seules les lignes créditrices sont gardées ;
+  montants lus en FCFA entiers (« 12 500 », « 12500,00 »).
+* **RG-RMM-02** Même compte, même référence (sans tenir compte des majuscules) et même montant → le paiement passe
+  « vérifié » (une vérification ajoutée, jamais modifiée). Montant différent → écart listé, le paiement reste à vérifier.
+* **RG-RMM-03** Le bilan liste aussi les lignes du relevé inconnues en caisse (paiement non saisi) et les paiements
+  « à vérifier » absents du relevé sur sa période (SMS douteux).
+* **RG-RMM-04** Une référence n'est importée qu'une fois par compte : recharger un relevé ne compte rien deux fois.
+* **RG-RMM-05** « Relancer le rapprochement » reprend les relevés déjà importés (paiement saisi après l'import).
+
 ### Stock (STK)
 * **RG-STK-01** Vente d'un produit revendu → sortie de 1 unité × quantité (hors lignes annulées) au moment de l'envoi (ou du paiement en comptoir).
 * **RG-STK-02** Annulation d'une ligne envoyée → retour en stock, sauf si « perdu » (préparé puis jeté) est indiqué.

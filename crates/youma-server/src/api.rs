@@ -17,7 +17,7 @@ use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
     achats, appareils, auth, caisse, catalogue, clients, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
-    licence, livraison, paie, parametres, rapports, recettes, salle, sauvegarde, stock, zones_risque, Db,
+    licence, livraison, paie, parametres, rapports, recettes, releves_mm, salle, sauvegarde, stock, zones_risque, Db,
 };
 
 use crate::erreurs::{ApiErreur, Rep};
@@ -147,6 +147,8 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/depenses/categories", get(depenses_categories).post(depense_categorie_creer))
         .route("/mobile-money", get(mobile_money))
         .route("/mobile-money/{id}/verifier", post(mobile_money_verifier))
+        .route("/mobile-money/releves", get(releves_lister).post(releve_importer))
+        .route("/mobile-money/releves/relancer", post(releves_relancer))
         // Stock et achats
         .route("/stock", get(stock_niveaux))
         .route("/stock/articles", post(article_enregistrer))
@@ -1310,4 +1312,31 @@ async fn emballage_inventaire(State(e): State<Etat>, a: Auth, Path(id): Path<Str
 
 async fn emballage_historique(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Vec<consignes::MouvementLu>> {
     lire!(e, a, Some(perm::STOCK_VOIR), |db| consignes::historique(db.conn(), &id))
+}
+
+// ───────────── Relevés Mobile Money (fiche 0016) ─────────────
+
+async fn releves_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<releves_mm::ReleveLu>> {
+    lire!(e, a, Some(perm::CAISSE_VERIFIER_MM), |db| releves_mm::lister(db.conn()))
+}
+
+#[derive(Deserialize)]
+struct ImportReleve {
+    compte_id: String,
+    #[serde(default)]
+    nom_fichier: String,
+    contenu: String,
+}
+
+async fn releve_importer(State(e): State<Etat>, a: Auth, Json(r): Json<ImportReleve>) -> Rep<releves_mm::Bilan> {
+    ecrire!(e, a, |db| releves_mm::importer(db, &a, &r.compte_id, &r.nom_fichier, &r.contenu))
+}
+
+#[derive(Deserialize)]
+struct CompteReleve {
+    compte_id: String,
+}
+
+async fn releves_relancer(State(e): State<Etat>, a: Auth, Json(c): Json<CompteReleve>) -> Rep<usize> {
+    ecrire!(e, a, |db| releves_mm::relancer(db, &a, &c.compte_id))
 }

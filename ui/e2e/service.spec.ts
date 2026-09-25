@@ -361,3 +361,21 @@ test("consignes : casiers reçus et vides rendus à la livraison, comptage", asy
   await page.getByRole("button", { name: "Valider le comptage" }).click();
   await expect(page.getByText("Comptage conforme")).toBeVisible();
 });
+
+test("Mobile Money : relevé de l'opérateur importé, paiement vérifié d'un coup", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/mobile-money");
+  await page.getByRole("tab", { name: "Relevé de l'opérateur" }).click();
+  await page.getByLabel("Compte").selectOption({ label: "Orange Money" });
+  // Le paiement de la table 4 (4 000 FCFA, référence saisie au service) figure au relevé, avec une ligne inconnue.
+  await page.getByLabel("Fichier du relevé").setInputFiles({
+    name: "orange-money.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Référence;Montant;Expéditeur\nPP260314.1830.A12345;4 000;70112233\nINCONNU1;500;76000000\n"),
+  });
+  const bilan = page.getByLabel("Bilan du rapprochement");
+  await expect(bilan).toContainText("1 paiement(s) vérifié(s)");
+  await expect(bilan).toContainText("INCONNU1");
+  await page.getByRole("tab", { name: "Tous" }).click();
+  await expect(page.getByRole("row", { name: /PP260314\.1830\.A12345/ })).toContainText("Vérifié");
+});

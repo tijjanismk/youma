@@ -27,6 +27,7 @@ pub mod parametres;
 pub mod permissions;
 pub mod rapports;
 pub mod recettes;
+pub mod releves_mm;
 pub mod salle;
 pub mod sauvegarde;
 pub mod sortie;

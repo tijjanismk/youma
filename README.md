@@ -33,6 +33,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
 | Recettes (ingrédients en g/ml/pièce), consommation théorique, coût matière | ✅ |
 | Consignes : bouteilles et casiers, vides, consigne versée au dépôt, retours | ✅ |
+| Rapprochement Mobile Money par relevé d'opérateur (CSV) | ✅ |
 | Cloud, multi-établissements | V2, non commencé |
 
 ## Démarrer
