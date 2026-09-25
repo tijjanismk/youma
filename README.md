@@ -7,8 +7,9 @@ les ardoises, les tournées, et des employés souvent sans contrat écrit, ni IN
 
 ## État
 
-MVP 0 et MVP 1 réalisés (plus la livraison de base), avec des tests automatisés. Le pilote en conditions
-réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](docs/conception/phase-4-plan-realisation.md).
+MVP 0, MVP 1 et V2 réalisés, interface refaite, application installable (PWA), avec des tests automatisés.
+Le pilote en conditions réelles reste à faire. Ce qui reste : [`docs/REPRISE.md`](docs/REPRISE.md) ; détail :
+[`docs/conception/phase-4-plan-realisation.md`](docs/conception/phase-4-plan-realisation.md).
 
 | Fonction | État |
 |---|---|
