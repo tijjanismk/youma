@@ -1,3 +1,4 @@
+import { Bike, Receipt } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ErreurApi, get, post } from "../api";
@@ -178,7 +179,7 @@ export default function PriseCommande() {
         {cmd.client_nom && <p className="aide">Client : {cmd.client_nom}</p>}
         {cmd.type === "livraison" && (
           <p className="aide">
-            🛵 {cmd.livraison_quartier} — {cmd.livraison_repere} — {cmd.livraison_telephone}
+            <Bike size={16} className="icone-texte" aria-hidden /> {cmd.livraison_quartier} — {cmd.livraison_repere} — {cmd.livraison_telephone}
           </p>
         )}
         <ul className="lignes">
@@ -578,7 +579,7 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
             setMode("ticket");
           }}
         >
-          🧾 Addition / ticket
+          <Receipt size={20} aria-hidden /> Addition / ticket
         </button>
         {commande.statut === "ouverte" && (
           <>

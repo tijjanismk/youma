@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get } from "../api";
 import { dateHeure, depuisMicro, fcfa, minutesDepuis } from "../format";
@@ -69,7 +70,7 @@ export default function Suivi({ code }: { code: string }) {
       {s.etape === "en_route" && s.livreur && (
         <div className="carte">
           <p>
-            📍 Position du livreur il y a {minutesDepuis(s.livreur[2])} min
+            <MapPin size={16} className="icone-texte" aria-hidden /> Position du livreur il y a {minutesDepuis(s.livreur[2])} min
             {distance !== null && <> — environ {distance < 1000 ? `${distance} m` : `${(distance / 1000).toFixed(1).replace(".", ",")} km`} de chez vous</>}
           </p>
           <a

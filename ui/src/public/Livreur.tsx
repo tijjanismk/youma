@@ -45,7 +45,7 @@ export default function Livreur({ code }: { code: string }) {
         </p>
       ) : actif ? (
         <div className="carte resultat-sortie ok" role="status">
-          <h2>📡 Position partagée</h2>
+          <h2>Position partagée</h2>
           <p>{dernier ? `Dernier envoi à ${heure(dernier)}` : "Recherche de la position…"}</p>
           <button className="grand" onClick={() => setActif(false)}>
             Arrêter

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Banknote, Bike, Landmark, LockOpen, Smartphone, Vault, Wallet } from "lucide-react";
+import { ArrowUpDown, Banknote, Bike, Landmark, Lock, LockOpen, MinusCircle, Smartphone, Vault, Wallet } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
@@ -180,15 +180,15 @@ function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger:
         </div>
         <div className="menu-actions">
           <button className="grand" onClick={() => setMode("depense")}>
-            ➖ Dépense
+            <MinusCircle size={20} aria-hidden /> Dépense
           </button>
           {(peut("caisse.mouvement") || peut("caisse.retrait_proprietaire")) && (
             <button className="grand" onClick={() => setMode("mouvement")}>
-              ↕️ Entrée / retrait
+              <ArrowUpDown size={20} aria-hidden /> Entrée / retrait
             </button>
           )}
           <button className="attention grand" onClick={() => setMode("cloture")}>
-            🔒 Clôturer ma caisse
+            <Lock size={20} aria-hidden /> Clôturer ma caisse
           </button>
         </div>
       </div>

@@ -20,6 +20,9 @@ une cinquantaine de couleurs écrites en dur, illisibles dans un thème sombre.
   par poste (`localStorage` `youma.theme`, `src/theme.ts`), posé sur `<html data-theme>` avant le premier rendu ;
   la balise `theme-color` suit le fond du thème. Clair par défaut.
 * **Impression** : une page imprimée reprend toujours les jetons clairs.
+* **Pas d'émoji dans l'interface** : dans les boutons et devant les alertes, une icône Lucide (20px dans un bouton,
+  16px `.icone-texte` dans une phrase, `aria-hidden`) ; ailleurs, le mot seul. Seule exception : l'icône d'une
+  catégorie de plats, choisie par le restaurant. Les symboles typographiques (✓, ✕, →, ←, ⌫) restent.
 
 ## Alternatives écartées
 * Suivre `prefers-color-scheme` du téléphone : le choix dépend du poste (cuisine sombre, caisse au soleil), pas du
@@ -29,5 +32,5 @@ une cinquantaine de couleurs écrites en dur, illisibles dans un thème sombre.
 ## Conséquences
 Les manifestes gardent un seul `theme_color` (clair, `#f5f6fa`). Toute nouvelle règle CSS prend les jetons ; une
 couleur posée sur un plein d'état utilise `sur-etat`, sur le menu `menu-texte`, sur l'accent `sur-accent`.
-Captures : `docs/captures/mali-vivant/`. Restent hors de ce lot : les émojis de certains boutons (le design system
-les écarte) et la graisse 800 de Poppins (`montant-fort`, non importée : affichée en 700).
+Captures : `docs/captures/mali-vivant/`. Reste hors de ce lot : la graisse 800 de Poppins (`montant-fort`, non
+importée : affichée en 700).

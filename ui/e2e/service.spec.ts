@@ -211,7 +211,7 @@ test("tableau de bord : chiffres de la journée avec leurs formules", async ({ p
 test("clôture de caisse avec billetage et écart motivé", async ({ page }) => {
   await connexion(page, /Kadi/, "3333");
   await page.goto("/caisse");
-  await page.getByRole("button", { name: "🔒 Clôturer ma caisse" }).click();
+  await page.getByRole("button", { name: "Clôturer ma caisse" }).click();
   // Attendu : 10 000 + 2 000 = 12 000. On compte 11 000 : écart au-delà du seuil, motif obligatoire.
   await page.getByLabel("Nombre de 10000", { exact: true }).fill("1");
   await page.getByLabel("Nombre de 1000", { exact: true }).fill("1");

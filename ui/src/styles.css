@@ -2564,3 +2564,7 @@ input[type="checkbox"] {
     transform: none;
   }
 }
+.icone-texte {
+  vertical-align: -3px;
+  margin-right: 2px;
+}

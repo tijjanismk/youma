@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { DemandeMotif, Vide } from "../composants/Base";
@@ -42,7 +43,11 @@ export default function Entrantes() {
             {e.verification_numero === "rappel" && e.canal === "en_ligne" && e.commandes_precedentes === 0 && (
               <p className="attention-texte">Rappelez le client pour confirmer le numéro avant d'accepter.</p>
             )}
-            {e.validation_responsable && <p className="attention-texte">⚠️ {e.motif ?? "Zone à risque"} : accord d'un responsable.</p>}
+            {e.validation_responsable && (
+              <p className="attention-texte">
+                <AlertTriangle size={16} className="icone-texte" aria-hidden /> {e.motif ?? "Zone à risque"} : accord d'un responsable.
+              </p>
+            )}
             <ul className="lignes-entrante">
               {e.commande.lignes.map((l) => (
                 <li key={l.id}>
