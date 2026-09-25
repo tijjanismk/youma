@@ -100,6 +100,40 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAI-13** Une dépense est catégorisée, liée à un compte et à la journée ; elle crée un mouvement de trésorerie négatif.
 * **RG-CAI-14** Chaque paiement conserve les espèces reçues du client et la monnaie rendue (rendu = reçu − part en espèces). Ils figurent sur le ticket, l'écran de reçu, le rapport Z (total reçu, rendu, gardé) et le rapport d'activité. Sans part en espèces, reçu = rendu = 0.
 
+### Relevés Mobile Money (RMM) — fiche 0016
+* **RG-RMM-01** Import d'un relevé CSV d'opérateur sur un compte Mobile Money : séparateur et colonnes reconnus par
+  leur nom (référence et montant obligatoires, date et payeur facultatifs) ; seules les lignes créditrices sont gardées ;
+  montants lus en FCFA entiers (« 12 500 », « 12500,00 »).
+* **RG-RMM-02** Même compte, même référence (sans tenir compte des majuscules) et même montant → le paiement passe
+  « vérifié » (une vérification ajoutée, jamais modifiée). Montant différent → écart listé, le paiement reste à vérifier.
+* **RG-RMM-03** Le bilan liste aussi les lignes du relevé inconnues en caisse (paiement non saisi) et les paiements
+  « à vérifier » absents du relevé sur sa période (SMS douteux).
+* **RG-RMM-04** Une référence n'est importée qu'une fois par compte : recharger un relevé ne compte rien deux fois.
+* **RG-RMM-05** « Relancer le rapprochement » reprend les relevés déjà importés (paiement saisi après l'import).
+
+### Promotions (PRO) — fiche 0017
+* **RG-PRO-01** Une promotion porte sur un produit **ou** une catégorie : prix fixe (FCFA ≥ 0) ou remise de 1 à 100 %,
+  plage horaire (qui peut passer minuit), jours de la semaine, dates de début et de fin facultatives.
+* **RG-PRO-02** À la saisie d'un article, le prix de la zone est remplacé par le plus bas des prix promotionnels actifs
+  à cet instant (la promotion la plus avantageuse pour le client). Un « prix » promotionnel supérieur au prix normal
+  n'est jamais appliqué. Remise en % arrondie au franc le plus proche.
+* **RG-PRO-03** Le prix est copié sur la ligne avec la promotion et le prix normal (RG-CAT-01) : un article saisi à
+  19 h 59 garde le prix du happy hour, même envoyé ou payé après 20 h.
+* **RG-PRO-04** Rapport : ventes en promotion et manque à gagner = Σ (prix normal − prix promotionnel) × quantité vendue.
+
+### Cloud facultatif (CLO) — fiche 0018
+* **RG-CLO-01** Seuls des **résumés de journée** quittent le restaurant (CA, commandes, dépenses, encaissements par
+  moyen, Mobile Money à vérifier, annulations, écarts de caisse), renvoyés pour les 7 dernières journées à chaque
+  synchronisation (idempotent) ; le poste reste la source de vérité et vend sans connexion.
+* **RG-CLO-02** Les sauvegardes envoyées sont chiffrées sur le poste (XChaCha20-Poly1305, clé dérivée d'une phrase
+  d'au moins 12 caractères par Argon2id) ; le cloud refuse un fichier non chiffré, garde les 14 plus récentes et ne
+  peut pas les lire. La phrase ne quitte jamais le restaurant.
+* **RG-CLO-03** L'espace propriétaire s'ouvre avec le numéro du propriétaire et un mot de passe dont seule l'empreinte
+  Argon2 est gardée et envoyée ; il donne accès à tous les restaurants qui ont envoyé ce numéro et cette empreinte.
+* **RG-CLO-04** Résumé SMS de fin de journée au propriétaire, envoyé une seule fois quand la journée clôturée arrive au
+  cloud (réessayé tant qu'il n'est pas parti).
+* **RG-CLO-05** Consultation seule : rien ne se modifie à distance ; totaux par journée sur tous les restaurants.
+
 ### Stock (STK)
 * **RG-STK-01** Vente d'un produit revendu → sortie de 1 unité × quantité (hors lignes annulées) au moment de l'envoi (ou du paiement en comptoir).
 * **RG-STK-02** Annulation d'une ligne envoyée → retour en stock, sauf si « perdu » (préparé puis jeté) est indiqué.
@@ -108,6 +142,32 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-STK-05** Inventaire validé par un détenteur de `stock.valider_inventaire` : un mouvement d'écart par article (compté − théorique au moment de la validation).
 * **RG-STK-06** Le coût unitaire estimé d'un article = coût de la dernière réception.
 * **RG-STK-07** Le stock peut devenir négatif (vente non bloquée) mais apparaît en alerte.
+
+### Recettes (REC) — fiche 0014
+* **RG-REC-01** Une recette (facultative) liste des ingrédients avec une quantité **entière** dans l'unité de base de
+  l'article (g, ml, pièce) ; un ingrédient n'apparaît qu'une fois ; une option (« Grande », « avec œuf ») peut ajouter
+  ses propres ingrédients. Définir une recette passe le produit en suivi « recette » ; la vider le repasse en « aucun ».
+* **RG-REC-02** Vente d'un plat avec recette → sortie de chaque ingrédient (plat + options choisies) × quantité, au
+  moment de l'envoi ; type « vente », « offert » ou « consommation employé » comme pour un article revendu. Le coût
+  d'une unité est copié sur la ligne (bénéfice estimé).
+* **RG-REC-03** Annulation après envoi : sans perte, les ingrédients reviennent au prorata (sortie totale ÷ quantité
+  vendue × quantité annulée), jamais plus que ce qui est encore dehors ; avec perte, rien ne revient.
+* **RG-REC-04** Coût matière = Σ quantité × coût unitaire de l'article ; affiché avec sa part du prix de vente.
+
+### Consignes (CON) — fiche 0015
+* **RG-CON-01** Un emballage consigné (bouteille, casier) a une consigne entière ≥ 0 ; il peut être lié aux articles
+  dont une unité pleine le contient (bière 65 cl → bouteille 65 cl).
+* **RG-CON-02** À la réception d'un achat : emballages reçus (+ détenus, + consigne versée au fournisseur) et vides
+  rendus (− détenus, − consigne). La consigne nette (reçus − rendus) × valeur s'ajoute au total de l'achat, payée ou
+  due comme la marchandise. On ne rend pas plus que ce qu'on détient ; un achat ne devient jamais négatif.
+* **RG-CON-03** Détenus = Σ mouvements d'emballages ; vides = détenus − pleins en stock (articles liés). La vente ne
+  change pas les détenus : la bouteille reste au restaurant et devient un vide.
+* **RG-CON-04** Casse, perte, bouteille emportée ou rapportée par un client, régularisation : motif obligatoire,
+  journal en ajout seul.
+* **RG-CON-05** Comptage des vides (ou des emballages détenus, sans article lié) par un détenteur de
+  `stock.valider_inventaire` : un mouvement d'écart (compté − attendu).
+* **RG-CON-06** Vides rendus hors livraison : la consigne revient en caisse (entrée « remboursement_consigne ») ou
+  réduit la dette du fournisseur ; jamais plus que la consigne qu'il détient pour cet emballage.
 
 ### Clients et crédit (CLI)
 * **RG-CLI-01** Le crédit est désactivé par défaut pour chaque client.
@@ -190,6 +250,12 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 ### Rapports (RAP)
 * **RG-RAP-01** Chaque indicateur est accompagné de sa formule écrite.
 * **RG-RAP-02** CA = Σ totaux des commandes payées de la période (hors consommations employés, hors offerts).
+* **RG-STA-01** Panier moyen = CA ÷ nombre de commandes payées ; dépense par couvert = ventes brutes des tables avec
+  couverts ÷ Σ couverts. Divisions entières (FCFA).
+* **RG-STA-02** Ventes par heure et par jour de la semaine selon l'heure locale du **paiement**.
+* **RG-STA-03** Une commande compte pour le serveur qui l'a ouverte (ventes, panier moyen, annulations, remises).
+* **RG-STA-04** Comparaison avec la période précédente de même durée, juste avant ; évolution = (période − précédente)
+  ÷ précédente, en points de base, 0 sans référence.
 * **RG-RAP-03** Bénéfice estimé = CA − coût d'achat estimé des produits vendus − dépenses − salaires dus de la période. Les retraits propriétaire n'y figurent pas.
 
 ## 4. Diagrammes d'états

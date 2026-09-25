@@ -16,8 +16,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
-    achats, appareils, auth, caisse, catalogue, clients, commandes, demo, employes, entrantes, horloge, impression, journee,
-    licence, livraison, paie, parametres, rapports, salle, sauvegarde, stock, zones_risque, Db,
+    achats, appareils, auth, caisse, catalogue, clients, cloud, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
+    licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, stock, zones_risque, Db,
 };
 
 use crate::erreurs::{ApiErreur, Rep};
@@ -98,6 +98,10 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/produits/import", post(produits_import))
         .route("/produits/{id}/disponibilite", post(produit_disponibilite))
         .route("/produits/{id}/historique", get(produit_historique))
+        .route("/produits/{id}/recette", get(recette_lire).post(recette_definir))
+        .route("/rapports/cout-matiere", get(rapport_cout_matiere))
+        .route("/promotions", get(promotions_lister).post(promotion_enregistrer))
+        .route("/promotions/prix", get(promotions_prix))
         .route("/postes", post(poste_enregistrer))
         // Salle
         .route("/salle", get(salle_plan))
@@ -145,6 +149,8 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/depenses/categories", get(depenses_categories).post(depense_categorie_creer))
         .route("/mobile-money", get(mobile_money))
         .route("/mobile-money/{id}/verifier", post(mobile_money_verifier))
+        .route("/mobile-money/releves", get(releves_lister).post(releve_importer))
+        .route("/mobile-money/releves/relancer", post(releves_relancer))
         // Stock et achats
         .route("/stock", get(stock_niveaux))
         .route("/stock/articles", post(article_enregistrer))
@@ -158,6 +164,11 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/fournisseurs", get(fournisseurs).post(fournisseur_enregistrer))
         .route("/fournisseurs/reglement", post(fournisseur_reglement))
         .route("/achats", get(achats_lister).post(achat_receptionner))
+        .route("/emballages", get(emballages_etat).post(emballage_enregistrer))
+        .route("/emballages/mouvement", post(emballage_mouvement))
+        .route("/emballages/retour", post(emballage_retour))
+        .route("/emballages/{id}/inventaire", post(emballage_inventaire))
+        .route("/emballages/{id}/historique", get(emballage_historique))
         // Clients
         .route("/clients", get(clients_rechercher).post(client_enregistrer))
         .route("/clients/{id}", get(client_detail))
@@ -183,6 +194,7 @@ pub fn routeur(etat: Etat) -> Router {
         // Rapports
         .route("/tableau-de-bord", get(tableau_de_bord))
         .route("/rapports/periode", get(rapport_periode))
+        .route("/rapports/statistiques", get(rapport_statistiques))
         .route("/rapports/stock", get(rapport_stock))
         .route("/rapports/dettes", get(rapport_dettes))
         .route("/audit", get(audit))
@@ -198,6 +210,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/appareils/appairer", post(appareil_appairer))
         .route("/appareils/{id}/revoquer", post(appareil_revoquer))
         .route("/reseau", get(reseau))
+        .route("/reseau/certificat", get(certificat_reseau))
         .route("/diagnostic", get(diagnostic))
         .route("/sauvegardes", get(sauvegardes).post(sauvegarde_creer))
         .route("/sauvegardes/exporter", post(sauvegarde_exporter))
@@ -213,6 +226,11 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/tables/codes-qr", get(codes_qr).post(codes_qr_generer))
         .route("/commandes/{id}/liens", post(commande_liens))
         .route("/relais/etat", get(relais_etat))
+        .route("/cloud/etat", get(cloud_etat))
+        .route("/cloud/synchroniser", post(cloud_synchroniser))
+        .route("/cloud/mot-de-passe", post(cloud_mot_de_passe))
+        .route("/cloud/sauvegardes", get(cloud_sauvegardes))
+        .route("/cloud/sauvegardes/{id}/recuperer", post(cloud_recuperer))
         // Routes publiques : sans connexion ni appairage, seulement si le canal est activé.
         .route("/public/menu", get(public_menu))
         .route("/public/commandes", post(public_commande))
@@ -366,6 +384,7 @@ async fn catalogue_tout(State(e): State<Etat>, a: Auth) -> Rep<Value> {
         "categories": catalogue::lister_categories(db.conn())?,
         "produits": catalogue::lister_produits(db.conn(), false)?,
         "postes": catalogue::lister_postes(db.conn())?,
+        "disponibles": catalogue::disponibles(db.conn())?,
     })))
 }
 
@@ -939,6 +958,20 @@ async fn tableau_de_bord(State(e): State<Etat>, a: Auth) -> Rep<rapports::Tablea
 }
 
 async fn rapport_periode(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
+    rapport_sur_periode(e, a, p, |db, d, f| rapports::rapport_periode(db.conn(), d, f)).await
+}
+
+async fn rapport_statistiques(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
+    rapport_sur_periode(e, a, p, |db, d, f| rapports::rapport_statistiques(db.conn(), d, f)).await
+}
+
+/// Rapport sur des journées d'exploitation (`debut`, `fin`, défaut : aujourd'hui), en JSON ou CSV (`format=csv`).
+async fn rapport_sur_periode(
+    e: Etat,
+    a: Auth,
+    p: HashMap<String, String>,
+    f: fn(&Db, &str, &str) -> Resultat<rapports::Rapport>,
+) -> Result<Response, ApiErreur> {
     let uid = a.utilisateur_id.clone();
     let eleve = a.acteur.eleve;
     let (debut, fin) = (q(&p, "debut").map(str::to_owned), q(&p, "fin").map(str::to_owned));
@@ -947,7 +980,7 @@ async fn rapport_periode(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<
         .avec_db(move |db| {
             peut(db, &uid, eleve, perm::RAPPORT_VOIR)?;
             let jour = aujourdhui(db);
-            rapports::rapport_periode(db.conn(), debut.as_deref().unwrap_or(&jour), fin.as_deref().unwrap_or(&jour))
+            f(db, debut.as_deref().unwrap_or(&jour), fin.as_deref().unwrap_or(&jour))
         })
         .await?;
     Ok(if csv { csv_reponse(&r) } else { Json(r).into_response() })
@@ -1063,15 +1096,32 @@ async fn appareil_revoquer(State(e): State<Etat>, a: Auth, Path(id): Path<String
 async fn reseau(State(e): State<Etat>, _a: Auth) -> Rep<Value> {
     let port = e.config.port;
     let ip = adresse_locale();
+    let https = e.config.port_https.filter(|_| e.autorite.is_some() && ip.is_some_and(|ip| crate::tls::adresse_locale_permise(&ip)));
     Ok(Json(json!({
         "actif": e.config.reseau,
         "port": port,
         "adresses": ip.map(|ip| vec![format!("http://{ip}:{port}/")]).unwrap_or_default(),
+        "adresses_https": ip.zip(https).map(|(ip, p)| vec![format!("https://{ip}:{p}/")]).unwrap_or_default(),
+        "certificat": ip.filter(|_| https.is_some()).map(|ip| format!("http://{ip}:{port}/api/reseau/certificat")),
     })))
 }
 
+/// Certificat de l'autorité locale, à installer une fois sur chaque téléphone (public : il ne contient
+/// aucun secret, la clé reste sur le poste central).
+async fn certificat_reseau(State(e): State<Etat>) -> Result<Response, ApiErreur> {
+    let a = e.autorite.as_ref().ok_or_else(|| ApiErreur(Erreur::NonTrouve("Certificat HTTPS".into())))?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
+            (header::CONTENT_DISPOSITION, "attachment; filename=\"youma-restaurant.crt\""),
+        ],
+        a.der()?,
+    )
+        .into_response())
+}
+
 /// Adresse IP locale (sans envoyer de paquet : `connect` UDP ne fait que choisir la route).
-fn adresse_locale() -> Option<std::net::IpAddr> {
+pub(crate) fn adresse_locale() -> Option<std::net::IpAddr> {
     let s = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
     s.connect("192.168.1.1:80").or_else(|_| s.connect("10.0.0.1:80")).ok()?;
     s.local_addr().ok().map(|a| a.ip()).filter(|ip| !ip.is_unspecified())
@@ -1219,7 +1269,7 @@ async fn public_menu(State(e): State<Etat>, Query(p): Q) -> Rep<entrantes::MenuP
     let table = q(&p, "table").map(str::to_owned);
     let m = e
         .avec_db(move |db| {
-            let m = entrantes::menu_public(db.conn(), table.as_deref())?;
+            let m = entrantes::menu_public(db.conn(), table.as_deref(), db.maintenant())?;
             let actif = if table.is_some() { m.qr_table } else { m.en_ligne };
             if !actif {
                 return Err(Erreur::Interdit("Commande à distance non activée dans ce restaurant".into()));
@@ -1251,4 +1301,135 @@ struct Position {
 
 async fn public_position(State(e): State<Etat>, Path(code): Path<String>, Json(p): Json<Position>) -> Rep<()> {
     Ok(Json(e.avec_db(move |db| entrantes::ajouter_position(db, &code, p.lat, p.lon)).await?))
+}
+
+// ───────────── Recettes (fiche 0014) ─────────────
+
+async fn recette_lire(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<recettes::Recette> {
+    lire!(e, a, Some(perm::CATALOGUE_GERER), |db| recettes::lire(db.conn(), &id))
+}
+
+async fn recette_definir(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(mut r): Json<recettes::Recette>) -> Rep<()> {
+    r.produit_id = id;
+    ecrire!(e, a, |db| recettes::definir(db, &a, &r))
+}
+
+async fn rapport_cout_matiere(State(e): State<Etat>, a: Auth) -> Rep<Vec<recettes::CoutMatiere>> {
+    lire!(e, a, Some(perm::RAPPORT_VOIR), |db| recettes::couts_matiere(db.conn()))
+}
+
+// ───────────── Consignes (fiche 0015) ─────────────
+
+async fn emballages_etat(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    lire!(e, a, Some(perm::STOCK_VOIR), |db| {
+        let fournisseurs: Vec<Value> = consignes::consignes_par_fournisseur(db.conn())?
+            .into_iter()
+            .map(|(id, nom, montant)| json!({ "fournisseur_id": id, "nom": nom, "montant": montant }))
+            .collect();
+        Ok(json!({ "emballages": consignes::etats(db.conn())?, "fournisseurs": fournisseurs }))
+    })
+}
+
+async fn emballage_enregistrer(State(e): State<Etat>, a: Auth, Json(x): Json<consignes::Emballage>) -> Rep<String> {
+    ecrire!(e, a, |db| consignes::enregistrer(db, &a, &x))
+}
+
+async fn emballage_mouvement(State(e): State<Etat>, a: Auth, Json(m): Json<consignes::MouvementEmballage>) -> Rep<String> {
+    ecrire!(e, a, |db| consignes::mouvement(db, &a, &m))
+}
+
+async fn emballage_retour(State(e): State<Etat>, a: Auth, Json(r): Json<consignes::RetourFournisseur>) -> Rep<String> {
+    ecrire!(e, a, |db| consignes::retour_fournisseur(db, &a, &r))
+}
+
+#[derive(Deserialize)]
+struct ComptageVides {
+    comptes: i64,
+}
+
+async fn emballage_inventaire(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(c): Json<ComptageVides>) -> Rep<i64> {
+    ecrire!(e, a, |db| consignes::inventaire(db, &a, &id, c.comptes))
+}
+
+async fn emballage_historique(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Vec<consignes::MouvementLu>> {
+    lire!(e, a, Some(perm::STOCK_VOIR), |db| consignes::historique(db.conn(), &id))
+}
+
+// ───────────── Relevés Mobile Money (fiche 0016) ─────────────
+
+async fn releves_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<releves_mm::ReleveLu>> {
+    lire!(e, a, Some(perm::CAISSE_VERIFIER_MM), |db| releves_mm::lister(db.conn()))
+}
+
+#[derive(Deserialize)]
+struct ImportReleve {
+    compte_id: String,
+    #[serde(default)]
+    nom_fichier: String,
+    contenu: String,
+}
+
+async fn releve_importer(State(e): State<Etat>, a: Auth, Json(r): Json<ImportReleve>) -> Rep<releves_mm::Bilan> {
+    ecrire!(e, a, |db| releves_mm::importer(db, &a, &r.compte_id, &r.nom_fichier, &r.contenu))
+}
+
+#[derive(Deserialize)]
+struct CompteReleve {
+    compte_id: String,
+}
+
+async fn releves_relancer(State(e): State<Etat>, a: Auth, Json(c): Json<CompteReleve>) -> Rep<usize> {
+    ecrire!(e, a, |db| releves_mm::relancer(db, &a, &c.compte_id))
+}
+
+// ───────────── Promotions (fiche 0017) ─────────────
+
+async fn promotions_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<promotions::Promotion>> {
+    lire!(e, a, AUCUNE, |db| promotions::lister(db.conn()))
+}
+
+async fn promotion_enregistrer(State(e): State<Etat>, a: Auth, Json(p): Json<promotions::Promotion>) -> Rep<String> {
+    ecrire!(e, a, |db| promotions::enregistrer(db, &a, &p))
+}
+
+/// Prix du happy hour en cours pour une zone (boutons de la prise de commande).
+async fn promotions_prix(State(e): State<Etat>, a: Auth, Query(p): Q) -> Rep<std::collections::HashMap<String, promotions::PrixDuMoment>> {
+    let zone = q(&p, "zone").map(str::to_owned);
+    lire!(e, a, AUCUNE, |db| promotions::prix_en_cours(db.conn(), zone.as_deref(), db.maintenant()))
+}
+
+// ───────────── Cloud (fiche 0018) ─────────────
+
+async fn cloud_etat(State(e): State<Etat>, a: Auth) -> Rep<crate::cloud::EtatCloud> {
+    let _ = &a;
+    Ok(Json(e.cloud.lock().map(|c| c.clone()).unwrap_or_default()))
+}
+
+/// Envoi immédiat (bouton « Synchroniser maintenant »).
+async fn cloud_synchroniser(State(e): State<Etat>, a: Auth) -> Rep<crate::cloud::EtatCloud> {
+    let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
+    e.avec_db(move |db| peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)).await?;
+    crate::cloud::synchroniser(&e).await.map_err(|m| ApiErreur(Erreur::validation(m)))?;
+    Ok(Json(e.cloud.lock().map(|c| c.clone()).unwrap_or_default()))
+}
+
+async fn cloud_mot_de_passe(State(e): State<Etat>, a: Auth, Json(m): Json<MotDePasse>) -> Rep<()> {
+    ecrire!(e, a, |db| cloud::definir_mot_de_passe(db, &a, &m.mot_de_passe))
+}
+
+async fn cloud_sauvegardes(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
+    e.avec_db(move |db| peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)).await?;
+    Ok(Json(crate::cloud::sauvegardes_distantes(&e).await.map_err(|m| ApiErreur(Erreur::validation(m)))?))
+}
+
+/// Télécharge et déchiffre une sauvegarde distante ; la restauration se fait ensuite comme pour une sauvegarde locale.
+async fn cloud_recuperer(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Value> {
+    let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
+    e.avec_db(move |db| peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)).await?;
+    let chemin = crate::cloud::recuperer(&e, &id).await.map_err(|m| ApiErreur(Erreur::validation(m)))?;
+    Ok(Json(json!({ "chemin": chemin })))
 }

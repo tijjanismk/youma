@@ -50,16 +50,23 @@ export function Fournisseur({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const chargerSession = useCallback(() => {
+    if (!jeton()) return;
+    get<Session>("/session")
+      .then(setSession)
+      // Hors ligne (application ouverte sans Wi-Fi) : la session est gardée, on réessaiera.
+      .catch((e) => (e instanceof ErreurApi && e.code === "HORS_LIGNE" ? undefined : definirJeton(null)));
+  }, []);
+
   useEffect(() => {
     rechargerEtat();
-    if (jeton()) {
-      get<Session>("/session")
-        .then(setSession)
-        .catch(() => definirJeton(null));
-    }
+    chargerSession();
     const a = surReseau((v) => {
       setEnLigne(v);
-      if (v) rechargerEtat();
+      if (v) {
+        rechargerEtat();
+        chargerSession();
+      }
     });
     const b = surDeconnexion(() => {
       definirJeton(null);
@@ -70,6 +77,17 @@ export function Fournisseur({ children }: { children: ReactNode }) {
       b();
     };
   }, [rechargerEtat]);
+
+  // Poste central injoignable : on réessaie régulièrement (le WebSocket ne le fait qu'une fois connecté).
+  useEffect(() => {
+    if (enLigne) return;
+    const minuterie = setInterval(rechargerEtat, 5000);
+    window.addEventListener("online", rechargerEtat);
+    return () => {
+      clearInterval(minuterie);
+      window.removeEventListener("online", rechargerEtat);
+    };
+  }, [enLigne, rechargerEtat]);
 
   // WebSocket : un seul par onglet, reconnexion automatique (scénario 13).
   useEffect(() => {
@@ -209,7 +227,6 @@ export function Fournisseur({ children }: { children: ReactNode }) {
     </Ctx.Provider>
   );
 }
-
 
 function PinResponsable({ message, fermer }: { message: string; fermer: (pin: string | null) => void }) {
   return (

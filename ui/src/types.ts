@@ -52,6 +52,30 @@ export type Parametres = {
   alerte_sauvegarde_jours: number;
   intervalle_sauvegarde_minutes: number;
   canaux: Canaux;
+  cloud: CloudParams;
+};
+
+/** Cloud facultatif (fiche 0018). Les secrets arrivent masqués (« ******** ») depuis /etat. */
+export type CloudParams = {
+  url: string;
+  cle: string;
+  telephone_proprietaire: string;
+  sms_resume: boolean;
+  phrase_chiffrement: string;
+  mdp_hash: string;
+};
+
+export type ResumeJournee = {
+  date: string;
+  cloturee: boolean;
+  chiffre_affaires: number;
+  commandes: number;
+  depenses: number;
+  encaissements: [string, number][];
+  mobile_money_a_verifier: [number, number];
+  annulations: [number, number];
+  ecarts_caisse: number;
+  mis_a_jour: number;
 };
 
 /** Canaux de commande (fiche 0013) : le menu papier est toujours actif. */
@@ -157,7 +181,13 @@ export type Produit = {
   groupes_options: GroupeOptions[];
 };
 export type Poste = { id: string; nom: string; imprimante: string; ecran: boolean; actif: boolean };
-export type Catalogue = { categories: Categorie[]; produits: Produit[]; postes: Poste[] };
+export type Catalogue = {
+  categories: Categorie[];
+  produits: Produit[];
+  postes: Poste[];
+  /** Quantité disponible des produits suivis en stock (revendus ou avec recette). */
+  disponibles?: Record<string, number>;
+};
 
 export type Zone = { id: string; nom: string; ordre: number; actif: boolean };
 export type TablePlan = {
@@ -332,3 +362,42 @@ export type NiveauStock = {
   alerte: boolean;
   conditionnements: { id: string; nom: string; contenance: number }[];
 };
+
+/** Recette (fiche 0014) : quantités entières dans l'unité de base de l'article (g, ml, pièce). */
+export type LigneRecette = { article_id: string; quantite: number; article_nom?: string; unite?: string; cout_unitaire?: number };
+export type Recette = {
+  produit_id: string;
+  lignes: LigneRecette[];
+  options: { option_id: string; option_nom?: string; lignes: LigneRecette[] }[];
+  cout: number;
+};
+export type CoutMatiere = { produit_id: string; nom: string; prix: number; cout: number; part_bp: number };
+
+/** Consignes (fiche 0015). */
+export type Emballage = { id: string; nom: string; valeur: number; actif: boolean; articles: string[] };
+export type EtatEmballage = {
+  emballage: Emballage;
+  detenus: number;
+  pleins: number | null;
+  vides: number | null;
+  consigne_versee: number;
+  valeur_detenus: number;
+};
+export type ConsigneAchat = { emballage_id: string; recus: number; rendus: number };
+
+/** Promotions et happy hours (fiche 0017). valeur : prix en FCFA, ou remise en points de base (2 500 = 25 %). */
+export type Promotion = {
+  id: string;
+  nom: string;
+  produit_id: string | null;
+  categorie_id: string | null;
+  type: "prix" | "pourcentage";
+  valeur: number;
+  debut_min: number;
+  fin_min: number;
+  jours: number;
+  date_debut: string | null;
+  date_fin: string | null;
+  actif: boolean;
+};
+export type PrixDuMoment = { prix: number; prix_normal: number; promotion_id: string | null; promotion: string | null };

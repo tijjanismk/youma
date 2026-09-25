@@ -30,6 +30,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::entrantes::code_aleatoire;
 use youma_core::zones_risque::normaliser_telephone;
 
+pub mod cloud;
 pub mod sms;
 pub use sms::{FournisseurSms, Orange};
 
@@ -58,7 +59,14 @@ pub struct Etat {
     sms: Arc<sms::Envoyeur>,
     limites: Arc<Mutex<HashMap<String, Vec<i64>>>>,
     derriere_proxy: bool,
+    /// Sauvegardes chiffrées reçues (cloud, fiche 0018).
+    dossier: PathBuf,
+    /// Espace propriétaire : jeton → (restaurants accessibles, expiration).
+    sessions: Arc<Mutex<HashMap<String, SessionProprietaire>>>,
 }
+
+/// Restaurants accessibles et expiration (ms) d'une session de l'espace propriétaire.
+type SessionProprietaire = (Vec<String>, i64);
 
 /// Erreur au format de l'API du poste central (`code`, `message`).
 pub struct Echec {
@@ -115,12 +123,15 @@ impl Etat {
         let conn = Connection::open(config.dossier_donnees.join("youma-relais.db"))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.execute_batch(SCHEMA)?;
+        conn.execute_batch(cloud::SCHEMA)?;
         Ok(Etat {
             db: Arc::new(Mutex::new(conn)),
             empreinte_cle: empreinte(&config.cle),
             sms: Arc::new(sms::Envoyeur::new(config.sms.clone())),
             limites: Arc::new(Mutex::new(HashMap::new())),
             derriere_proxy: config.derriere_proxy,
+            dossier: config.dossier_donnees.clone(),
+            sessions: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -175,6 +186,7 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/public/commandes", post(commande))
         .route("/api/public/suivi/{code}", get(suivi))
         .route("/api/public/position/{code}", post(position))
+        .merge(cloud::routes())
         // Le relais ne sert que les pages du client et du livreur, jamais l'application du personnel.
         .route("/", get(|| async { Redirect::temporary("/menu") }));
     if let Some(ui) = ui {
@@ -186,6 +198,15 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
 
 pub async fn servir(etat: Etat, ui: Option<PathBuf>, ecoute: tokio::net::TcpListener) -> std::io::Result<()> {
     axum::serve(ecoute, routeur(etat, ui).into_make_service_with_connect_info::<SocketAddr>()).await
+}
+
+/// Inscription d'un restaurant au cloud : renvoie la clé à saisir sur son poste central.
+pub fn inscrire_restaurant(dossier: &std::path::Path, nom: &str) -> rusqlite::Result<String> {
+    std::fs::create_dir_all(dossier).ok();
+    let conn = Connection::open(dossier.join("youma-relais.db"))?;
+    conn.execute_batch(SCHEMA)?;
+    conn.execute_batch(cloud::SCHEMA)?;
+    cloud::ajouter_restaurant(&conn, nom)
 }
 
 pub async fn demarrer(config: Config) -> std::io::Result<()> {

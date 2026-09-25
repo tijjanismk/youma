@@ -34,8 +34,9 @@ export function sauverPanier(commandeId: string, panier: ArticlePanier[]) {
   }
 }
 
-/** Prix affiché selon la grille de la zone (RG-CAT-03 ; le serveur fait foi). */
-export function prixZone(p: Produit, zoneId: string | null): number {
+/** Prix affiché selon la grille de la zone (RG-CAT-03), ou celui du happy hour en cours (RG-PRO-02). Le serveur fait foi. */
+export function prixZone(p: Produit, zoneId: string | null, promos: Record<string, number> = {}): number {
+  if (promos[p.id] !== undefined) return promos[p.id];
   const pz = zoneId ? p.prix_zones.find((z) => z.zone_id === zoneId) : undefined;
   return pz ? pz.prix : p.prix;
 }
@@ -47,6 +48,7 @@ export function ajouter(
   zoneId: string | null,
   options: ArticlePanier["options"] = [],
   commentaire = "",
+  promos: Record<string, number> = {},
 ): ArticlePanier[] {
   const cleOptions = options.map((o) => o.id).sort().join(",");
   const existant = panier.find(
@@ -59,7 +61,7 @@ export function ajouter(
       cle: `${p.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       produit_id: p.id,
       libelle: p.nom_court || p.nom,
-      prix: prixZone(p, zoneId),
+      prix: prixZone(p, zoneId, promos),
       quantite: 1,
       options,
       commentaire,

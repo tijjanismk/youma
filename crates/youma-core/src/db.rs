@@ -16,6 +16,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/0001_initial.sql")),
     (2, include_str!("../migrations/0002_mot_de_passe_sortie_operateurs.sql")),
     (3, include_str!("../migrations/0003_canaux_zones_risque.sql")),
+    (4, include_str!("../migrations/0004_recettes.sql")),
+    (5, include_str!("../migrations/0005_consignes.sql")),
+    (6, include_str!("../migrations/0006_releves_mm.sql")),
+    (7, include_str!("../migrations/0007_promotions.sql")),
 ];
 
 pub fn version_schema() -> i64 {
@@ -441,6 +445,16 @@ fn initialiser_si_vide(conn: &Connection, maintenant: i64) -> Resultat<()> {
 
 pub fn installation_id(conn: &Connection) -> Resultat<String> {
     Ok(conn.query_row("SELECT valeur FROM systeme WHERE cle = 'installation_id'", [], |r| r.get(0))?)
+}
+
+/// Valeur technique de la table `systeme` (hors métier, sans audit), incluse dans les sauvegardes.
+pub fn valeur_systeme(conn: &Connection, cle: &str) -> Resultat<Option<String>> {
+    Ok(conn.query_row("SELECT valeur FROM systeme WHERE cle = ?1", params![cle], |r| r.get(0)).optional()?)
+}
+
+pub fn definir_valeur_systeme(conn: &Connection, cle: &str, valeur: &str) -> Resultat<()> {
+    conn.execute("INSERT OR REPLACE INTO systeme(cle, valeur) VALUES (?1, ?2)", params![cle, valeur])?;
+    Ok(())
 }
 
 /// Aide : lit une ligne ou renvoie `NonTrouve`.

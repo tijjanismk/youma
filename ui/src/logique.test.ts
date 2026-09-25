@@ -176,3 +176,76 @@ describe("commandes à distance (fiche 0013)", async () => {
     expect(cleOptions("b", ["y", "x"])).toBe(cleOptions("b", ["x", "y"]));
   });
 });
+
+describe("recettes (fiche 0014)", async () => {
+  const { coutRecette, partBp, pourcentage, recetteValide } = await import("./recette");
+
+  it("coût matière en FCFA entiers et part du prix", () => {
+    const couts = { pdt: 1, huile: 2 };
+    const lignes = [
+      { article_id: "pdt", quantite: 250 },
+      { article_id: "huile", quantite: 30 },
+    ];
+    expect(coutRecette(lignes, couts)).toBe(310);
+    expect(partBp(310, 750)).toBe(4_133);
+    expect(pourcentage(4_133)).toBe("41,33 %");
+    expect(partBp(100, 0)).toBe(0);
+  });
+
+  it("recette valide : quantités entières positives, pas de doublon", () => {
+    expect(recetteValide([{ article_id: "a", quantite: 10 }])).toBe(true);
+    expect(recetteValide([{ article_id: "a", quantite: 0 }])).toBe(false);
+    expect(recetteValide([{ article_id: "a", quantite: 1.5 }])).toBe(false);
+    expect(recetteValide([{ article_id: "", quantite: 3 }])).toBe(false);
+    expect(recetteValide([{ article_id: "a", quantite: 1 }, { article_id: "a", quantite: 2 }])).toBe(false);
+  });
+});
+
+describe("consignes (fiche 0015)", async () => {
+  const { consigneNette, consignesSaisies } = await import("./consigne");
+
+  it("consigne nette d'une livraison : (reçus − rendus) × valeur", () => {
+    const valeurs = { bouteille: 150, casier: 2_500 };
+    const c = [
+      { emballage_id: "bouteille", recus: 24, rendus: 12 },
+      { emballage_id: "casier", recus: 2, rendus: 1 },
+      { emballage_id: "casier-vide", recus: 0, rendus: 0 },
+    ];
+    expect(consigneNette(c, valeurs)).toBe(12 * 150 + 2_500);
+    expect(consigneNette([{ emballage_id: "casier", recus: 0, rendus: 3 }], valeurs)).toBe(-7_500);
+    expect(consignesSaisies(c)).toHaveLength(2);
+  });
+});
+
+describe("promotions (fiche 0017)", () => {
+  it("le prix du happy hour remplace celui de la zone", () => {
+    const biere = produit({ id: "b", prix: 1000, prix_zones: [{ zone_id: "vip", prix: 1500 }] });
+    expect(prixZone(biere, "vip")).toBe(1500);
+    expect(prixZone(biere, "vip", { b: 750 })).toBe(750);
+    expect(prixZone(biere, null, { autre: 10 })).toBe(1000);
+    const p = ajouter([], biere, null, [], "", { b: 750 });
+    expect(totalPanier(p)).toBe(750);
+  });
+});
+
+describe("statistiques", async () => {
+  const { valeurIndicateur } = await import("./pages/Rapports");
+  it("indicateurs : nombre, évolution en %, FCFA", () => {
+    expect(valeurIndicateur("nb_commandes", 1200)).toBe("1 200");
+    expect(valeurIndicateur("evolution_ca_pct", 2_550)).toBe("+25,50 %");
+    expect(valeurIndicateur("evolution_ca_pct", -1_000)).toBe("−10,00 %");
+    expect(valeurIndicateur("panier_moyen", 3_875)).toBe("3 875 FCFA");
+  });
+});
+
+describe("messages du menu client", async () => {
+  const { messageClient } = await import("./public/MenuClient");
+  const { ErreurApi } = await import("./api");
+  it("jamais de vocabulaire du personnel", () => {
+    const interdit = new ErreurApi("INTERDIT", "Permission manquante : Commande à distance non activée", undefined, undefined, 403);
+    expect(messageClient(interdit, false)).toBe("Ce restaurant ne prend pas de commandes en ligne pour le moment.");
+    expect(messageClient(interdit, true)).toBe("La commande depuis la table n'est pas active : appelez le serveur.");
+    expect(messageClient(new ErreurApi("HORS_LIGNE", "x"), false)).toMatch(/injoignable/);
+    expect(messageClient(new ErreurApi("REGLE_METIER", "QR code inconnu", "RG-CAN-02", undefined, 422), true)).toMatch(/QR code/);
+  });
+});

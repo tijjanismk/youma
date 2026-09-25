@@ -66,7 +66,8 @@ pub struct MenuPublic {
 }
 
 /// Menu consultable sans connexion (QR sur la table, page en ligne). Prix de la zone de la table.
-pub fn menu_public(conn: &Connection, code_table: Option<&str>) -> Resultat<MenuPublic> {
+/// `ms` : instant de consultation (prix du happy hour en cours).
+pub fn menu_public(conn: &Connection, code_table: Option<&str>, ms: i64) -> Resultat<MenuPublic> {
     let p = crate::parametres::lire(conn)?;
     let r = crate::parametres::restaurant(conn)?;
     let table = match code_table {
@@ -80,7 +81,8 @@ pub fn menu_public(conn: &Connection, code_table: Option<&str>) -> Resultat<Menu
         .collect();
     let mut produits = Vec::new();
     for pr in catalogue::lister_produits(conn, true)?.into_iter().filter(|p| p.disponible) {
-        let prix = catalogue::prix_effectif(conn, &pr.id, table.as_ref().map(|t| t.2.as_str()))?;
+        // Happy hour en cours : le client voit le prix qu'il paiera.
+        let prix = crate::promotions::prix_du_moment(conn, &pr.id, table.as_ref().map(|t| t.2.as_str()), ms)?.prix;
         produits.push(ProduitPublic {
             id: pr.id,
             categorie_id: pr.categorie_id,
@@ -311,7 +313,7 @@ fn recevoir_op(op: &mut Op, e: &CommandeEntrante) -> Resultat<Reponse> {
         if l.quantite <= 0 || l.quantite > 50 {
             return Ok(refus("Quantité invalide"));
         }
-        total_articles += l.quantite * catalogue::prix_effectif(op, &p.id, table.as_ref().map(|t| t.2.as_str()))?;
+        total_articles += l.quantite * crate::promotions::prix_du_moment(op, &p.id, table.as_ref().map(|t| t.2.as_str()), op.maintenant)?.prix;
     }
     // RG-CAN-05 : mode de paiement autorisé, plafond, nouveau client.
     if e.canal == "en_ligne" {

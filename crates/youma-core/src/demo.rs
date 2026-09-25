@@ -12,6 +12,7 @@ use crate::employes::{self, Employe};
 use crate::erreur::Resultat;
 use crate::parametres::{self, QuartierLivraison};
 use crate::salle::{self, Zone};
+use crate::{consignes, recettes};
 use crate::stock::{self, Article, Conditionnement};
 
 pub struct Demo {
@@ -189,7 +190,40 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
             OptionProduit { id: String::new(), nom: "Grande".into(), supplement: 500 },
         ],
     }];
-    catalogue::enregistrer_produit(db, &sys, &frites)?;
+    let frites_id = catalogue::enregistrer_produit(db, &sys, &frites)?;
+    // Recette (fiche 0014) : ingrédients en unités fines (g, ml) pour rester en entiers.
+    let ingredient = |db: &mut Db, nom: &str, unite: &str, cout: i64, cond: &str, contenance: i64| {
+        stock::enregistrer_article(
+            db,
+            &sys,
+            &Article {
+                id: String::new(),
+                nom: nom.into(),
+                unite: unite.into(),
+                seuil_alerte: 0,
+                cout_unitaire: cout,
+                famille: "Cuisine".into(),
+                actif: true,
+                conditionnements: vec![Conditionnement { id: String::new(), nom: cond.into(), contenance }],
+            },
+        )
+    };
+    let a_pdt = ingredient(db, "Pommes de terre", "g", 1, "Sac de 25 kg", 25_000)?;
+    let a_huile = ingredient(db, "Huile", "ml", 2, "Bidon de 20 L", 20_000)?;
+    let grande = catalogue::produit(db.conn(), &frites_id)?.groupes_options[0].options.iter().find(|o| o.nom == "Grande").map(|o| o.id.clone());
+    let ligne = |a: &str, q: i64| recettes::LigneRecette { article_id: a.into(), quantite: q, article_nom: String::new(), unite: String::new(), cout_unitaire: 0 };
+    recettes::definir(
+        db,
+        &sys,
+        &recettes::Recette {
+            produit_id: frites_id,
+            lignes: vec![ligne(&a_pdt, 250), ligne(&a_huile, 30)],
+            options: grande
+                .map(|g| vec![recettes::RecetteOption { option_id: g, option_nom: String::new(), lignes: vec![ligne(&a_pdt, 150)] }])
+                .unwrap_or_default(),
+            cout: 0,
+        },
+    )?;
     catalogue::enregistrer_produit(db, &sys, &produit(&c_acc, "Alloco", 500, Some(&cuisine)))?;
     catalogue::enregistrer_produit(db, &sys, &produit(&c_acc, "Attiéké", 500, Some(&cuisine)))?;
 
@@ -254,7 +288,21 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
         LigneAchatSaisie { article_id: a_biere.clone(), conditionnement_id: Some(cond(db, &a_biere)?), quantite: 3, prix_total: 21_600 },
         LigneAchatSaisie { article_id: a_jus.clone(), conditionnement_id: Some(cond(db, &a_jus)?), quantite: 1, prix_total: 3_600 },
     ];
-    achats::receptionner(db, &sys, &NouvelAchat { fournisseur_id: Some(fournisseur), mode: "credit".into(), compte_id: None, lignes, note: "Stock initial".into() })?;
+    // Consignes (fiche 0015) : bouteilles de bière et casiers consignés par le dépôt.
+    let emballage = |db: &mut Db, nom: &str, valeur: i64, articles: Vec<String>| {
+        consignes::enregistrer(db, &sys, &consignes::Emballage { id: String::new(), nom: nom.into(), valeur, actif: true, articles })
+    };
+    let bouteille = emballage(db, "Bouteille bière 65 cl", 150, vec![a_biere.clone()])?;
+    let casier = emballage(db, "Casier bière (12)", 2_500, vec![])?;
+    let consignes_initiales = vec![
+        consignes::ConsigneAchat { emballage_id: bouteille, recus: 36, rendus: 0 },
+        consignes::ConsigneAchat { emballage_id: casier, recus: 3, rendus: 0 },
+    ];
+    achats::receptionner(
+        db,
+        &sys,
+        &NouvelAchat { fournisseur_id: Some(fournisseur), mode: "credit".into(), compte_id: None, lignes, consignes: consignes_initiales, note: "Stock initial".into() },
+    )?;
     Ok(Demo { proprietaire, gerant, caissier, serveur })
 }
 

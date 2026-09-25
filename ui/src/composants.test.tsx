@@ -155,3 +155,47 @@ describe("Autorisation ponctuelle (RG-AUT-03)", () => {
     expect(await screen.findByText(/Poste central injoignable/)).toBeInTheDocument();
   });
 });
+
+describe("espace propriétaire (fiche 0018)", () => {
+  it("connexion puis résumé de chaque restaurant et total", async () => {
+    const resume = (date: string, ca: number) => ({
+      date,
+      cloturee: true,
+      chiffre_affaires: ca,
+      commandes: 10,
+      depenses: 0,
+      encaissements: [["especes", ca]],
+      mobile_money_a_verifier: [1, 2_000],
+      annulations: [0, 0],
+      ecarts_caisse: 0,
+      mis_a_jour: 0,
+    });
+    const appels = fauxServeur({
+      "/proprietaire/connexion": (c) => ((c as { mot_de_passe: string }).mot_de_passe === "bon-mot-de-passe" ? [200, { jeton: "J1", restaurants: 2 }] : [401, { code: "NON_AUTHENTIFIE", message: "Numéro ou mot de passe incorrect" }]),
+      "/proprietaire/tableau": () => [
+        200,
+        {
+          restaurants: [
+            { id: "a", nom: "Maquis A", dernier_contact: 0, derniere_sauvegarde: null, resumes: [resume("2026-03-14", 125_000)] },
+            { id: "b", nom: "Maquis B", dernier_contact: 0, derniere_sauvegarde: 0, resumes: [resume("2026-03-14", 75_000)] },
+          ],
+          totaux: [{ date: "2026-03-14", chiffre_affaires: 200_000, commandes: 20 }],
+        },
+      ],
+    });
+    const { default: Proprietaire } = await import("./public/Proprietaire");
+    render(<Proprietaire />);
+    const u = userEvent.setup();
+    await u.type(screen.getByLabelText("Votre téléphone"), "76 00 00 01");
+    await u.type(screen.getByLabelText("Mot de passe distant"), "mauvais");
+    await u.click(screen.getByRole("button", { name: "Se connecter" }));
+    expect(await screen.findByText("Numéro ou mot de passe incorrect")).toBeInTheDocument();
+    await u.clear(screen.getByLabelText("Mot de passe distant"));
+    await u.type(screen.getByLabelText("Mot de passe distant"), "bon-mot-de-passe");
+    await u.click(screen.getByRole("button", { name: "Se connecter" }));
+    expect(await screen.findByRole("heading", { name: "Maquis B" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Tous les restaurants")).toHaveTextContent("200 000 FCFA");
+    expect(screen.getByLabelText("Maquis A")).toHaveTextContent("Mobile Money à vérifier : 1 (2 000 FCFA)");
+    expect(appels.find((a) => a.chemin === "/proprietaire/tableau")?.entetes.Authorization).toBe("Bearer J1");
+  });
+});

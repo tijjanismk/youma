@@ -3,7 +3,8 @@ import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, Onglets, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa } from "../format";
-import type { Compte, NiveauStock } from "../types";
+import { consigneNette, consignesSaisies } from "../consigne";
+import type { Compte, ConsigneAchat, EtatEmballage, NiveauStock } from "../types";
 
 type Fournisseur = { id: string; nom: string; telephone: string; notes: string; actif: boolean; dette: number };
 type Achat = { id: string; numero: number; fournisseur: string | null; mode: string; total: number; horodatage: number; lignes: [string, number, number, number][] };
@@ -40,7 +41,16 @@ function Reception() {
   const [compte, setCompte] = useState("");
   const [lignes, setLignes] = useState<LigneSaisie[]>([]);
   const [note, setNote] = useState("");
-  const total = lignes.reduce((s, l) => s + l.prix_total, 0);
+  // Emballages consignés reçus et vides rendus avec la livraison (fiche 0015).
+  const { donnees: emballages } = useDonnees(() => get<{ emballages: EtatEmballage[] }>("/emballages").then((d) => d.emballages).catch(() => [] as EtatEmballage[]), []);
+  const [consignes, setConsignes] = useState<ConsigneAchat[]>([]);
+  const valeurs = Object.fromEntries((emballages ?? []).map((e) => [e.emballage.id, e.emballage.valeur]));
+  const saisies = consignesSaisies(consignes);
+  const nette = consigneNette(saisies, valeurs);
+  const majConsigne = (id: string, v: Partial<ConsigneAchat>) =>
+    setConsignes((c) => [...c.filter((x) => x.emballage_id !== id), { ...(c.find((x) => x.emballage_id === id) ?? { emballage_id: id, recus: 0, rendus: 0 }), ...v }]);
+  const consigneDe = (id: string) => consignes.find((x) => x.emballage_id === id) ?? { emballage_id: id, recus: 0, rendus: 0 };
+  const total = lignes.reduce((s, l) => s + l.prix_total, 0) + nette;
   const maj = (i: number, l: Partial<LigneSaisie>) => setLignes((x) => x.map((a, j) => (j === i ? { ...a, ...l } : a)));
   return (
     <div className="carte">
@@ -95,6 +105,39 @@ function Reception() {
       <button onClick={() => setLignes([...lignes, { article_id: articles?.[0]?.article_id ?? "", conditionnement_id: articles?.[0]?.conditionnements[0]?.id ?? "", quantite: 1, prix_total: 0 }])}>
         + Ligne
       </button>
+      {(emballages ?? []).length > 0 && (
+        <details className="consignes-achat">
+          <summary>Emballages consignés {saisies.length > 0 && `(consigne ${fcfa(nette)})`}</summary>
+          {(emballages ?? []).map((e) => (
+            <div key={e.emballage.id} className="ligne-consigne">
+              <span>
+                {e.emballage.nom} <small className="aide">({fcfa(e.emballage.valeur)})</small>
+              </span>
+              <label className="champ">
+                <span>Reçus</span>
+                <input
+                  type="number"
+                  min={0}
+                  aria-label={`Reçus : ${e.emballage.nom}`}
+                  value={consigneDe(e.emballage.id).recus}
+                  onChange={(x) => majConsigne(e.emballage.id, { recus: Math.max(0, Number(x.target.value)) })}
+                />
+              </label>
+              <label className="champ">
+                <span>Vides rendus</span>
+                <input
+                  type="number"
+                  min={0}
+                  aria-label={`Rendus : ${e.emballage.nom}`}
+                  value={consigneDe(e.emballage.id).rendus}
+                  onChange={(x) => majConsigne(e.emballage.id, { rendus: Math.max(0, Number(x.target.value)) })}
+                />
+              </label>
+            </div>
+          ))}
+          <p className="formule">Consigne = Σ (reçus − rendus) × consigne de l'emballage ; ajoutée au total.</p>
+        </details>
+      )}
       <Champ libelle="Note" valeur={note} changer={setNote} />
       <div className="total">
         <span>Total</span>
@@ -102,17 +145,29 @@ function Reception() {
       </div>
       <button
         className="principal grand"
-        disabled={!lignes.length || lignes.some((l) => !l.article_id || l.quantite <= 0)}
+        disabled={(!lignes.length && !saisies.length) || lignes.some((l) => !l.article_id || l.quantite <= 0) || total < 0}
         onClick={() =>
           agir(
             (pin) =>
               post(
                 "/achats",
-                { fournisseur_id: fournisseur || null, mode, compte_id: compte || null, note, lignes: lignes.map((l) => ({ ...l, conditionnement_id: l.conditionnement_id || null })) },
+                {
+                  fournisseur_id: fournisseur || null,
+                  mode,
+                  compte_id: compte || null,
+                  note,
+                  lignes: lignes.map((l) => ({ ...l, conditionnement_id: l.conditionnement_id || null })),
+                  consignes: saisies,
+                },
                 pin,
               ),
             "Réception enregistrée : stock mis à jour",
-          ).then((r) => r !== undefined && setLignes([]))
+          ).then((r) => {
+            if (r !== undefined) {
+              setLignes([]);
+              setConsignes([]);
+            }
+          })
         }
       >
         Enregistrer la réception

@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ErreurApi, get, post } from "../api";
 import { Champ, ChampMontant, DemandeMotif, Modal, Montant } from "../composants/Base";
+import { VisuelPlat } from "../composants/Plat";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import { ajouter, ArticlePanier, changerQuantite, chargerPanier, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "../panier";
-import type { Catalogue, Client, Commande, Employe, Ligne, Produit, TablePlan } from "../types";
+import type { Catalogue, Client, Commande, Employe, Ligne, PrixDuMoment, Produit, TablePlan } from "../types";
 
 export default function PriseCommande() {
   const { id = "" } = useParams();
@@ -14,6 +15,17 @@ export default function PriseCommande() {
   const { agir, peut, notifier } = useApp();
   const { donnees: cmd, recharger } = useDonnees(() => get<Commande>(`/commandes/${id}`), ["commande", "envoi", "envoi_pret", "paiement"], [id]);
   const { donnees: cat } = useDonnees(() => get<Catalogue>("/catalogue"), ["catalogue"]);
+  // Happy hour (fiche 0017) : prix en cours pour la zone de la table, rafraîchis chaque minute.
+  const { donnees: enCours, recharger: rechargerPromos } = useDonnees(
+    () => get<Record<string, PrixDuMoment>>(`/promotions/prix${cmd?.zone_id ? `?zone=${cmd.zone_id}` : ""}`).catch(() => ({}) as Record<string, PrixDuMoment>),
+    ["catalogue"],
+    [cmd?.zone_id],
+  );
+  useEffect(() => {
+    const t = setInterval(rechargerPromos, 60_000);
+    return () => clearInterval(t);
+  }, [rechargerPromos]);
+  const promos: Record<string, number> = Object.fromEntries(Object.entries(enCours ?? {}).map(([k, v]) => [k, v.prix]));
   const [categorie, setCategorie] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [panier, setPanier] = useState<ArticlePanier[]>(() => chargerPanier(id));
@@ -22,6 +34,8 @@ export default function PriseCommande() {
   const [ligneAction, setLigneAction] = useState<Ligne | null>(null);
   const [plus, setPlus] = useState(false);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  // Téléphone : le ticket est un tiroir qui monte du bas.
+  const [ticketOuvert, setTicketOuvert] = useState(false);
 
   useEffect(() => sauverPanier(id, panier), [id, panier]);
   useEffect(() => {
@@ -36,13 +50,14 @@ export default function PriseCommande() {
 
   if (!cmd || !cat) return <p className="aide">Chargement…</p>;
   const modifiable = cmd.statut === "ouverte";
-  const couleur = (p: Produit) => cat.categories.find((c) => c.id === p.categorie_id)?.couleur ?? "#555";
+  const categorieDe = (p: Produit) => cat.categories.find((c) => c.id === p.categorie_id);
+  const categorieCourante = cat.categories.find((c) => c.id === categorie);
 
   const toucherProduit = (p: Produit) => {
     if (!p.disponible) return notifier(`${p.nom} : rupture aujourd'hui`, "erreur");
     // Options obligatoires seulement : sinon ajout direct, options modifiables en touchant la ligne.
     if (p.groupes_options.some((g) => g.min_choix > 0)) return setProduitOptions(p);
-    setPanier((x) => ajouter(x, p, cmd.zone_id));
+    setPanier((x) => ajouter(x, p, cmd.zone_id, [], "", promos));
   };
 
   /** Pousse le panier sur le serveur ; envoie en cuisine sauf « payer d'abord ». */
@@ -70,11 +85,18 @@ export default function PriseCommande() {
 
   const titre = cmd.table_nom ? `Table ${cmd.table_nom}` : `${t(cmd.type)} n°${cmd.numero}`;
   const totalAffiche = cmd.totaux.total + totalPanier(panier);
+  const nbArticles = cmd.lignes.reduce((n, l) => n + (l.quantite - l.quantite_annulee), 0) + panier.reduce((n, a) => n + a.quantite, 0);
 
   return (
     <div className="prise-commande">
       <section className="catalogue">
-        <input className="recherche" placeholder="Rechercher un produit…" value={recherche} onChange={(e) => setRecherche(e.target.value)} aria-label="Rechercher un produit" />
+        <input
+          className="recherche"
+          placeholder="Rechercher un produit…"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          aria-label="Rechercher un produit"
+        />
         <div className="categories" role="tablist">
           {cat.categories
             .filter((c) => c.actif)
@@ -84,7 +106,6 @@ export default function PriseCommande() {
                 role="tab"
                 aria-selected={categorie === c.id && !recherche}
                 className={categorie === c.id && !recherche ? "actif" : ""}
-                style={{ borderColor: c.couleur, background: categorie === c.id && !recherche ? c.couleur : undefined }}
                 onClick={() => {
                   setCategorie(c.id);
                   setRecherche("");
@@ -94,28 +115,65 @@ export default function PriseCommande() {
               </button>
             ))}
         </div>
+        <div className="titre-catalogue">
+          <h2>{recherche ? `Recherche « ${recherche} »` : `Choisir : ${categorieCourante?.nom ?? ""}`}</h2>
+          <span className="aide">
+            {produits.length} {produits.length > 1 ? "résultats" : "résultat"}
+          </span>
+        </div>
         <div className="produits">
-          {produits.map((p) => (
-            <button
-              key={p.id}
-              className={`produit ${p.disponible ? "" : "rupture"}`}
-              style={{ borderTopColor: couleur(p) }}
-              onClick={() => modifiable && toucherProduit(p)}
-              disabled={!modifiable}
-              aria-label={`${p.nom} ${nombre(prixZone(p, cmd.zone_id))} FCFA`}
-            >
-              {p.photo && <img src={p.photo} alt="" />}
-              <strong>{p.nom}</strong>
-              <span>{p.disponible ? fcfa(prixZone(p, cmd.zone_id)) : "Rupture"}</span>
-            </button>
-          ))}
+          {produits.map((p) => {
+            const dispo = cat.disponibles?.[p.id];
+            return (
+              <button
+                key={p.id}
+                className={`produit ${p.disponible ? "" : "rupture"}`}
+                onClick={() => modifiable && toucherProduit(p)}
+                disabled={!modifiable}
+                aria-label={`${p.nom} ${nombre(prixZone(p, cmd.zone_id, promos))} FCFA`}
+              >
+                <VisuelPlat photo={p.photo} categorie={categorieDe(p)} />
+                <span className="nom-plat">{p.nom}</span>
+                <span className="prix-plat">{p.disponible ? fcfa(prixZone(p, cmd.zone_id, promos)) : "Rupture"}</span>
+                {p.disponible && dispo !== undefined && (
+                  <span className="dispo">
+                    <strong>{nombre(dispo)}</strong> disponible{dispo > 1 ? "s" : ""}
+                  </span>
+                )}
+                {p.disponible && enCours?.[p.id] && <span className="pastille promo">{enCours[p.id].promotion}</span>}
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <section className="ticket" aria-label="Addition">
+      {!ticketOuvert && (
+        <button className="principal barre-ticket" onClick={() => setTicketOuvert(true)}>
+          <span>Voir la commande ({nbArticles})</span>
+          <strong>{fcfa(totalAffiche)}</strong>
+        </button>
+      )}
+      {ticketOuvert && <div className="voile-ticket" onClick={() => setTicketOuvert(false)} aria-hidden />}
+      <section className={`ticket ${ticketOuvert ? "ouvert" : ""}`} aria-label="Addition">
+        <span className="poignee" aria-hidden />
         <div className="ticket-entete">
-          <h2>{titre}</h2>
+          <div>
+            <small>Commande en cours · n°{cmd.numero}</small>
+            <h2>{titre}</h2>
+          </div>
           <span className={`statut ${cmd.statut}`}>{t(cmd.statut)}</span>
+          <button className="fermer-ticket" onClick={() => setTicketOuvert(false)} aria-label="Fermer la commande">
+            ✕
+          </button>
+        </div>
+        <div className="types-commande" aria-label="Type de commande">
+          {(["sur_place", "comptoir", "emporter", "livraison"] as const)
+            .filter((x) => x === cmd.type || (x !== "comptoir" && x !== "livraison"))
+            .map((x) => (
+              <span key={x} className={`type-pastille ${cmd.type === x ? "actif" : ""}`}>
+                {t(x)}
+              </span>
+            ))}
         </div>
         {cmd.client_nom && <p className="aide">Client : {cmd.client_nom}</p>}
         {cmd.type === "livraison" && (
@@ -126,43 +184,60 @@ export default function PriseCommande() {
         <ul className="lignes">
           {cmd.lignes
             .filter((l) => l.quantite > l.quantite_annulee)
-            .map((l) => (
-              <li key={l.id} className={`ligne ${l.statut} ${l.offert ? "offerte" : ""}`}>
-                <button className="ligne-bouton" onClick={() => modifiable && setLigneAction(l)} disabled={!modifiable}>
-                  <span className="qte">{l.quantite - l.quantite_annulee}×</span>
-                  <span className="lib">
-                    {l.libelle}
-                    {l.options.length > 0 && <small> ({l.options.map((o) => o.nom).join(", ")})</small>}
-                    {l.commentaire && <small className="note"> « {l.commentaire} »</small>}
+            .map((l) => {
+              const p = cat.produits.find((x) => x.id === l.produit_id);
+              return (
+                <li key={l.id} className={`ligne ${l.statut} ${l.offert ? "offerte" : ""}`}>
+                  <button className="ligne-bouton" onClick={() => modifiable && setLigneAction(l)} disabled={!modifiable}>
+                    <VisuelPlat photo={p?.photo} categorie={p && categorieDe(p)} petit />
+                    <span className="detail">
+                      <span className="lib">
+                        {l.libelle}
+                        {l.options.length > 0 && <small>{l.options.map((o) => o.nom).join(", ")}</small>}
+                        {l.commentaire && <small className="note">« {l.commentaire} »</small>}
+                      </span>
+                      <span>
+                        <span className="qte">{l.quantite - l.quantite_annulee}×</span> <span className="etat">{l.offert ? "Offert" : t(l.statut)}</span>
+                      </span>
+                    </span>
+                    <span className="prix">{nombre(l.offert ? 0 : l.montant)}</span>
+                  </button>
+                </li>
+              );
+            })}
+          {panier.map((a) => {
+            const p = cat.produits.find((x) => x.id === a.produit_id);
+            return (
+              <li key={a.cle} className="ligne panier">
+                <VisuelPlat photo={p?.photo} categorie={p && categorieDe(p)} petit />
+                <span className="detail">
+                  <button className="lib lien-ligne" onClick={() => setArticleEdite(a)} aria-label={`Options et commentaire ${a.libelle}`}>
+                    {a.libelle}
+                    {a.options.length > 0 && <small>{a.options.map((o) => o.nom).join(", ")}</small>}
+                    {a.commentaire && <small className="note">« {a.commentaire} »</small>}
+                  </button>
+                  <span className="boutons-qte">
+                    <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, -1))} aria-label={`Retirer un ${a.libelle}`}>
+                      −
+                    </button>
+                    <strong className="qte">{a.quantite}×</strong>
+                    <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, 1))} aria-label={`Ajouter un ${a.libelle}`}>
+                      +
+                    </button>
                   </span>
-                  <span className="etat">{l.offert ? "Offert" : t(l.statut)}</span>
-                  <span className="prix">{nombre(l.offert ? 0 : l.montant)}</span>
-                </button>
+                </span>
+                <span className="prix">{nombre(a.quantite * (a.prix + a.options.reduce((s, o) => s + o.supplement, 0)))}</span>
               </li>
-            ))}
-          {panier.map((a) => (
-            <li key={a.cle} className="ligne panier">
-              <span className="qte">{a.quantite}×</span>
-              <button className="lib lien-ligne" onClick={() => setArticleEdite(a)} aria-label={`Options et commentaire ${a.libelle}`}>
-                {a.libelle}
-                {a.options.length > 0 && <small> ({a.options.map((o) => o.nom).join(", ")})</small>}
-                {a.commentaire && <small className="note"> « {a.commentaire} »</small>}
-              </button>
-              <span className="boutons-qte">
-                <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, -1))} aria-label={`Retirer un ${a.libelle}`}>
-                  −
-                </button>
-                <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, 1))} aria-label={`Ajouter un ${a.libelle}`}>
-                  +
-                </button>
-              </span>
-              <span className="prix">{nombre(a.quantite * (a.prix + a.options.reduce((s, o) => s + o.supplement, 0)))}</span>
-            </li>
-          ))}
+            );
+          })}
         </ul>
-        {cmd.remises.filter((r) => r.montant > 0).length > 0 && (
-          <p className="aide">Remises : −{fcfa(cmd.totaux.remises)}</p>
-        )}
+        <div className="resume-ticket">
+          <div>
+            <span>Articles ({nbArticles})</span>
+            <span>{fcfa(cmd.totaux.brut + totalPanier(panier))}</span>
+          </div>
+        </div>
+        {cmd.remises.filter((r) => r.montant > 0).length > 0 && <p className="aide">Remises : −{fcfa(cmd.totaux.remises)}</p>}
         <div className="total">
           <span>Total</span>
           <Montant valeur={totalAffiche} fort />
@@ -179,12 +254,17 @@ export default function PriseCommande() {
             </button>
           )}
           {modifiable && cmd.employe_id && (
-            <button className="principal grand" onClick={() => agir(async (pin) => {
-              if (panier.length) await post(`/commandes/${id}/lignes`, versLignes(panier), pin);
-              setPanier([]);
-              await post(`/commandes/${id}/imputer`, {}, pin);
-              nav("/salle");
-            }, "Imputé sur le compte de l'employé")}>
+            <button
+              className="principal grand"
+              onClick={() =>
+                agir(async (pin) => {
+                  if (panier.length) await post(`/commandes/${id}/lignes`, versLignes(panier), pin);
+                  setPanier([]);
+                  await post(`/commandes/${id}/imputer`, {}, pin);
+                  nav("/salle");
+                }, "Imputé sur le compte de l'employé")
+              }
+            >
               Imputer à l'employé
             </button>
           )}
@@ -214,7 +294,7 @@ export default function PriseCommande() {
           produit={produitOptions}
           fermer={() => setProduitOptions(null)}
           valider={(options, commentaire) => {
-            setPanier((x) => ajouter(x, produitOptions, cmd.zone_id, options, commentaire));
+            setPanier((x) => ajouter(x, produitOptions, cmd.zone_id, options, commentaire, promos));
             setProduitOptions(null);
           }}
         />
@@ -279,7 +359,16 @@ function ChoixOptions({
       {erreur && <p className="erreur-texte">{erreur}</p>}
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
-        <button className="principal" disabled={!!erreur} onClick={() => valider(toutes.filter((o) => choix.includes(o.id)), commentaire.trim())}>
+        <button
+          className="principal"
+          disabled={!!erreur}
+          onClick={() =>
+            valider(
+              toutes.filter((o) => choix.includes(o.id)),
+              commentaire.trim(),
+            )
+          }
+        >
           {initial ? "Valider" : "Ajouter"}
         </button>
       </div>
@@ -309,7 +398,13 @@ function ActionsLigne({ ligne, commande, fermer, recharger }: { ligne: Ligne; co
             {ligne.quantite - ligne.quantite_annulee > 1 && (
               <label className="champ">
                 <span>Quantité à annuler</span>
-                <input type="number" min={1} max={ligne.quantite - ligne.quantite_annulee} value={quantite} onChange={(e) => setQuantite(Number(e.target.value))} />
+                <input
+                  type="number"
+                  min={1}
+                  max={ligne.quantite - ligne.quantite_annulee}
+                  value={quantite}
+                  onChange={(e) => setQuantite(Number(e.target.value))}
+                />
               </label>
             )}
             {envoyee && (
@@ -371,7 +466,10 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
   };
 
   useEffect(() => {
-    if (mode === "client") get<Client[]>(`/clients?q=${encodeURIComponent(q)}`).then(setClients).catch(() => {});
+    if (mode === "client")
+      get<Client[]>(`/clients?q=${encodeURIComponent(q)}`)
+        .then(setClients)
+        .catch(() => {});
   }, [mode, q]);
 
   if (mode === "remise")
@@ -382,10 +480,24 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
         fermer={fermer}
         enfants={
           <>
-            <ChampMontant libelle="Montant (FCFA)" valeur={montant} changer={(v) => { setMontant(v); setPourcentage(0); }} />
+            <ChampMontant
+              libelle="Montant (FCFA)"
+              valeur={montant}
+              changer={(v) => {
+                setMontant(v);
+                setPourcentage(0);
+              }}
+            />
             <div className="suggestions">
               {[5, 10, 15, 20].map((p) => (
-                <button key={p} className={pourcentage === p ? "actif" : ""} onClick={() => { setPourcentage(p); setMontant(0); }}>
+                <button
+                  key={p}
+                  className={pourcentage === p ? "actif" : ""}
+                  onClick={() => {
+                    setPourcentage(p);
+                    setMontant(0);
+                  }}
+                >
                   {p} %
                 </button>
               ))}
@@ -393,7 +505,10 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
           </>
         }
         valider={(motif) =>
-          agir((pin) => post(`/commandes/${commande.id}/remise`, { montant: montant || null, pourcentage: pourcentage || null, motif }, pin), "Remise accordée").then(fin)
+          agir(
+            (pin) => post(`/commandes/${commande.id}/remise`, { montant: montant || null, pourcentage: pourcentage || null, motif }, pin),
+            "Remise accordée",
+          ).then(fin)
         }
       />
     );
@@ -434,7 +549,8 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
               className="ligne-commande"
               onClick={() => agir((pin) => post(`/commandes/${commande.id}/client`, { client_id: c.id }, pin), `Client : ${c.nom}`).then(fin)}
             >
-              <strong>{c.nom}</strong> <span>{c.telephone}</span> <span>{c.credit_autorise ? `Crédit ${fcfa(c.limite_credit - c.dette)} dispo.` : "Pas de crédit"}</span>
+              <strong>{c.nom}</strong> <span>{c.telephone}</span>{" "}
+              <span>{c.credit_autorise ? `Crédit ${fcfa(c.limite_credit - c.dette)} dispo.` : "Pas de crédit"}</span>
             </button>
           ))}
         </div>
@@ -490,7 +606,13 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
 function ChoixEmploye({ fermer }: { fermer: () => void }) {
   const { agir } = useApp();
   const nav = useNavigate();
-  const { donnees } = useDonnees(() => get<Employe[]>("/employes").catch((e: ErreurApi) => { throw e; }), []);
+  const { donnees } = useDonnees(
+    () =>
+      get<Employe[]>("/employes").catch((e: ErreurApi) => {
+        throw e;
+      }),
+    [],
+  );
   return (
     <Modal titre="Repas imputé à un employé" fermer={fermer}>
       <p className="aide">Pas de chiffre d'affaires : le montant sera retenu sur son compte.</p>
@@ -515,7 +637,17 @@ function ChoixEmploye({ fermer }: { fermer: () => void }) {
   );
 }
 
-type PaiementLu = { id: string; numero: number; montant: number; recu: number; rendu: number; horodatage: number; annule: boolean; est_annulation: boolean; parts: [string, number, string | null][] };
+type PaiementLu = {
+  id: string;
+  numero: number;
+  montant: number;
+  recu: number;
+  rendu: number;
+  horodatage: number;
+  annule: boolean;
+  est_annulation: boolean;
+  parts: [string, number, string | null][];
+};
 
 /** Paiements de l'addition : argent reçu et monnaie rendue (RG-CAI-14). */
 function HistoriquePaiements({ commandeId }: { commandeId: string }) {

@@ -26,12 +26,18 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Mot de passe personnel pour l'administration (en plus du PIN) | ✅ |
 | Sauvegardes, intégrité, restauration, licence hors ligne, diagnostic | ✅ |
 | Mode réseau (téléphones via navigateur, appairage par QR) | ✅ |
+| Application installable (PWA) : écran d'accueil, plein écran, ouverture sans Wi-Fi | ✅ |
 | Commandes par téléphone, QR sur la table, en ligne ; file de validation | ✅ (réseau local) |
 | Zones à risque (quartier ou cercle GPS × heure × jours), liste noire de numéros | ✅ |
 | Suivi en direct pour le client, position du livreur | ✅ (position : via relais HTTPS) |
 | Serveur relais Internet facultatif (menu en ligne, code SMS Orange Mali ou simulé, suivi et position du livreur en HTTPS) | ✅ (SMS simulé tant que le contrat Orange n'est pas signé) |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
-| Recettes, consignes, cloud, multi-établissements | V2, non commencé |
+| Recettes (ingrédients en g/ml/pièce), consommation théorique, coût matière | ✅ |
+| Consignes : bouteilles et casiers, vides, consigne versée au dépôt, retours | ✅ |
+| Rapprochement Mobile Money par relevé d'opérateur (CSV) | ✅ |
+| Promotions et happy hours (prix fixe ou %, horaires, jours, dates) | ✅ |
+| Statistiques : panier moyen, ventes par heure et par jour, serveurs, comparaison de périodes | ✅ |
+| Cloud facultatif : résumé SMS de clôture, sauvegardes chiffrées, espace propriétaire multi-restaurants | ✅ |
 
 ## Démarrer
 
@@ -44,7 +50,22 @@ cd ui && npm ci && npm run build && cd ..
 cargo run -p youma-server -- --demo --donnees ./donnees --ui ui/dist
 # → http://127.0.0.1:7878
 # Mode réseau (téléphones des serveurs) : ajouter --reseau
+#   → aussi https://<IP du PC>:7879 (HTTPS local, pour installer l'application ; --port-https 0 pour le couper)
 ```
+
+### Installer Youma sur les téléphones (PWA)
+
+Les navigateurs n'installent une application web qu'en HTTPS. En mode réseau, le poste central crée
+son autorité de certification (conservée dans la base, limitée aux adresses du réseau local) et sert
+l'application en HTTPS sur le port suivant. Pour chaque téléphone, **une seule fois** :
+
+1. Administration → Appareils : scanner le QR « certificat du restaurant » et installer le certificat
+   (Android : Paramètres → Sécurité → Installer un certificat → Certificat CA ; iPhone : Réglages →
+   Profil téléchargé, puis Général → Informations → Réglages des certificats).
+2. Scanner le QR d'appairage (adresse `https://…:7879`), puis « Installer l'application » sur l'accueil.
+
+L'espace propriétaire (`/proprietaire` sur le relais, déjà en HTTPS) s'installe de la même façon, avec
+sa propre icône. Icônes : `ui/public/icone.svg`, PNG produits par `cd ui && node outils/icones.mjs`.
 
 ### Relais Internet (facultatif)
 
@@ -68,6 +89,18 @@ YOUMA_ORANGE_NOM_EXPEDITEUR=Baobab   # facultatif, nom validé par Orange
 ```
 
 Sans ces identifiants, le relais **simule** l'envoi : le code s'affiche sur la page du client (essais, démonstration).
+
+### Cloud (facultatif)
+
+Le même serveur Internet sert de cloud pour plusieurs restaurants. Le fournisseur inscrit chaque restaurant :
+
+```bash
+cargo run --release -p youma-relais -- --ajouter-restaurant "Maquis Le Baobab" --donnees ./donnees-relais
+# → affiche la clé à saisir sur le poste central (Administration → Cloud)
+```
+
+Sur le poste : adresse, clé, téléphone du propriétaire, phrase de chiffrement (à noter sur papier) et mot de passe
+de l'espace propriétaire. Le propriétaire consulte ensuite tous ses restaurants sur `https://…/proprietaire`.
 
 ## Tests
 

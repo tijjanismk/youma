@@ -178,22 +178,34 @@ pub(crate) fn inserer_mouvement(
 }
 
 /// RG-STK-01 : sortie d'un article revendu à l'envoi (ou au paiement en comptoir).
+/// RG-REC-02 : plat avec recette → sortie de chaque ingrédient (plat + options choisies).
 pub(crate) fn sortie_vente(op: &Op, ligne_id: &str) -> Resultat<()> {
-    let r: Option<(i64, i64, bool, bool, String, Option<String>, Option<String>)> = op
+    let r: Option<(i64, i64, bool, bool, String, Option<String>, Option<String>, String, String)> = op
         .query_row(
-            "SELECT l.quantite, l.quantite_annulee, l.offert, l.stock_sorti, p.suivi_stock, p.article_stock_id, c.employe_id
+            "SELECT l.quantite, l.quantite_annulee, l.offert, l.stock_sorti, p.suivi_stock, p.article_stock_id, c.employe_id,
+                    p.id, l.options_json
              FROM lignes_commande l JOIN produits p ON p.id = l.produit_id JOIN commandes c ON c.id = l.commande_id
              WHERE l.id = ?1",
             params![ligne_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?)),
         )
         .optional()?;
-    let Some((q, qa, offert, deja, suivi, article, employe)) = r else { return Ok(()) };
-    if deja || suivi != "revendu" {
+    let Some((q, qa, offert, deja, suivi, article, employe, produit, options)) = r else { return Ok(()) };
+    if deja {
         return Ok(());
     }
-    let Some(article) = article else { return Ok(()) };
-    let cout: i64 = op.query_row("SELECT cout_unitaire FROM articles_stock WHERE id = ?1", params![article], |r| r.get(0))?;
+    // (article, quantité par unité vendue, coût unitaire de l'article)
+    let consommation: Vec<(String, i64, i64)> = match (suivi.as_str(), article) {
+        ("revendu", Some(a)) => {
+            let cout: i64 = op.query_row("SELECT cout_unitaire FROM articles_stock WHERE id = ?1", params![a], |r| r.get(0))?;
+            vec![(a, 1, cout)]
+        }
+        ("recette", _) => crate::recettes::consommation_unitaire(op, &produit, &options)?,
+        _ => return Ok(()),
+    };
+    if consommation.is_empty() {
+        return Ok(());
+    }
     let type_ = if employe.is_some() {
         "consommation_employe"
     } else if offert {
@@ -201,29 +213,47 @@ pub(crate) fn sortie_vente(op: &Op, ligne_id: &str) -> Resultat<()> {
     } else {
         "vente"
     };
-    inserer_mouvement(op, &article, type_, -(q - qa), cout, "", Some(("ligne_commande", ligne_id)))?;
-    op.execute(
-        "UPDATE lignes_commande SET stock_sorti = 1, cout_unitaire = ?1 WHERE id = ?2",
-        params![cout, ligne_id],
-    )?;
+    for (a, par_unite, cout) in &consommation {
+        inserer_mouvement(op, a, type_, -(q - qa) * par_unite, *cout, "", Some(("ligne_commande", ligne_id)))?;
+    }
+    // Coût d'une unité vendue : sert au bénéfice estimé (RG-RAP-03).
+    let cout_unite: i64 = consommation.iter().map(|(_, n, c)| n * c).sum();
+    op.execute("UPDATE lignes_commande SET stock_sorti = 1, cout_unitaire = ?1 WHERE id = ?2", params![cout_unite, ligne_id])?;
     Ok(())
 }
 
-/// RG-STK-02 : retour en stock d'un article annulé, sauf perte.
+/// RG-STK-02 / RG-REC-03 : retour en stock d'un article annulé (ou des ingrédients, au prorata), sauf perte.
+/// Appelée après la mise à jour de `quantite_annulee`.
 pub(crate) fn retour_annulation(op: &Op, ligne_id: &str, quantite: i64, perte: bool) -> Resultat<()> {
     if perte {
         return Ok(());
     }
-    let r: Option<(bool, Option<String>, i64)> = op
-        .query_row(
-            "SELECT l.stock_sorti, p.article_stock_id, l.cout_unitaire FROM lignes_commande l JOIN produits p ON p.id = l.produit_id
-             WHERE l.id = ?1 AND p.suivi_stock = 'revendu'",
-            params![ligne_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )
-        .optional()?;
-    if let Some((true, Some(article), cout)) = r {
-        inserer_mouvement(op, &article, "annulation_vente", quantite, cout, "", Some(("ligne_commande", ligne_id)))?;
+    let (sorti, vendu): (bool, i64) = match op
+        .query_row("SELECT stock_sorti, quantite FROM lignes_commande WHERE id = ?1", params![ligne_id], |r| Ok((r.get(0)?, r.get(1)?)))
+        .optional()?
+    {
+        Some(x) => x,
+        None => return Ok(()),
+    };
+    if !sorti || vendu <= 0 {
+        return Ok(());
+    }
+    // La sortie a lieu à l'envoi, avant toute annulation : sortie totale ÷ quantité = consommation d'une unité.
+    // Plafonné à ce qui reste dehors (les unités perdues ne reviennent jamais).
+    let sorties: Vec<(String, i64, i64, i64)> = op
+        .prepare(
+            "SELECT article_id,
+                    -SUM(CASE WHEN type IN ('vente','offert','consommation_employe') THEN quantite ELSE 0 END),
+                    -SUM(quantite), MAX(cout_unitaire)
+             FROM mouvements_stock WHERE reference_type = 'ligne_commande' AND reference_id = ?1 GROUP BY article_id",
+        )?
+        .query_map(params![ligne_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        .collect::<Result<_, _>>()?;
+    for (article, sorti_total, dehors, cout) in sorties {
+        let rendu = (sorti_total * quantite / vendu).min(dehors);
+        if rendu > 0 {
+            inserer_mouvement(op, &article, "annulation_vente", rendu, cout, "", Some(("ligne_commande", ligne_id)))?;
+        }
     }
     Ok(())
 }

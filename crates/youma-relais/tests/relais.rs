@@ -219,3 +219,75 @@ async fn sms_simule_tant_qu_orange_n_est_pas_configure() {
     assert_eq!(s["sms"], "simulation");
     assert_eq!(s["commandes"][0]["telephone_verifie"], true);
 }
+
+/// Cloud multi-restaurants : résumés, SMS de clôture une seule fois, espace propriétaire, sauvegardes chiffrées.
+#[tokio::test]
+async fn cloud_resumes_proprietaire_et_sauvegardes() {
+    let dossier = tempfile::tempdir().unwrap();
+    let cle_a = youma_relais::inscrire_restaurant(dossier.path(), "Maquis A").unwrap();
+    let cle_b = youma_relais::inscrire_restaurant(dossier.path(), "Maquis B").unwrap();
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: FournisseurSms::Simulation };
+    let etat = Etat::ouvrir(&config).unwrap();
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/api", ecoute.local_addr().unwrap());
+    tokio::spawn(youma_relais::servir(etat, None, ecoute));
+    let c = reqwest::Client::new();
+    let hash = youma_core::auth::hacher("mot-de-passe-proprio").unwrap();
+    let resume = |date: &str, ca: i64, cloturee: bool| {
+        json!({ "date": date, "cloturee": cloturee, "chiffre_affaires": ca, "commandes": 3, "depenses": 0, "encaissements": [["especes", ca]],
+                "mobile_money_a_verifier": [0, 0], "annulations": [0, 0], "ecarts_caisse": 0, "mis_a_jour": 0 })
+    };
+    let sync = |cle: String, corps: Value| {
+        let c = c.clone();
+        let url = url.clone();
+        async move {
+            let r = c.post(format!("{url}/cloud/synchroniser")).bearer_auth(cle).json(&corps).send().await.unwrap();
+            (r.status().as_u16(), r.json::<Value>().await.unwrap_or(Value::Null))
+        }
+    };
+    let corps = |nom: &str, resumes: Vec<Value>| json!({ "restaurant": nom, "telephone_proprietaire": "+223 76 00 00 01", "mdp_hash": hash, "sms_resume": true, "resumes": resumes });
+    assert_eq!(sync("inconnue".into(), corps("X", vec![])).await.0, 401);
+    // Journée en cours : pas de SMS ; clôturée : un SMS, une seule fois.
+    assert_eq!(sync(cle_a.clone(), corps("Maquis A", vec![resume("2026-03-14", 5_000, false)])).await.1["sms_envoyes"], 0);
+    assert_eq!(sync(cle_a.clone(), corps("Maquis A", vec![resume("2026-03-14", 8_000, true)])).await.1["sms_envoyes"], 1);
+    assert_eq!(sync(cle_a.clone(), corps("Maquis A", vec![resume("2026-03-14", 8_000, true)])).await.1["sms_envoyes"], 0);
+    sync(cle_b.clone(), corps("Maquis B", vec![resume("2026-03-14", 2_000, false)])).await;
+
+    // Espace propriétaire : les deux maquis, et le total de la journée.
+    let r = c.post(format!("{url}/proprietaire/connexion")).json(&json!({ "telephone": "76000001", "mot_de_passe": "faux" })).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 401);
+    let r: Value = c
+        .post(format!("{url}/proprietaire/connexion"))
+        .json(&json!({ "telephone": "76 00 00 01", "mot_de_passe": "mot-de-passe-proprio" }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r["restaurants"], 2);
+    let jeton = r["jeton"].as_str().unwrap().to_string();
+    let t: Value = c.get(format!("{url}/proprietaire/tableau")).bearer_auth(&jeton).send().await.unwrap().json().await.unwrap();
+    assert_eq!(t["restaurants"].as_array().unwrap().len(), 2);
+    assert_eq!(t["totaux"][0], json!({ "date": "2026-03-14", "chiffre_affaires": 10_000, "commandes": 6 }));
+    assert_eq!(c.get(format!("{url}/proprietaire/tableau")).bearer_auth("faux").send().await.unwrap().status().as_u16(), 401);
+
+    // Sauvegardes : chiffrées seulement, 14 gardées, invisibles des autres restaurants.
+    let envoyer = |cle: String, nom: String, octets: Vec<u8>| {
+        let c = c.clone();
+        let url = url.clone();
+        async move { c.put(format!("{url}/cloud/sauvegardes/envoi/{nom}")).bearer_auth(cle).body(octets).send().await.unwrap().status().as_u16() }
+    };
+    assert_eq!(envoyer(cle_a.clone(), "clair.db".into(), b"SQLite format 3 non chiffre........................".to_vec()).await, 422);
+    let chiffre = youma_core::cloud::chiffrer(b"base du maquis A", "phrase du maquis A !").unwrap();
+    for i in 0..16 {
+        assert_eq!(envoyer(cle_a.clone(), format!("youma-{i:02}.db"), chiffre.clone()).await, 200);
+    }
+    let liste: Value = c.get(format!("{url}/cloud/sauvegardes")).bearer_auth(&cle_a).send().await.unwrap().json().await.unwrap();
+    assert_eq!(liste.as_array().unwrap().len(), 14);
+    assert_eq!(liste[0]["nom"], "youma-15.db");
+    let id = liste[0]["id"].as_str().unwrap();
+    let octets = c.get(format!("{url}/cloud/sauvegardes/{id}")).bearer_auth(&cle_a).send().await.unwrap().bytes().await.unwrap();
+    assert_eq!(youma_core::cloud::dechiffrer(&octets, "phrase du maquis A !").unwrap(), b"base du maquis A");
+    assert_eq!(c.get(format!("{url}/cloud/sauvegardes/{id}")).bearer_auth(&cle_b).send().await.unwrap().status().as_u16(), 404);
+}

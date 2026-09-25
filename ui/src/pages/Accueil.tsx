@@ -1,26 +1,48 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  Banknote,
+  Bike,
+  ChartColumn,
+  ChartPie,
+  ChefHat,
+  Inbox,
+  LayoutGrid,
+  Package,
+  ReceiptText,
+  ScrollText,
+  Settings,
+  ShoppingCart,
+  Smartphone,
+  Ticket,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { CarteInstallation } from "../composants/Installation";
 import { post } from "../api";
 import { useApp } from "../contexte";
 import { dateFr } from "../format";
 import type { EtatGeneral } from "../types";
 
-export const MENU: { chemin: string; libelle: string; icone: string; permission?: string }[] = [
-  { chemin: "/salle", libelle: "Salle et commandes", icone: "🍽️", permission: "commande.creer" },
-  { chemin: "/entrantes", libelle: "Commandes reçues", icone: "📥", permission: "commande.valider_entrante" },
-  { chemin: "/caisse", libelle: "Caisse", icone: "💰", permission: "caisse.session" },
-  { chemin: "/cuisine", libelle: "Cuisine / Bar", icone: "👨‍🍳", permission: "cuisine.voir" },
-  { chemin: "/livraisons", libelle: "Livraisons", icone: "🛵", permission: "livraison.gerer" },
-  { chemin: "/sortie", libelle: "Contrôle de sortie", icone: "🎫", permission: "sortie.controler" },
-  { chemin: "/tableau-de-bord", libelle: "Ma journée", icone: "📊", permission: "rapport.voir" },
-  { chemin: "/mobile-money", libelle: "Mobile Money", icone: "📱", permission: "caisse.verifier_mm" },
-  { chemin: "/stock", libelle: "Stock", icone: "📦", permission: "stock.voir" },
-  { chemin: "/achats", libelle: "Achats", icone: "🛒", permission: "achat.gerer" },
-  { chemin: "/clients", libelle: "Clients et crédit", icone: "🧾", permission: "client.gerer" },
-  { chemin: "/employes", libelle: "Employés", icone: "👥", permission: "employe.voir" },
-  { chemin: "/paie", libelle: "Paie", icone: "💵", permission: "paie.gerer" },
-  { chemin: "/rapports", libelle: "Rapports", icone: "📈", permission: "rapport.voir" },
-  { chemin: "/journal", libelle: "Journal d'audit", icone: "🔎", permission: "audit.voir" },
-  { chemin: "/administration", libelle: "Administration", icone: "⚙️", permission: "catalogue.gerer" },
+export type EntreeMenu = { chemin: string; libelle: string; court: string; Icone: LucideIcon; permission?: string };
+
+export const MENU: EntreeMenu[] = [
+  { chemin: "/salle", libelle: "Salle et commandes", court: "Salle", Icone: LayoutGrid, permission: "commande.creer" },
+  { chemin: "/entrantes", libelle: "Commandes reçues", court: "Reçues", Icone: Inbox, permission: "commande.valider_entrante" },
+  { chemin: "/caisse", libelle: "Caisse", court: "Caisse", Icone: Wallet, permission: "caisse.session" },
+  { chemin: "/cuisine", libelle: "Cuisine / Bar", court: "Cuisine", Icone: ChefHat, permission: "cuisine.voir" },
+  { chemin: "/livraisons", libelle: "Livraisons", court: "Livraisons", Icone: Bike, permission: "livraison.gerer" },
+  { chemin: "/sortie", libelle: "Contrôle de sortie", court: "Sortie", Icone: Ticket, permission: "sortie.controler" },
+  { chemin: "/tableau-de-bord", libelle: "Ma journée", court: "Journée", Icone: ChartPie, permission: "rapport.voir" },
+  { chemin: "/mobile-money", libelle: "Mobile Money", court: "Mobile M.", Icone: Smartphone, permission: "caisse.verifier_mm" },
+  { chemin: "/stock", libelle: "Stock", court: "Stock", Icone: Package, permission: "stock.voir" },
+  { chemin: "/achats", libelle: "Achats", court: "Achats", Icone: ShoppingCart, permission: "achat.gerer" },
+  { chemin: "/clients", libelle: "Clients et crédit", court: "Clients", Icone: ReceiptText, permission: "client.gerer" },
+  { chemin: "/employes", libelle: "Employés", court: "Employés", Icone: Users, permission: "employe.voir" },
+  { chemin: "/paie", libelle: "Paie", court: "Paie", Icone: Banknote, permission: "paie.gerer" },
+  { chemin: "/rapports", libelle: "Rapports", court: "Rapports", Icone: ChartColumn, permission: "rapport.voir" },
+  { chemin: "/journal", libelle: "Journal d'audit", court: "Journal", Icone: ScrollText, permission: "audit.voir" },
+  { chemin: "/administration", libelle: "Administration", court: "Réglages", Icone: Settings, permission: "catalogue.gerer" },
 ];
 
 /** Entrées du menu permises ; « Commandes reçues » seulement si le QR ou l'en ligne est activé. */
@@ -92,12 +114,13 @@ export default function Accueil() {
         {liens.map((m) => (
           <Link key={m.chemin} to={m.chemin} className="tuile">
             <span className="icone" aria-hidden>
-              {m.icone}
+              <m.Icone size={26} strokeWidth={1.8} />
             </span>
             <strong>{m.libelle}</strong>
           </Link>
         ))}
       </div>
+      <CarteInstallation />
     </div>
   );
 }

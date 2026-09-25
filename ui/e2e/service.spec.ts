@@ -96,7 +96,7 @@ test("écran cuisine : les envois arrivent par poste et passent à « prêt »",
 test("annulation après envoi : motif puis PIN du gérant", async ({ page }) => {
   await connexion(page, /Awa/, "4444");
   await page.goto("/salle");
-  await page.getByRole("button", { name: /^Table 7 Libre/ }).click();
+  await page.getByRole("button", { name: /^Table T3 Libre/ }).click();
   await page.getByRole("tab", { name: /Grillades/ }).click();
   await page.getByRole("button", { name: /^Poulet braisé \d/ }).click();
   await page.getByRole("button", { name: /^Envoyer \(1\)/ }).click();
@@ -232,8 +232,19 @@ test("interface utilisable sur le téléphone d'un serveur", async ({ browser })
   // Pas de débordement horizontal.
   const largeur = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(largeur).toBeLessThanOrEqual(390);
-  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "Menu principal" })).toBeVisible();
+  // Prise de commande : les plats occupent l'écran, la commande monte en tiroir.
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Voir la commande \(1\)/ }).click();
+  await expect(page.getByRole("button", { name: "Ajouter un Bière blonde" })).toBeInViewport();
+  await page.getByRole("button", { name: "Fermer la commande" }).click();
+  await expect(page.getByRole("button", { name: /^Voir la commande/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await contexte.close();
 });
 
@@ -317,4 +328,141 @@ test("commandes à distance : QR sur la table, en ligne, zone à risque, validat
   await expect(web.getByText("Commande refusée")).toBeVisible();
   await expect(web.getByText("Rupture")).toBeVisible();
   await client.close();
+});
+
+test("recette d'un plat : coût matière calculé, rapport « Coût matière »", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/administration");
+  await page.getByRole("button", { name: "Recette de Frites" }).click();
+  const d = page.getByRole("dialog", { name: "Recette — Frites" });
+  // Démo : 250 g de pommes de terre (1 FCFA/g) + 30 ml d'huile (2 FCFA/ml) = 310 FCFA pour 750 FCFA.
+  await expect(d).toContainText("Coût matière : 310 FCFA");
+  await expect(d).toContainText("41,33 %");
+  await expect(d.getByText(/Taille : Grande \(\+ 150 FCFA\)/)).toBeVisible();
+  await d.getByLabel("Plat : quantité de Pommes de terre").fill("300");
+  await expect(d).toContainText("Coût matière : 360 FCFA");
+  await d.getByRole("button", { name: "Enregistrer la recette" }).click();
+  await expect(page.getByText("Recette enregistrée")).toBeVisible();
+  await page.goto("/rapports");
+  await page.getByRole("tab", { name: "Coût matière" }).click();
+  const ligne = page.getByRole("row", { name: /Frites/ });
+  await expect(ligne).toContainText("360 FCFA");
+  await expect(ligne).toContainText("48,00 %");
+});
+
+test("consignes : casiers reçus et vides rendus à la livraison, comptage", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/achats");
+  await page.getByLabel("Fournisseur").selectOption({ label: "Dépôt de boissons du quartier" });
+  await page.getByLabel("Paiement").selectOption("credit");
+  await page.getByText(/^Emballages consignés/).click();
+  await page.getByLabel("Reçus : Casier bière (12)").fill("2");
+  await page.getByLabel("Rendus : Casier bière (12)").fill("1");
+  await expect(page.getByText("Emballages consignés (consigne 2 500 FCFA)")).toBeVisible();
+  await page.getByRole("button", { name: "Enregistrer la réception" }).click();
+  await expect(page.getByText("Réception enregistrée")).toBeVisible();
+
+  await page.goto("/stock");
+  await page.getByRole("tab", { name: /Consignes/ }).click();
+  // Démo : 3 casiers ; +2 reçus −1 rendu = 4 détenus.
+  const casier = page.getByRole("row", { name: /Casier bière \(12\)/ });
+  await expect(casier.getByRole("cell").nth(2)).toHaveText("4");
+  await page.getByRole("button", { name: "Compter les vides : Casier bière (12)" }).click();
+  await page.getByLabel("Nombre compté").fill("4");
+  await page.getByRole("button", { name: "Valider le comptage" }).click();
+  await expect(page.getByText("Comptage conforme")).toBeVisible();
+});
+
+test("Mobile Money : relevé de l'opérateur importé, paiement vérifié d'un coup", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/mobile-money");
+  await page.getByRole("tab", { name: "Relevé de l'opérateur" }).click();
+  await page.getByLabel("Compte").selectOption({ label: "Orange Money" });
+  // Le paiement de la table 4 (4 000 FCFA, référence saisie au service) figure au relevé, avec une ligne inconnue.
+  await page.getByLabel("Fichier du relevé").setInputFiles({
+    name: "orange-money.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Référence;Montant;Expéditeur\nPP260314.1830.A12345;4 000;70112233\nINCONNU1;500;76000000\n"),
+  });
+  const bilan = page.getByLabel("Bilan du rapprochement");
+  await expect(bilan).toContainText("1 paiement(s) vérifié(s)");
+  await expect(bilan).toContainText("INCONNU1");
+  await page.getByRole("tab", { name: "Tous" }).click();
+  await expect(page.getByRole("row", { name: /PP260314\.1830\.A12345/ })).toContainText("Vérifié");
+});
+
+test("happy hour : le prix réduit s'affiche et s'applique à la saisie", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Promotions" }).click();
+  await page.getByRole("button", { name: "+ Promotion" }).click();
+  const d = page.getByRole("dialog", { name: "Promotion" });
+  await d.getByLabel("Nom").fill("Coca à 500");
+  await d.getByLabel("Produit").selectOption({ label: "Coca-Cola (750 FCFA)" });
+  await d.getByLabel("Prix pendant la promotion").fill("500");
+  await d.getByLabel("De (heure)").fill("00:00");
+  await d.getByLabel("À (heure)").fill("24:00");
+  await d.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByRole("cell", { name: "Coca à 500" })).toBeVisible();
+
+  // Vente à emporter : indépendante des tables occupées par les tests précédents.
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Boissons/ }).click();
+  const coca = page.getByRole("button", { name: "Coca-Cola 500 FCFA" });
+  await expect(coca).toContainText("Coca à 500");
+  await coca.click();
+  // À emporter : on paie d'abord ; le montant à encaisser est celui du happy hour.
+  await expect(page.getByRole("button", { name: /^Encaisser 500 FCFA/ })).toBeVisible();
+});
+
+test("statistiques : panier moyen, ventes par heure, serveurs, comparaison", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/rapports");
+  await page.getByRole("tab", { name: "Statistiques" }).click();
+  await expect(page.locator(".indicateur").filter({ hasText: "Panier moyen" })).toContainText("FCFA");
+  await expect(page.getByRole("heading", { name: "Ventes par heure" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Serveurs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Comparaison avec la période précédente/ })).toBeVisible();
+  await expect(page.getByText("Évolution du chiffre d'affaires")).toBeVisible();
+});
+
+test("cloud : réglages protégés par mot de passe, mot de passe de l'espace propriétaire", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Cloud" }).click();
+  await page.getByRole("button", { name: "Saisir mon mot de passe" }).click();
+  await page.getByLabel("Mot de passe", { exact: true }).fill("baobab123");
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await expect(page.getByRole("heading", { name: "Cloud (facultatif)" })).toBeVisible();
+  await expect(page.getByText("Cloud non configuré.")).toBeVisible();
+  await page.getByLabel("Nouveau mot de passe distant").fill("acces-distant-1");
+  await page.getByRole("button", { name: "Enregistrer le mot de passe" }).click();
+  await expect(page.getByText("Mot de passe distant enregistré")).toBeVisible();
+});
+
+test("aucun écran ne déborde sur un téléphone (propriétaire, nom long)", async ({ browser }) => {
+  const contexte = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
+  const page = await contexte.newPage();
+  await connexion(page, /Mariam/, "1234");
+  const routes = ["/", "/salle", "/entrantes", "/caisse", "/cuisine", "/livraisons", "/sortie", "/tableau-de-bord", "/mobile-money", "/stock", "/achats", "/clients", "/employes", "/paie", "/rapports", "/journal", "/administration"];
+  // Prise de commande : l'écran principal des serveurs.
+  await page.goto("/");
+  await page.getByRole("button", { name: /Vente comptoir/ }).click();
+  await expect(page.getByPlaceholder("Rechercher un produit…")).toBeVisible();
+  routes.push(new URL(page.url()).pathname);
+  const debordements: string[] = [];
+  for (const r of routes) {
+    await page.goto(r);
+    await page.waitForLoadState("networkidle");
+    const largeur = await page.evaluate(() => document.documentElement.scrollWidth);
+    if (largeur > 390) debordements.push(`${r} : ${largeur} px`);
+  }
+  expect(debordements).toEqual([]);
+  // L'en-tête garde le bouton pour changer d'utilisateur, visible et utilisable au doigt.
+  const changer = page.getByRole("button", { name: "Changer d'utilisateur" });
+  await expect(changer).toBeVisible();
+  expect((await changer.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+  await contexte.close();
 });

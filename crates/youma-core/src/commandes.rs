@@ -532,14 +532,15 @@ pub(crate) fn ajouter_lignes_op(op: &mut Op, commande_id: &str, lignes: &[LigneS
         if connues != l.options.len() {
             return Err(Erreur::validation("Option inconnue pour ce produit"));
         }
-        // RG-CAT-01/03 : prix copié, grille de la zone.
-        let prix = catalogue::prix_effectif(op, &p.id, e.zone_id.as_deref())?;
+        // RG-CAT-01/03 : prix copié, grille de la zone ; RG-PRO-02 : promotion en cours (happy hour).
+        let moment = crate::promotions::prix_du_moment(op, &p.id, e.zone_id.as_deref(), op.maintenant)?;
+        let prix = moment.prix;
         let libelle = if p.nom_court.is_empty() { p.nom.clone() } else { p.nom_court.clone() };
         let id = op.nouvel_id();
         op.execute(
             "INSERT INTO lignes_commande(id, commande_id, produit_id, libelle, quantite, prix_unitaire, options_json,
-                montant_options, commentaire, poste_id, statut, cree_le, cree_par)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'brouillon', ?11, ?12)",
+                montant_options, commentaire, poste_id, statut, cree_le, cree_par, promotion_id, prix_normal)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'brouillon', ?11, ?12, ?13, ?14)",
             params![
                 id,
                 commande_id,
@@ -552,7 +553,9 @@ pub(crate) fn ajouter_lignes_op(op: &mut Op, commande_id: &str, lignes: &[LigneS
                 l.commentaire.trim(),
                 p.poste_id,
                 op.maintenant,
-                op.utilisateur()
+                op.utilisateur(),
+                moment.promotion_id,
+                moment.promotion_id.is_some().then_some(moment.prix_normal)
             ],
         )?;
         ids.push(id);

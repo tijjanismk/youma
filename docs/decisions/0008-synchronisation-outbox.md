@@ -8,5 +8,6 @@
   si la `version` correspond, sinon rejetée et signalée (le local gagne).
 
 ## État
-Outbox alimentée et testée indirectement ; l'API cloud, le QR menu et la file de commandes distantes
-ne sont **pas** implémentés.
+Outbox alimentée. Le QR menu et les commandes distantes passent par le relais (fiche 0013) ; le cloud
+(fiche 0018) reçoit des résumés de journée et des sauvegardes chiffrées plutôt qu'une réplication ligne à ligne :
+la réplication complète par l'outbox reste possible plus tard, sans changer le poste.
