@@ -10,6 +10,7 @@ pub mod auth;
 pub mod caisse;
 pub mod catalogue;
 pub mod clients;
+pub mod cloud;
 pub mod commandes;
 pub mod consignes;
 pub mod db;

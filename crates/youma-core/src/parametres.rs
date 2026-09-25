@@ -41,6 +41,25 @@ pub struct Parametres {
     pub intervalle_sauvegarde_minutes: i64,
     /// Canaux de commande, chacun activable indépendamment (fiche 0013).
     pub canaux: Canaux,
+    /// Cloud facultatif : résumés, sauvegardes chiffrées, consultation à distance (fiche 0018).
+    pub cloud: Cloud,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(default)]
+pub struct Cloud {
+    /// Adresse du serveur Internet (le même que le relais) ; vide = pas de cloud.
+    pub url: String,
+    /// Clé du restaurant fournie à l'inscription au cloud.
+    pub cle: String,
+    /// Numéro du propriétaire : identifiant de l'espace propriétaire et destinataire du résumé SMS.
+    pub telephone_proprietaire: String,
+    /// Résumé SMS à la clôture de la journée.
+    pub sms_resume: bool,
+    /// Phrase de chiffrement des sauvegardes : ne quitte jamais le restaurant. À noter sur papier.
+    pub phrase_chiffrement: String,
+    /// Empreinte Argon2 du mot de passe de l'espace propriétaire (jamais le mot de passe lui-même).
+    pub mdp_hash: String,
 }
 
 /// RG-CAN-01 : le menu papier (saisie par le serveur) est toujours disponible ; les autres canaux sont optionnels.
@@ -136,6 +155,7 @@ impl Default for Parametres {
             alerte_sauvegarde_jours: 3,
             intervalle_sauvegarde_minutes: 30,
             canaux: Canaux::default(),
+            cloud: Cloud::default(),
         }
     }
 }
@@ -241,18 +261,30 @@ pub const SECRET_MASQUE: &str = "********";
 /// Paramètres lisibles sans connexion (`/api/etat`) : les secrets sont masqués.
 pub fn publics(conn: &Connection) -> Resultat<Parametres> {
     let mut p = lire(conn)?;
-    if !p.canaux.relais_cle.is_empty() {
-        p.canaux.relais_cle = SECRET_MASQUE.into();
+    for s in [&mut p.canaux.relais_cle, &mut p.cloud.cle, &mut p.cloud.phrase_chiffrement, &mut p.cloud.mdp_hash] {
+        if !s.is_empty() {
+            *s = SECRET_MASQUE.into();
+        }
     }
     Ok(p)
 }
 
 pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> Resultat<()> {
     let mut p = p.clone();
-    if p.canaux.relais_cle == SECRET_MASQUE {
-        // Formulaire rempli depuis les paramètres publics : la clé n'a pas été modifiée.
-        p.canaux.relais_cle = lire(db.conn())?.canaux.relais_cle;
+    // Formulaire rempli depuis les paramètres publics : un secret masqué n'a pas été modifié.
+    let actuel = lire(db.conn())?;
+    for (nouveau, ancien) in [
+        (&mut p.canaux.relais_cle, &actuel.canaux.relais_cle),
+        (&mut p.cloud.cle, &actuel.cloud.cle),
+        (&mut p.cloud.phrase_chiffrement, &actuel.cloud.phrase_chiffrement),
+        (&mut p.cloud.mdp_hash, &actuel.cloud.mdp_hash),
+    ] {
+        if nouveau == SECRET_MASQUE {
+            *nouveau = ancien.clone();
+        }
     }
+    // L'empreinte du mot de passe distant ne se change que par `cloud::definir_mot_de_passe`.
+    p.cloud.mdp_hash = actuel.cloud.mdp_hash.clone();
     let p = &p;
     db.executer(acteur, |op| {
         op.exiger(crate::permissions::PARAMETRE_GERER)?;
@@ -268,10 +300,12 @@ pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> R
         if (c.inps_active && c.inps_salarie_bp == 0) || (c.amo_active && c.amo_salarie_bp == 0) {
             return Err(crate::Erreur::regle("RG-PAI-07", "Saisissez le taux de cotisation avant de l'activer"));
         }
-        // Le journal d'audit ne garde pas la clé du relais.
+        // Le journal d'audit ne garde aucun secret.
         let masquer = |mut v: serde_json::Value| {
-            if v["canaux"]["relais_cle"].as_str().is_some_and(|c| !c.is_empty()) {
-                v["canaux"]["relais_cle"] = SECRET_MASQUE.into();
+            for (a, b) in [("canaux", "relais_cle"), ("cloud", "cle"), ("cloud", "phrase_chiffrement"), ("cloud", "mdp_hash")] {
+                if v[a][b].as_str().is_some_and(|c| !c.is_empty()) {
+                    v[a][b] = SECRET_MASQUE.into();
+                }
             }
             v
         };

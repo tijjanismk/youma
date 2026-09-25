@@ -1,4 +1,5 @@
 //! youma-relais --cle CLE [--donnees DOSSIER] [--port 8080] [--ui DOSSIER] [--derriere-proxy]
+//! youma-relais --ajouter-restaurant "NOM" [--donnees DOSSIER]   (cloud : affiche la clé du restaurant)
 //!
 //! À placer derrière un proxy HTTPS (Caddy, nginx) : la géolocalisation du livreur exige HTTPS.
 //! La clé peut aussi venir de la variable d'environnement `YOUMA_RELAIS_CLE`.
@@ -19,13 +20,25 @@ async fn main() {
         .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
     let args: Vec<String> = std::env::args().collect();
+    let donnees = arg(&args, "--donnees").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("donnees-relais"));
+    // Cloud (fiche 0018) : inscription d'un restaurant par le fournisseur.
+    if let Some(nom) = arg(&args, "--ajouter-restaurant") {
+        match youma_relais::inscrire_restaurant(&donnees, &nom) {
+            Ok(cle) => println!("Restaurant « {nom} » inscrit. Clé à saisir sur son poste central : {cle}"),
+            Err(e) => {
+                eprintln!("Erreur : {e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let cle = arg(&args, "--cle").or_else(|| std::env::var("YOUMA_RELAIS_CLE").ok()).unwrap_or_default();
     if cle.len() < 16 {
         eprintln!("Clé du relais obligatoire (16 caractères au moins) : --cle ou YOUMA_RELAIS_CLE");
         std::process::exit(2);
     }
     let config = Config {
-        dossier_donnees: arg(&args, "--donnees").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("donnees-relais")),
+        dossier_donnees: donnees,
         port: arg(&args, "--port").and_then(|p| p.parse().ok()).unwrap_or(8080),
         cle,
         dossier_ui: arg(&args, "--ui").map(PathBuf::from).or_else(|| Some(PathBuf::from("ui/dist")).filter(|p| p.exists())),

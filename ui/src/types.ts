@@ -52,6 +52,30 @@ export type Parametres = {
   alerte_sauvegarde_jours: number;
   intervalle_sauvegarde_minutes: number;
   canaux: Canaux;
+  cloud: CloudParams;
+};
+
+/** Cloud facultatif (fiche 0018). Les secrets arrivent masqués (« ******** ») depuis /etat. */
+export type CloudParams = {
+  url: string;
+  cle: string;
+  telephone_proprietaire: string;
+  sms_resume: boolean;
+  phrase_chiffrement: string;
+  mdp_hash: string;
+};
+
+export type ResumeJournee = {
+  date: string;
+  cloturee: boolean;
+  chiffre_affaires: number;
+  commandes: number;
+  depenses: number;
+  encaissements: [string, number][];
+  mobile_money_a_verifier: [number, number];
+  annulations: [number, number];
+  ecarts_caisse: number;
+  mis_a_jour: number;
 };
 
 /** Canaux de commande (fiche 0013) : le menu papier est toujours actif. */

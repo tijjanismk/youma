@@ -416,3 +416,17 @@ test("statistiques : panier moyen, ventes par heure, serveurs, comparaison", asy
   await expect(page.getByRole("heading", { name: /Comparaison avec la période précédente/ })).toBeVisible();
   await expect(page.getByText("Évolution du chiffre d'affaires")).toBeVisible();
 });
+
+test("cloud : réglages protégés par mot de passe, mot de passe de l'espace propriétaire", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Cloud" }).click();
+  await page.getByRole("button", { name: "Saisir mon mot de passe" }).click();
+  await page.getByLabel("Mot de passe", { exact: true }).fill("baobab123");
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await expect(page.getByRole("heading", { name: "Cloud (facultatif)" })).toBeVisible();
+  await expect(page.getByText("Cloud non configuré.")).toBeVisible();
+  await page.getByLabel("Nouveau mot de passe distant").fill("acces-distant-1");
+  await page.getByRole("button", { name: "Enregistrer le mot de passe" }).click();
+  await expect(page.getByText("Mot de passe distant enregistré")).toBeVisible();
+});

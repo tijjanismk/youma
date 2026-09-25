@@ -2,6 +2,7 @@
 //! Même code en mono-poste (écoute locale) et en réseau (écoute sur le réseau local).
 
 pub mod api;
+pub mod cloud;
 pub mod erreurs;
 pub mod imprimantes;
 pub mod relais;
@@ -51,6 +52,8 @@ pub struct Etat {
     pub config: Arc<Config>,
     /// État de la synchronisation avec le relais Internet facultatif.
     pub relais: Arc<Mutex<relais::EtatRelais>>,
+    /// État de la synchronisation avec le cloud facultatif (fiche 0018).
+    pub cloud: Arc<Mutex<cloud::EtatCloud>>,
 }
 
 impl Etat {
@@ -73,7 +76,7 @@ impl Etat {
         if !r.ok {
             tracing::error!("Contrôle d'intégrité en échec : {:?}", r.messages);
         }
-        Ok(Etat { db: Arc::new(Mutex::new(db)), evenements: tx, config: Arc::new(config), relais: Arc::default() })
+        Ok(Etat { db: Arc::new(Mutex::new(db)), evenements: tx, config: Arc::new(config), relais: Arc::default(), cloud: Arc::default() })
     }
 
     /// Exécute une fonction bloquante sur la base (un seul écrivain, cf. fiche 0003).
@@ -171,6 +174,7 @@ pub async fn demarrer(config: Config) -> Resultat<()> {
 pub async fn servir(etat: Etat, ecoute: tokio::net::TcpListener) -> Resultat<()> {
     taches::lancer(etat.clone());
     relais::lancer(etat.clone());
+    cloud::lancer(etat.clone());
     let app = api::routeur(etat);
     axum::serve(ecoute, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())

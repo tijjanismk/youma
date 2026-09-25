@@ -31,6 +31,7 @@ const Entrantes = lazy(() => import("./pages/Entrantes"));
 const MenuClient = lazy(() => import("./public/MenuClient"));
 const SuiviClient = lazy(() => import("./public/Suivi"));
 const Livreur = lazy(() => import("./public/Livreur"));
+const Proprietaire = lazy(() => import("./public/Proprietaire"));
 
 /** Pages ouvertes par un QR ou un lien envoyé au client : hors de l'application du personnel. */
 function PagePublique() {
@@ -41,12 +42,13 @@ function PagePublique() {
       {chemin.startsWith("/menu") && <MenuClient />}
       {chemin.startsWith("/suivi/") && <SuiviClient code={code} />}
       {chemin.startsWith("/livreur/") && <Livreur code={code} />}
+      {chemin.startsWith("/proprietaire") && <Proprietaire />}
     </Suspense>
   );
 }
 
 export function estPagePublique(chemin: string) {
-  return chemin === "/menu" || chemin.startsWith("/menu/") || chemin.startsWith("/suivi/") || chemin.startsWith("/livreur/");
+  return chemin === "/menu" || chemin.startsWith("/menu/") || chemin.startsWith("/suivi/") || chemin.startsWith("/livreur/") || chemin.startsWith("/proprietaire");
 }
 
 export default function App() {

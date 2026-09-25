@@ -36,7 +36,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Rapprochement Mobile Money par relevé d'opérateur (CSV) | ✅ |
 | Promotions et happy hours (prix fixe ou %, horaires, jours, dates) | ✅ |
 | Statistiques : panier moyen, ventes par heure et par jour, serveurs, comparaison de périodes | ✅ |
-| Cloud, multi-établissements | V2, non commencé |
+| Cloud facultatif : résumé SMS de clôture, sauvegardes chiffrées, espace propriétaire multi-restaurants | ✅ |
 
 ## Démarrer
 
@@ -73,6 +73,18 @@ YOUMA_ORANGE_NOM_EXPEDITEUR=Baobab   # facultatif, nom validé par Orange
 ```
 
 Sans ces identifiants, le relais **simule** l'envoi : le code s'affiche sur la page du client (essais, démonstration).
+
+### Cloud (facultatif)
+
+Le même serveur Internet sert de cloud pour plusieurs restaurants. Le fournisseur inscrit chaque restaurant :
+
+```bash
+cargo run --release -p youma-relais -- --ajouter-restaurant "Maquis Le Baobab" --donnees ./donnees-relais
+# → affiche la clé à saisir sur le poste central (Administration → Cloud)
+```
+
+Sur le poste : adresse, clé, téléphone du propriétaire, phrase de chiffrement (à noter sur papier) et mot de passe
+de l'espace propriétaire. Le propriétaire consulte ensuite tous ses restaurants sur `https://…/proprietaire`.
 
 ## Tests
 

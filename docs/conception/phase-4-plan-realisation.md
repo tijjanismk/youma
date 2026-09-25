@@ -20,7 +20,7 @@
 | 14 | Rapprochement Mobile Money par relevé d'opérateur (fiche 0016) | relevés réels Orange Money, Moov, Wave | ✅ (formats à valider sur de vrais relevés) |
 | 15 | Promotions et happy hours (fiche 0017) | un happy hour réel en fin de journée | ✅ |
 | 16 | Statistiques : panier moyen, heures, jours, serveurs, comparaison de périodes | un mois d'activité | ✅ |
-| V2 | Cloud, multi-sites | — | ❌ conçu, non implémenté |
+| 17 | Cloud facultatif : résumés, SMS de clôture, sauvegardes chiffrées, espace propriétaire multi-restaurants (fiche 0018) | un propriétaire avec deux maquis | ✅ |
 
 Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imprimante cuisine), puis mode réseau.
 
@@ -43,7 +43,8 @@ Prochaine étape recommandée : **pilote réel d'une semaine** (mono-poste + imp
 | Relevés MM | `cargo test` | `crates/youma-core/tests/releves_mm.rs` + lecture CSV | RG-RMM-01 à 05 |
 | Promotions | `cargo test` | `crates/youma-core/tests/promotions.rs` + plages horaires | RG-PRO-01 à 04 |
 | Statistiques | `cargo test` | `crates/youma-core/tests/statistiques.rs` | RG-STA-01 à 04 |
-| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 17 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi, recette et coût matière, consignes, relevé Mobile Money, happy hour, statistiques |
+| Cloud | `cargo test` | `youma-core/tests/cloud.rs`, chiffrement, `youma-relais/tests`, `youma-server/tests/api.rs` | RG-CLO-01 à 05, poste ↔ cloud de bout en bout |
+| Bout en bout | Playwright (Chromium) | `ui/e2e/service.spec.ts` | 18 parcours réels : journée, service à table, cuisine, annulation avec PIN, coupure du poste central, employé sans contrat, INPS/AMO, tableau de bord, clôture Z, téléphone, commande QR et en ligne avec zone à risque et suivi, recette et coût matière, consignes, relevé Mobile Money, happy hour, statistiques, cloud |
 
 Commandes :
 

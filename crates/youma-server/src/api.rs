@@ -16,7 +16,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
-    achats, appareils, auth, caisse, catalogue, clients, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
+    achats, appareils, auth, caisse, catalogue, clients, cloud, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
     licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, stock, zones_risque, Db,
 };
 
@@ -225,6 +225,11 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/tables/codes-qr", get(codes_qr).post(codes_qr_generer))
         .route("/commandes/{id}/liens", post(commande_liens))
         .route("/relais/etat", get(relais_etat))
+        .route("/cloud/etat", get(cloud_etat))
+        .route("/cloud/synchroniser", post(cloud_synchroniser))
+        .route("/cloud/mot-de-passe", post(cloud_mot_de_passe))
+        .route("/cloud/sauvegardes", get(cloud_sauvegardes))
+        .route("/cloud/sauvegardes/{id}/recuperer", post(cloud_recuperer))
         // Routes publiques : sans connexion ni appairage, seulement si le canal est activé.
         .route("/public/menu", get(public_menu))
         .route("/public/commandes", post(public_commande))
@@ -1372,4 +1377,40 @@ async fn promotion_enregistrer(State(e): State<Etat>, a: Auth, Json(p): Json<pro
 async fn promotions_prix(State(e): State<Etat>, a: Auth, Query(p): Q) -> Rep<std::collections::HashMap<String, promotions::PrixDuMoment>> {
     let zone = q(&p, "zone").map(str::to_owned);
     lire!(e, a, AUCUNE, |db| promotions::prix_en_cours(db.conn(), zone.as_deref(), db.maintenant()))
+}
+
+// ───────────── Cloud (fiche 0018) ─────────────
+
+async fn cloud_etat(State(e): State<Etat>, a: Auth) -> Rep<crate::cloud::EtatCloud> {
+    let _ = &a;
+    Ok(Json(e.cloud.lock().map(|c| c.clone()).unwrap_or_default()))
+}
+
+/// Envoi immédiat (bouton « Synchroniser maintenant »).
+async fn cloud_synchroniser(State(e): State<Etat>, a: Auth) -> Rep<crate::cloud::EtatCloud> {
+    let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
+    e.avec_db(move |db| peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)).await?;
+    crate::cloud::synchroniser(&e).await.map_err(|m| ApiErreur(Erreur::validation(m)))?;
+    Ok(Json(e.cloud.lock().map(|c| c.clone()).unwrap_or_default()))
+}
+
+async fn cloud_mot_de_passe(State(e): State<Etat>, a: Auth, Json(m): Json<MotDePasse>) -> Rep<()> {
+    ecrire!(e, a, |db| cloud::definir_mot_de_passe(db, &a, &m.mot_de_passe))
+}
+
+async fn cloud_sauvegardes(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
+    e.avec_db(move |db| peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)).await?;
+    Ok(Json(crate::cloud::sauvegardes_distantes(&e).await.map_err(|m| ApiErreur(Erreur::validation(m)))?))
+}
+
+/// Télécharge et déchiffre une sauvegarde distante ; la restauration se fait ensuite comme pour une sauvegarde locale.
+async fn cloud_recuperer(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Value> {
+    let uid = a.utilisateur_id.clone();
+    let eleve = a.acteur.eleve;
+    e.avec_db(move |db| peut(db, &uid, eleve, perm::SAUVEGARDE_GERER)).await?;
+    let chemin = crate::cloud::recuperer(&e, &id).await.map_err(|m| ApiErreur(Erreur::validation(m)))?;
+    Ok(Json(json!({ "chemin": chemin })))
 }

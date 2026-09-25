@@ -121,6 +121,19 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   19 h 59 garde le prix du happy hour, même envoyé ou payé après 20 h.
 * **RG-PRO-04** Rapport : ventes en promotion et manque à gagner = Σ (prix normal − prix promotionnel) × quantité vendue.
 
+### Cloud facultatif (CLO) — fiche 0018
+* **RG-CLO-01** Seuls des **résumés de journée** quittent le restaurant (CA, commandes, dépenses, encaissements par
+  moyen, Mobile Money à vérifier, annulations, écarts de caisse), renvoyés pour les 7 dernières journées à chaque
+  synchronisation (idempotent) ; le poste reste la source de vérité et vend sans connexion.
+* **RG-CLO-02** Les sauvegardes envoyées sont chiffrées sur le poste (XChaCha20-Poly1305, clé dérivée d'une phrase
+  d'au moins 12 caractères par Argon2id) ; le cloud refuse un fichier non chiffré, garde les 14 plus récentes et ne
+  peut pas les lire. La phrase ne quitte jamais le restaurant.
+* **RG-CLO-03** L'espace propriétaire s'ouvre avec le numéro du propriétaire et un mot de passe dont seule l'empreinte
+  Argon2 est gardée et envoyée ; il donne accès à tous les restaurants qui ont envoyé ce numéro et cette empreinte.
+* **RG-CLO-04** Résumé SMS de fin de journée au propriétaire, envoyé une seule fois quand la journée clôturée arrive au
+  cloud (réessayé tant qu'il n'est pas parti).
+* **RG-CLO-05** Consultation seule : rien ne se modifie à distance ; totaux par journée sur tous les restaurants.
+
 ### Stock (STK)
 * **RG-STK-01** Vente d'un produit revendu → sortie de 1 unité × quantité (hors lignes annulées) au moment de l'envoi (ou du paiement en comptoir).
 * **RG-STK-02** Annulation d'une ligne envoyée → retour en stock, sauf si « perdu » (préparé puis jeté) est indiqué.

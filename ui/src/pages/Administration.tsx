@@ -5,15 +5,16 @@ import { Case, Champ, ChampMontant, Choix, Modal, Onglets, TableauDonnees } from
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
+import CloudAdmin from "./CloudAdmin";
 import CommandesDistance from "./CommandesDistance";
 import Promotions from "./Promotions";
 import EditeurRecette from "./Recette";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
 
-type Onglet = "promotions" | "distance" | "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
+type Onglet = "cloud" | "promotions" | "distance" | "restaurant" | "paiements" | "catalogue" | "salle" | "postes" | "utilisateurs" | "roles" | "appareils" | "sauvegardes" | "licence";
 
 /** RG-AUT-06 : onglets protégés par le mot de passe personnel. */
-const PROTEGES: Onglet[] = ["restaurant", "paiements", "utilisateurs", "roles", "appareils", "sauvegardes", "licence"];
+const PROTEGES: Onglet[] = ["cloud", "restaurant", "paiements", "utilisateurs", "roles", "appareils", "sauvegardes", "licence"];
 
 export default function Administration() {
   const { peut, session, confirmerMotDePasse } = useApp();
@@ -30,6 +31,7 @@ export default function Administration() {
     { cle: "roles", libelle: "Rôles et droits", p: "utilisateur.gerer" },
     { cle: "appareils", libelle: "Téléphones et tablettes", p: "appareil.gerer" },
     { cle: "sauvegardes", libelle: "Sauvegardes et diagnostic", p: "sauvegarde.gerer" },
+    { cle: "cloud", libelle: "Cloud", p: "parametre.gerer" },
     { cle: "licence", libelle: "Licence", p: "licence.gerer" },
   ];
   const visibles = onglets.filter((o) => peut(o.p));
@@ -67,6 +69,7 @@ function OngletAdmin({ onglet }: { onglet: Onglet }) {
       {onglet === "paiements" && <PaiementsAdmin />}
       {onglet === "distance" && <CommandesDistance />}
       {onglet === "promotions" && <Promotions />}
+      {onglet === "cloud" && <CloudAdmin />}
     </>
   );
 }
