@@ -405,3 +405,14 @@ test("happy hour : le prix réduit s'affiche et s'applique à la saisie", async 
   // À emporter : on paie d'abord ; le montant à encaisser est celui du happy hour.
   await expect(page.getByRole("button", { name: /^Encaisser 500 FCFA/ })).toBeVisible();
 });
+
+test("statistiques : panier moyen, ventes par heure, serveurs, comparaison", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/rapports");
+  await page.getByRole("tab", { name: "Statistiques" }).click();
+  await expect(page.locator(".indicateur").filter({ hasText: "Panier moyen" })).toContainText("FCFA");
+  await expect(page.getByRole("heading", { name: "Ventes par heure" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Serveurs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Comparaison avec la période précédente/ })).toBeVisible();
+  await expect(page.getByText("Évolution du chiffre d'affaires")).toBeVisible();
+});

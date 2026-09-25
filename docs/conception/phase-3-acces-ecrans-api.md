@@ -180,7 +180,7 @@ autorisation ponctuelle : `X-Autorisation-Pin: <PIN>` ; appareil distant (mode B
 | Clients | `GET /clients?q=`, `POST /clients`, `GET /clients/{id}`, `POST /clients/reglement` |
 | Employés, paie | `GET|POST /employes`, `GET /employes/references`, `GET /employes/{id}`, `POST /employes/avance`, `POST /employes/evenement`, `GET|POST /presences`, `GET /paie/apercu`, `POST /paie/cloturer`, `POST /paie/payer`, `GET /paie/bulletins`, `GET /paie/bulletins/{id}` |
 | Livraison | `GET /livraisons`, `POST /livraisons/{id}/assigner`, `POST /livraisons/{id}/statut`, `GET /livreurs`, `POST /livreurs/{id}/remise` |
-| Rapports | `GET /tableau-de-bord`, `GET /rapports/periode?debut&fin[&format=csv]`, `GET /rapports/stock`, `GET /rapports/dettes`, `GET /rapports/cout-matiere`, `GET /audit?action=` |
+| Rapports | `GET /tableau-de-bord`, `GET /rapports/periode?debut&fin[&format=csv]`, `GET /rapports/statistiques?debut&fin[&format=csv]`, `GET /rapports/stock`, `GET /rapports/dettes`, `GET /rapports/cout-matiere`, `GET /audit?action=` |
 | Commandes à distance | `GET /entrantes`, `POST /entrantes/{id}/valider`, `GET|POST /zones-risque`, `GET|POST /numeros-bloques`, `POST /numeros-bloques/debloquer`, `GET|POST /tables/codes-qr`, `POST /commandes/{id}/liens` |
 | Public (sans connexion ni appairage) | `GET /public/menu[?table=]` (403 si le canal est inactif), `POST /public/commandes`, `GET /public/suivi/{code}`, `POST /public/position/{code_livreur}` |
 | Relais | `GET /relais/etat` (poste) ; sur le relais : `POST /relais/synchroniser` (clé), `POST /public/verification` (code SMS), plus les routes publiques ci-dessus |

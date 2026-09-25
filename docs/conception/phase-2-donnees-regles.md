@@ -237,6 +237,12 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 ### Rapports (RAP)
 * **RG-RAP-01** Chaque indicateur est accompagné de sa formule écrite.
 * **RG-RAP-02** CA = Σ totaux des commandes payées de la période (hors consommations employés, hors offerts).
+* **RG-STA-01** Panier moyen = CA ÷ nombre de commandes payées ; dépense par couvert = ventes brutes des tables avec
+  couverts ÷ Σ couverts. Divisions entières (FCFA).
+* **RG-STA-02** Ventes par heure et par jour de la semaine selon l'heure locale du **paiement**.
+* **RG-STA-03** Une commande compte pour le serveur qui l'a ouverte (ventes, panier moyen, annulations, remises).
+* **RG-STA-04** Comparaison avec la période précédente de même durée, juste avant ; évolution = (période − précédente)
+  ÷ précédente, en points de base, 0 sans référence.
 * **RG-RAP-03** Bénéfice estimé = CA − coût d'achat estimé des produits vendus − dépenses − salaires dus de la période. Les retraits propriétaire n'y figurent pas.
 
 ## 4. Diagrammes d'états

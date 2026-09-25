@@ -716,3 +716,164 @@ pub fn libelle_mouvement(t: &str) -> &str {
         autre => autre,
     }
 }
+
+// ───────────── Statistiques avancées (RG-STA-01 à 04) ─────────────
+
+const JOURS_SEMAINE: [&str; 7] = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+
+/// Variation en points de base : (actuel − précédent) ÷ précédent ; 0 si pas de référence.
+pub fn variation_bp(actuel: i64, precedent: i64) -> i64 {
+    if precedent == 0 {
+        0
+    } else {
+        (actuel - precedent) * 10_000 / precedent
+    }
+}
+
+fn pct(bp: i64) -> String {
+    let signe = if bp > 0 { "+" } else if bp < 0 { "−" } else { "" };
+    format!("{signe}{},{:02} %", bp.abs() / 100, bp.abs() % 100)
+}
+
+/// Période précédente de même durée, juste avant `debut` (RG-STA-04).
+pub fn periode_precedente(debut: &str, fin: &str) -> Option<(String, String)> {
+    let f = "%Y-%m-%d";
+    let d = chrono::NaiveDate::parse_from_str(debut, f).ok()?;
+    let e = chrono::NaiveDate::parse_from_str(fin, f).ok()?;
+    let jours = (e - d).num_days() + 1;
+    let pfin = d - chrono::Duration::days(1);
+    let pdebut = pfin - chrono::Duration::days(jours - 1);
+    Some((pdebut.format(f).to_string(), pfin.format(f).to_string()))
+}
+
+/// Statistiques d'une période : panier moyen, ventes par heure et par jour, serveurs, comparaison.
+pub fn rapport_statistiques(conn: &Connection, debut: &str, fin: &str) -> Resultat<Rapport> {
+    let c = chiffres(conn, debut, fin)?;
+    let fuseau = crate::parametres::lire(conn)?.fuseau_minutes;
+    let couverts: i64 = conn.query_row(
+        &format!("SELECT COALESCE(SUM(couverts), 0) FROM commandes WHERE id IN ({CMD_VENDUES}) AND type = 'sur_place'"),
+        params![debut, fin],
+        |r| r.get(0),
+    )?;
+    let ca_sur_place: i64 = conn.query_row(
+        &format!(
+            "SELECT COALESCE(SUM((l.quantite - l.quantite_annulee) * (l.prix_unitaire + l.montant_options)), 0)
+             FROM lignes_commande l JOIN commandes c ON c.id = l.commande_id
+             WHERE l.offert = 0 AND c.type = 'sur_place' AND c.couverts > 0 AND c.id IN ({CMD_VENDUES})"
+        ),
+        params![debut, fin],
+        |r| r.get(0),
+    )?;
+    let panier = if c.nb_commandes > 0 { c.ca / c.nb_commandes } else { 0 };
+    let mut indicateurs = vec![
+        ind("ca", "Chiffre d'affaires", c.ca, F_CA),
+        ind("nb_commandes", "Commandes payées", c.nb_commandes, "Nombre d'additions payées"),
+        ind("panier_moyen", "Panier moyen", panier, "Panier moyen = CA ÷ nombre de commandes payées (RG-STA-01)"),
+        ind(
+            "par_couvert",
+            "Dépense par couvert (sur place)",
+            if couverts > 0 { ca_sur_place / couverts } else { 0 },
+            "Σ ventes brutes des tables avec couverts ÷ Σ couverts (RG-STA-01)",
+        ),
+    ];
+    let mut tableaux = Vec::new();
+    // RG-STA-02 : heure et jour de la semaine du paiement, heure locale.
+    let heure_locale = format!("strftime('%H', c.payee_le / 1000 + {} , 'unixepoch')", fuseau * 60);
+    let jour_local = format!("CAST(strftime('%w', c.payee_le / 1000 + {} , 'unixepoch') AS INTEGER)", fuseau * 60);
+    let par = |cle: &str| {
+        format!(
+            "SELECT {cle}, COUNT(DISTINCT c.id), COALESCE(SUM((l.quantite - l.quantite_annulee) * (l.prix_unitaire + l.montant_options)), 0)
+             FROM commandes c LEFT JOIN lignes_commande l ON l.commande_id = c.id AND l.offert = 0
+             WHERE c.id IN ({CMD_VENDUES}) AND c.payee_le IS NOT NULL GROUP BY 1 ORDER BY 1"
+        )
+    };
+    let lignes = |sql: &str, libelle: &dyn Fn(rusqlite::types::Value) -> serde_json::Value| -> Resultat<Vec<Vec<serde_json::Value>>> {
+        let mut s = conn.prepare(sql)?;
+        let v = s
+            .query_map(params![debut, fin], |r| {
+                let n: i64 = r.get(1)?;
+                let ca: i64 = r.get(2)?;
+                Ok(vec![libelle(r.get(0)?), n.into(), ca.into(), (if n > 0 { ca / n } else { 0 }).into()])
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(v)
+    };
+    let texte = |v: rusqlite::types::Value| match v {
+        rusqlite::types::Value::Text(t) => serde_json::json!(format!("{t} h")),
+        _ => serde_json::Value::Null,
+    };
+    tableaux.push(Tableau {
+        titre: "Ventes par heure".into(),
+        colonnes: vec!["Heure".into(), "Commandes".into(), "Ventes (brut)".into(), "Panier moyen (brut)".into()],
+        lignes: lignes(&par(&heure_locale), &texte)?,
+        formule: Some("Heure du paiement, heure locale ; brut = avant remises et frais de livraison".into()),
+    });
+    let jour = |v: rusqlite::types::Value| match v {
+        rusqlite::types::Value::Integer(i) => serde_json::json!(JOURS_SEMAINE.get(i as usize).copied().unwrap_or("")),
+        _ => serde_json::Value::Null,
+    };
+    tableaux.push(Tableau {
+        titre: "Ventes par jour de la semaine".into(),
+        colonnes: vec!["Jour".into(), "Commandes".into(), "Ventes (brut)".into(), "Panier moyen (brut)".into()],
+        lignes: lignes(&par(&jour_local), &jour)?,
+        formule: None,
+    });
+    let p: &[&dyn rusqlite::ToSql] = &[&debut, &fin];
+    tableaux.push(requete_tableau(
+        conn,
+        "Serveurs",
+        &["Serveur", "Commandes", "Ventes (brut)", "Panier moyen (brut)", "Nombre d'annulations", "Remises"],
+        &format!(
+            "SELECT COALESCE(u.nom, 'Sans serveur'), COUNT(*), SUM(t.brut), SUM(t.brut) / COUNT(*),
+                    SUM((SELECT COUNT(*) FROM annulations a WHERE a.commande_id = t.id)),
+                    SUM((SELECT COALESCE(SUM(montant), 0) FROM remises r WHERE r.commande_id = t.id))
+             FROM (SELECT c.id, c.serveur_id,
+                          (SELECT COALESCE(SUM((l.quantite - l.quantite_annulee) * (l.prix_unitaire + l.montant_options)), 0)
+                           FROM lignes_commande l WHERE l.commande_id = c.id AND l.offert = 0) AS brut
+                   FROM commandes c WHERE c.id IN ({CMD_VENDUES})) t
+             LEFT JOIN utilisateurs u ON u.id = t.serveur_id GROUP BY t.serveur_id ORDER BY 3 DESC"
+        ),
+        p,
+        Some("RG-STA-03 : chaque commande compte pour le serveur qui l'a ouverte"),
+    )?);
+    tableaux.push(requete_tableau(
+        conn,
+        "Produits les moins vendus",
+        &["Produit", "Quantité"],
+        &format!(
+            "SELECT p.nom, COALESCE((SELECT SUM(l.quantite - l.quantite_annulee) FROM lignes_commande l
+                                     WHERE l.produit_id = p.id AND l.offert = 0 AND l.commande_id IN ({CMD_VENDUES})), 0)
+             FROM produits p WHERE p.actif = 1 ORDER BY 2, p.nom LIMIT 10"
+        ),
+        p,
+        Some("Produits actifs, les moins vendus d'abord (y compris jamais vendus)"),
+    )?);
+    // RG-STA-04 : comparaison avec la période précédente de même durée.
+    if let Some((pd, pf)) = periode_precedente(debut, fin) {
+        let a = chiffres(conn, &pd, &pf)?;
+        let pa = if a.nb_commandes > 0 { a.ca / a.nb_commandes } else { 0 };
+        indicateurs.push(ind(
+            "evolution_ca_pct",
+            "Évolution du chiffre d'affaires",
+            variation_bp(c.ca, a.ca),
+            &format!("(CA − CA du {pd} au {pf}) ÷ CA précédent (RG-STA-04)"),
+        ));
+        let f = crate::impression::fcfa;
+        let ligne = |nom: &str, x: i64, y: i64, argent: bool| {
+            let t = |v: i64| if argent { format!("{} FCFA", f(v)) } else { f(v) };
+            vec![serde_json::json!(nom), serde_json::json!(t(x)), serde_json::json!(t(y)), serde_json::json!(pct(variation_bp(x, y)))]
+        };
+        tableaux.push(Tableau {
+            titre: format!("Comparaison avec la période précédente (du {pd} au {pf})"),
+            colonnes: vec!["Indicateur".into(), "Période".into(), "Période précédente".into(), "Évolution".into()],
+            lignes: vec![
+                ligne("Chiffre d'affaires", c.ca, a.ca, true),
+                ligne("Commandes payées", c.nb_commandes, a.nb_commandes, false),
+                ligne("Panier moyen", panier, pa, true),
+                ligne("Dépenses", c.depenses, a.depenses, true),
+            ],
+            formule: Some("Évolution = (période − période précédente) ÷ période précédente".into()),
+        });
+    }
+    Ok(Rapport { titre: "Statistiques".into(), debut: debut.into(), fin: fin.into(), indicateurs, tableaux })
+}

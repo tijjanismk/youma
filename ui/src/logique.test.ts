@@ -227,3 +227,13 @@ describe("promotions (fiche 0017)", () => {
     expect(totalPanier(p)).toBe(750);
   });
 });
+
+describe("statistiques", async () => {
+  const { valeurIndicateur } = await import("./pages/Rapports");
+  it("indicateurs : nombre, évolution en %, FCFA", () => {
+    expect(valeurIndicateur("nb_commandes", 1200)).toBe("1 200");
+    expect(valeurIndicateur("evolution_ca_pct", 2_550)).toBe("+25,50 %");
+    expect(valeurIndicateur("evolution_ca_pct", -1_000)).toBe("−10,00 %");
+    expect(valeurIndicateur("panier_moyen", 3_875)).toBe("3 875 FCFA");
+  });
+});

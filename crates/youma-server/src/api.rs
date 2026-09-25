@@ -194,6 +194,7 @@ pub fn routeur(etat: Etat) -> Router {
         // Rapports
         .route("/tableau-de-bord", get(tableau_de_bord))
         .route("/rapports/periode", get(rapport_periode))
+        .route("/rapports/statistiques", get(rapport_statistiques))
         .route("/rapports/stock", get(rapport_stock))
         .route("/rapports/dettes", get(rapport_dettes))
         .route("/audit", get(audit))
@@ -950,6 +951,20 @@ async fn tableau_de_bord(State(e): State<Etat>, a: Auth) -> Rep<rapports::Tablea
 }
 
 async fn rapport_periode(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
+    rapport_sur_periode(e, a, p, |db, d, f| rapports::rapport_periode(db.conn(), d, f)).await
+}
+
+async fn rapport_statistiques(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
+    rapport_sur_periode(e, a, p, |db, d, f| rapports::rapport_statistiques(db.conn(), d, f)).await
+}
+
+/// Rapport sur des journées d'exploitation (`debut`, `fin`, défaut : aujourd'hui), en JSON ou CSV (`format=csv`).
+async fn rapport_sur_periode(
+    e: Etat,
+    a: Auth,
+    p: HashMap<String, String>,
+    f: fn(&Db, &str, &str) -> Resultat<rapports::Rapport>,
+) -> Result<Response, ApiErreur> {
     let uid = a.utilisateur_id.clone();
     let eleve = a.acteur.eleve;
     let (debut, fin) = (q(&p, "debut").map(str::to_owned), q(&p, "fin").map(str::to_owned));
@@ -958,7 +973,7 @@ async fn rapport_periode(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<
         .avec_db(move |db| {
             peut(db, &uid, eleve, perm::RAPPORT_VOIR)?;
             let jour = aujourdhui(db);
-            rapports::rapport_periode(db.conn(), debut.as_deref().unwrap_or(&jour), fin.as_deref().unwrap_or(&jour))
+            f(db, debut.as_deref().unwrap_or(&jour), fin.as_deref().unwrap_or(&jour))
         })
         .await?;
     Ok(if csv { csv_reponse(&r) } else { Json(r).into_response() })

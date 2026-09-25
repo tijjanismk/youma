@@ -35,6 +35,7 @@ réelles reste à faire. Voir [`docs/conception/phase-4-plan-realisation.md`](do
 | Consignes : bouteilles et casiers, vides, consigne versée au dépôt, retours | ✅ |
 | Rapprochement Mobile Money par relevé d'opérateur (CSV) | ✅ |
 | Promotions et happy hours (prix fixe ou %, horaires, jours, dates) | ✅ |
+| Statistiques : panier moyen, ventes par heure et par jour, serveurs, comparaison de périodes | ✅ |
 | Cloud, multi-établissements | V2, non commencé |
 
 ## Démarrer
