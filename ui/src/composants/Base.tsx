@@ -191,22 +191,30 @@ export function Vide({ children }: { children: ReactNode }) {
 }
 
 /** Tableau simple lisible sur téléphone (défilement horizontal). */
-export function TableauDonnees({ colonnes, lignes }: { colonnes: string[]; lignes: ReactNode[][] }) {
+/**
+ * Tableau ; sur téléphone, chaque ligne devient une carte (« colonne : valeur ») au lieu de colonnes écrasées.
+ * La 1re colonne sert de titre de carte ; une colonne sans titre (actions) passe en bas de la carte.
+ */
+export function TableauDonnees({ colonnes, lignes, cartes = true }: { colonnes: string[]; lignes: ReactNode[][]; cartes?: boolean }) {
   return (
     <div className="tableau-conteneur">
-      <table className="tableau">
-        <thead>
-          <tr>
-            {colonnes.map((c) => (
-              <th key={c}>{c}</th>
+      <table className={`tableau ${cartes ? "cartes" : ""}`} role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            {colonnes.map((c, i) => (
+              <th key={`${c}-${i}`} role="columnheader">
+                {c}
+              </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           {lignes.map((l, i) => (
-            <tr key={i}>
+            <tr key={i} role="row">
               {l.map((c, j) => (
-                <td key={j}>{c}</td>
+                <td key={j} role="cell" data-label={colonnes[j] ?? ""}>
+                  {c}
+                </td>
               ))}
             </tr>
           ))}

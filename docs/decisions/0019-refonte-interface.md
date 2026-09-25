@@ -16,6 +16,14 @@ droite. Sur téléphone, le serveur doit prendre une commande d'une main, sans c
 * **Photo du plat** choisie dans l'administration, recadrée et compressée dans le navigateur (JPEG 320 px, ≈ 20–30 Ko),
   stockée dans le champ `photo` existant (URL `data:`). Sans photo : icône de la catégorie sur un cercle teinté.
 
+* **Écrans secondaires** (tableau de bord, caisse, stock, paie) : rangée de chiffres clés avec icône
+  (`composants/Chiffres.tsx`), pastilles d'état (couleur + mot, jamais la couleur seule), recherche et filtre
+  « À réapprovisionner » sur le stock. Sur la caisse, les comptes Mobile Money sont regroupés en un seul chiffre.
+* **Tableaux en cartes sur téléphone** : `TableauDonnees` pose `data-label` sur chaque cellule ; sous 900 px,
+  chaque ligne devient une carte « colonne : valeur » (1re colonne = titre, colonne sans titre = boutons).
+  Rôles ARIA explicites (`table`, `row`, `cell`) pour que les lecteurs d'écran et les tests gardent la
+  structure malgré le changement d'affichage. `cartes={false}` pour garder un vrai tableau (matrices).
+
 ## Alternatives écartées
 * Polices et icônes via CDN : cassent hors ligne.
 * Stockage des photos en fichiers servis par le poste central : sauvegarde et synchronisation plus complexes pour un

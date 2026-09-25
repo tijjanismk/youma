@@ -1,6 +1,9 @@
+import type { LucideIcon } from "lucide-react";
+import { Banknote, Bike, Landmark, LockOpen, Smartphone, Vault, Wallet } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
+import { Chiffre, Chiffres } from "../composants/Chiffres";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, heure, nombre } from "../format";
 import { t } from "../i18n";
@@ -18,7 +21,15 @@ export function Billetage({ coupures, lignes, changer }: { coupures: number[]; l
       {coupures.map((c) => (
         <label key={c} className="billet">
           <span>{nombre(c)}</span>
-          <input type="number" min={0} inputMode="numeric" value={n(c) || ""} placeholder="0" onChange={(e) => maj(c, Number(e.target.value))} aria-label={`Nombre de ${c}`} />
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={n(c) || ""}
+            placeholder="0"
+            onChange={(e) => maj(c, Number(e.target.value))}
+            aria-label={`Nombre de ${c}`}
+          />
           <span className="aide">{nombre(c * n(c))}</span>
         </label>
       ))}
@@ -30,6 +41,8 @@ export function Billetage({ coupures, lignes, changer }: { coupures: number[]; l
   );
 }
 
+const ICONE_COMPTE: Record<string, LucideIcon> = { especes: Banknote, mobile_money: Smartphone, banque: Landmark, coffre: Vault, livreur: Bike };
+
 export default function Caisse() {
   const { etat, peut } = useApp();
   const { donnees, recharger } = useDonnees(() => get<EtatCaisse>("/caisse"), ["caisse", "paiement"]);
@@ -38,9 +51,41 @@ export default function Caisse() {
   const [z, setZ] = useState<string | null>(null);
   if (!donnees) return <p className="aide">Chargement…</p>;
   if (!etat?.journee) return <Vide>Ouvrez la journée pour utiliser la caisse.</Vide>;
+  // Un seul chiffre pour tous les opérateurs : le détail est dans « Comptes et transferts ».
+  const mobileMoney = donnees.comptes.filter((c) => c.actif && c.type === "mobile_money");
   return (
     <div>
       <h1>Caisse</h1>
+      <Chiffres>
+        <Chiffre
+          libelle="Ma session"
+          valeur={donnees.session ? fcfa(donnees.session.solde_actuel) : "Fermée"}
+          detail={donnees.session ? `ouverte à ${heure(donnees.session.ouverte_le)} · espèces attendues` : "ouvrez-la pour encaisser"}
+          Icone={donnees.session ? Wallet : LockOpen}
+          ton={donnees.session ? "vert" : "neutre"}
+        />
+        {peut("caisse.mouvement") &&
+          donnees.comptes
+            .filter((c) => c.actif && c.type !== "mobile_money")
+            .map((c) => (
+              <Chiffre
+                key={c.id}
+                libelle={c.nom}
+                valeur={fcfa(c.solde)}
+                Icone={ICONE_COMPTE[c.type] ?? Wallet}
+                ton={c.type === "especes" ? "accent" : "neutre"}
+              />
+            ))}
+        {peut("caisse.mouvement") && mobileMoney.length > 0 && (
+          <Chiffre
+            libelle="Mobile Money"
+            valeur={fcfa(mobileMoney.reduce((t, c) => t + c.solde, 0))}
+            detail={mobileMoney.map((c) => c.nom).join(", ")}
+            Icone={Smartphone}
+            ton="bleu"
+          />
+        )}
+      </Chiffres>
       <Onglets
         onglets={[
           { cle: "session", libelle: "Ma session" },
@@ -74,7 +119,7 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
   const total = detail ? billets.reduce((s, l) => s + l.coupure * l.nombre, 0) : fond;
   const ecart = caisse ? total - caisse.solde : 0;
   return (
-    <div className="carte">
+    <div className="carte formulaire-etroit">
       <h2>Ouvrir ma session</h2>
       {e.sessions_ouvertes.length > 0 && (
         <p className="attention-texte">
@@ -88,7 +133,11 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
         <input type="checkbox" checked={detail} onChange={(x) => setDetail(x.target.checked)} />
         <span>Compter billet par billet</span>
       </label>
-      {detail ? <Billetage coupures={e.coupures} lignes={billets} changer={setBillets} /> : <ChampMontant libelle="Fond de caisse compté" valeur={fond} changer={setFond} autoFocus />}
+      {detail ? (
+        <Billetage coupures={e.coupures} lignes={billets} changer={setBillets} />
+      ) : (
+        <ChampMontant libelle="Fond de caisse compté" valeur={fond} changer={setFond} autoFocus />
+      )}
       {ecart !== 0 && (
         <>
           <p className="attention-texte">Écart de {fcfa(ecart)} avec le solde attendu.</p>
@@ -98,7 +147,9 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
       <button
         className="principal grand"
         onClick={() =>
-          agir((pin) => post("/caisse/ouvrir", { fond_compte: total, billetage: detail ? billets : [], motif_ecart: motif }, pin), "Session ouverte").then(recharger)
+          agir((pin) => post("/caisse/ouvrir", { fond_compte: total, billetage: detail ? billets : [], motif_ecart: motif }, pin), "Session ouverte").then(
+            recharger,
+          )
         }
       >
         Ouvrir la caisse
@@ -120,7 +171,9 @@ function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger:
     <div className="grille-2">
       <div className="carte">
         <h2>Session de {s.caissier_nom}</h2>
-        <p>Ouverte à {heure(s.ouverte_le)} — fond {fcfa(s.fond_compte)}</p>
+        <p>
+          Ouverte à {heure(s.ouverte_le)} — fond {fcfa(s.fond_compte)}
+        </p>
         <div className="total">
           <span>Espèces attendues</span>
           <Montant valeur={s.solde_actuel} fort />
@@ -180,7 +233,11 @@ function Cloture({ s, coupures, fermer, fait }: { s: SessionCaisse; coupures: nu
         <input type="checkbox" checked={detail} onChange={(x) => setDetail(x.target.checked)} />
         <span>Billetage (billet par billet)</span>
       </label>
-      {detail ? <Billetage coupures={coupures} lignes={billets} changer={setBillets} /> : <ChampMontant libelle="Montant compté" valeur={montant} changer={setMontant} autoFocus />}
+      {detail ? (
+        <Billetage coupures={coupures} lignes={billets} changer={setBillets} />
+      ) : (
+        <ChampMontant libelle="Montant compté" valeur={montant} changer={setMontant} autoFocus />
+      )}
       <p>
         Attendu : <strong>{fcfa(s.solde_actuel)}</strong> — Écart : <strong className={ecart < 0 ? "negatif" : ""}>{fcfa(ecart)}</strong>
       </p>
@@ -191,7 +248,10 @@ function Cloture({ s, coupures, fermer, fait }: { s: SessionCaisse; coupures: nu
           className="principal"
           disabled={Math.abs(ecart) > seuil && !motif.trim()}
           onClick={async () => {
-            const r = await agir((pin) => post<{ z: string }>(`/caisse/${s.id}/cloturer`, { compte_final: compte, billetage: detail ? billets : [], motif_ecart: motif }, pin), "Caisse clôturée");
+            const r = await agir(
+              (pin) => post<{ z: string }>(`/caisse/${s.id}/cloturer`, { compte_final: compte, billetage: detail ? billets : [], motif_ecart: motif }, pin),
+              "Caisse clôturée",
+            );
             if (r) fait(r.z);
           }}
         >
@@ -205,7 +265,13 @@ function Cloture({ s, coupures, fermer, fait }: { s: SessionCaisse; coupures: nu
 function MouvementCaisse({ fermer, fait }: { fermer: () => void; fait: () => void }) {
   const { agir, peut } = useApp();
   const types = [
-    ...(peut("caisse.mouvement") ? [{ valeur: "entree_diverse", libelle: "Entrée diverse" }, { valeur: "apport", libelle: "Apport (monnaie, fond)" }, { valeur: "retrait", libelle: "Retrait (versement banque…)" }] : []),
+    ...(peut("caisse.mouvement")
+      ? [
+          { valeur: "entree_diverse", libelle: "Entrée diverse" },
+          { valeur: "apport", libelle: "Apport (monnaie, fond)" },
+          { valeur: "retrait", libelle: "Retrait (versement banque…)" },
+        ]
+      : []),
     { valeur: "retrait_proprietaire", libelle: "Retrait du propriétaire" },
   ];
   const [type, setType] = useState(types[0].valeur);
@@ -214,12 +280,20 @@ function MouvementCaisse({ fermer, fait }: { fermer: () => void; fait: () => voi
   return (
     <Modal titre="Entrée ou retrait d'argent" fermer={fermer}>
       <Choix libelle="Type" valeur={type} changer={setType} options={types} />
-      {type === "retrait_proprietaire" && <p className="aide">Un retrait du propriétaire n'est pas une dépense : il n'entre pas dans le bénéfice (RG-CAI-10).</p>}
+      {type === "retrait_proprietaire" && (
+        <p className="aide">Un retrait du propriétaire n'est pas une dépense : il n'entre pas dans le bénéfice (RG-CAI-10).</p>
+      )}
       <ChampMontant libelle="Montant" valeur={montant} changer={setMontant} autoFocus />
       <Champ libelle="Motif" valeur={libelle} changer={setLibelle} />
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
-        <button className="principal" disabled={montant <= 0} onClick={() => agir((pin) => post("/caisse/mouvement", { type, montant, libelle }, pin), "Enregistré").then((r) => r !== undefined && (fait(), fermer()))}>
+        <button
+          className="principal"
+          disabled={montant <= 0}
+          onClick={() =>
+            agir((pin) => post("/caisse/mouvement", { type, montant, libelle }, pin), "Enregistré").then((r) => r !== undefined && (fait(), fermer()))
+          }
+        >
           Enregistrer
         </button>
       </div>
@@ -251,7 +325,11 @@ export function NouvelleDepense({ fermer, fait }: { fermer: () => void; fait: ()
         <button
           className="principal"
           disabled={!categorie || montant <= 0}
-          onClick={() => agir((pin) => post("/depenses", { categorie_id: categorie, montant, beneficiaire, libelle }, pin), "Dépense enregistrée").then((r) => r !== undefined && (fait(), fermer()))}
+          onClick={() =>
+            agir((pin) => post("/depenses", { categorie_id: categorie, montant, beneficiaire, libelle }, pin), "Dépense enregistrée").then(
+              (r) => r !== undefined && (fait(), fermer()),
+            )
+          }
         >
           Enregistrer
         </button>
@@ -260,7 +338,17 @@ export function NouvelleDepense({ fermer, fait }: { fermer: () => void; fait: ()
   );
 }
 
-type Dep = { id: string; categorie: string; montant: number; beneficiaire: string; libelle: string; compte: string; horodatage: number; annulee: boolean; est_annulation: boolean };
+type Dep = {
+  id: string;
+  categorie: string;
+  montant: number;
+  beneficiaire: string;
+  libelle: string;
+  compte: string;
+  horodatage: number;
+  annulee: boolean;
+  est_annulation: boolean;
+};
 
 function Depenses() {
   const { agir } = useApp();
