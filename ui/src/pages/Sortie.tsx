@@ -49,7 +49,7 @@ export default function Sortie() {
       </div>
       {r && (
         <div className={`carte resultat-sortie ${vert ? "ok" : "ko"}`} role="status">
-          <h2>{r.statut === "paye" ? (deja ? "⚠️ DÉJÀ PRÉSENTÉ" : "✅ PAYÉ — peut sortir") : "⛔ NON PAYÉ"}</h2>
+          <h2>{r.statut === "paye" ? (deja ? "DÉJÀ PRÉSENTÉ" : "PAYÉ — peut sortir") : "NON PAYÉ"}</h2>
           {deja && (
             <p className="attention-texte">
               Ce ticket a déjà été présenté à {heure(deja.horodatage)}

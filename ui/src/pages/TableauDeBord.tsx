@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Banknote, HandCoins, Info, PackageX, Receipt, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
+import { AlertTriangle, Banknote, HandCoins, Info, PackageX, Receipt, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { get } from "../api";
@@ -95,7 +95,8 @@ export default function TableauDeBord() {
           ))}
           {d.mobile_money_a_verifier[0] > 0 && (
             <Link to="/mobile-money" className="alerte">
-              ⚠️ {d.mobile_money_a_verifier[0]} paiement(s) Mobile Money à vérifier ({fcfa(d.mobile_money_a_verifier[1])})
+              <AlertTriangle size={16} className="icone-texte" aria-hidden /> {d.mobile_money_a_verifier[0]} paiement(s) Mobile Money à vérifier (
+              {fcfa(d.mobile_money_a_verifier[1])})
             </Link>
           )}
         </Bloc>
@@ -128,7 +129,7 @@ export default function TableauDeBord() {
           </div>
           {d.impressions_en_erreur > 0 && (
             <Link to="/cuisine" className="alerte">
-              ⚠️ {d.impressions_en_erreur} ticket(s) non imprimé(s)
+              <AlertTriangle size={16} className="icone-texte" aria-hidden /> {d.impressions_en_erreur} ticket(s) non imprimé(s)
             </Link>
           )}
         </Bloc>

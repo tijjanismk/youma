@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
@@ -300,8 +301,8 @@ function Validation({
         <>
           <Onglets
             onglets={[
-              { cle: "livraison", libelle: "🛵 Livraison" },
-              { cle: "emporter", libelle: "🥡 Je viens chercher" },
+              { cle: "livraison", libelle: "Livraison" },
+              { cle: "emporter", libelle: "Je viens chercher" },
             ]}
             actif={type}
             changer={setType}
@@ -331,7 +332,11 @@ function Validation({
               )}
               <Champ libelle="Point de repère" valeur={repere} changer={setRepere} placeholder="Derrière la mosquée, portail bleu…" obligatoire />
               <Case libelle="Partager ma position pour le livreur" valeur={partager} changer={setPartager} />
-              {position && <p className="aide">📍 Position enregistrée</p>}
+              {position && (
+                <p className="aide">
+                  <MapPin size={16} className="icone-texte" aria-hidden /> Position enregistrée
+                </p>
+              )}
             </>
           )}
           <Choix

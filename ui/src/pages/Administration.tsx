@@ -1,3 +1,4 @@
+import { AlertTriangle, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { appel, get, post } from "../api";
@@ -56,7 +57,9 @@ export default function Administration() {
       <Onglets onglets={visibles} actif={onglet} changer={setOnglet} />
       {PROTEGES.includes(onglet) && !session?.eleve ? (
         <div className="carte etroite">
-          <h2>🔒 Mot de passe requis</h2>
+          <h2>
+            <Lock size={16} className="icone-texte" aria-hidden /> Mot de passe requis
+          </h2>
           <p>Cette partie de l'administration est protégée par votre mot de passe personnel, en plus du PIN.</p>
           <button className="principal grand" onClick={() => confirmerMotDePasse()}>
             Saisir mon mot de passe
@@ -1093,7 +1096,11 @@ function SauvegardesAdmin() {
                 {d.sauvegardes.derniere_externe ? dateHeure(d.sauvegardes.derniere_externe) : "jamais"}
               </strong>
             </div>
-            {d.sauvegardes.alerte_externe && <p className="attention-texte">⚠️ Aucune sauvegarde sur clé USB récemment : faites un export.</p>}
+            {d.sauvegardes.alerte_externe && (
+              <p className="attention-texte">
+                <AlertTriangle size={16} className="icone-texte" aria-hidden /> Aucune sauvegarde sur clé USB récemment : faites un export.
+              </p>
+            )}
             {d.sauvegardes.espace_libre !== null && (
               <div className="ligne-valeur">
                 <span>Espace disque libre</span>

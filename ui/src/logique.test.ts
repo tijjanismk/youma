@@ -249,3 +249,17 @@ describe("messages du menu client", async () => {
     expect(messageClient(new ErreurApi("REGLE_METIER", "QR code inconnu", "RG-CAN-02", undefined, 422), true)).toMatch(/QR code/);
   });
 });
+
+describe("thème (Mali vivant)", () => {
+  it("clair par défaut, sombre mémorisé par poste et posé sur <html>", async () => {
+    const { choisirTheme, lireTheme, appliquerTheme } = await import("./theme");
+    localStorage.clear();
+    expect(lireTheme()).toBe("clair");
+    choisirTheme("sombre");
+    expect(document.documentElement.dataset.theme).toBe("sombre");
+    expect(lireTheme()).toBe("sombre");
+    appliquerTheme("clair");
+    expect(document.documentElement.dataset.theme).toBe("clair");
+    localStorage.clear();
+  });
+});

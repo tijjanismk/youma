@@ -211,7 +211,7 @@ test("tableau de bord : chiffres de la journée avec leurs formules", async ({ p
 test("clôture de caisse avec billetage et écart motivé", async ({ page }) => {
   await connexion(page, /Kadi/, "3333");
   await page.goto("/caisse");
-  await page.getByRole("button", { name: "🔒 Clôturer ma caisse" }).click();
+  await page.getByRole("button", { name: "Clôturer ma caisse" }).click();
   // Attendu : 10 000 + 2 000 = 12 000. On compte 11 000 : écart au-delà du seuil, motif obligatoire.
   await page.getByLabel("Nombre de 10000", { exact: true }).fill("1");
   await page.getByLabel("Nombre de 1000", { exact: true }).fill("1");
@@ -465,4 +465,19 @@ test("aucun écran ne déborde sur un téléphone (propriétaire, nom long)", as
   await expect(changer).toBeVisible();
   expect((await changer.boundingBox())!.width).toBeGreaterThanOrEqual(44);
   await contexte.close();
+});
+
+test("thème Clair / Sombre choisi et mémorisé par poste", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "clair");
+  const theme = page.getByRole("button", { name: "Thème sombre" });
+  await theme.click();
+  await expect(html).toHaveAttribute("data-theme", "sombre");
+  await expect(theme).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#12152b");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "sombre");
+  await page.getByRole("button", { name: "Thème sombre" }).click();
+  await expect(html).toHaveAttribute("data-theme", "clair");
 });

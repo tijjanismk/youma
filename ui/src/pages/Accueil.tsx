@@ -11,6 +11,7 @@ import {
   ReceiptText,
   ScrollText,
   Settings,
+  ShoppingBag,
   ShoppingCart,
   Smartphone,
   Ticket,
@@ -103,10 +104,10 @@ export default function Accueil() {
       {etat?.journee && peut("commande.creer") && (
         <div className="actions-rapides">
           <Link className="bouton principal grand" to="/salle">
-            🍽️ Tables
+            <LayoutGrid size={20} aria-hidden /> Tables
           </Link>
           <button className="grand" onClick={comptoir}>
-            🥤 Vente comptoir
+            <ShoppingBag size={20} aria-hidden /> Vente comptoir
           </button>
         </div>
       )}

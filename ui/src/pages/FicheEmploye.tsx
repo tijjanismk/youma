@@ -1,3 +1,4 @@
+import { Phone } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { get, post } from "../api";
@@ -55,7 +56,11 @@ export default function FicheEmploye() {
             </div>
           )}
           {e.avantages_nature && <p className="aide">Avantages : {e.avantages_nature}</p>}
-          {e.telephone && <p>📞 {e.telephone}</p>}
+          {e.telephone && (
+            <p>
+              <Phone size={16} className="icone-texte" aria-hidden /> {e.telephone}
+            </p>
+          )}
           <div className="total">
             <span>{e.solde >= 0 ? "Le restaurant lui doit" : "Il/elle doit au restaurant"}</span>
             <Montant valeur={Math.abs(e.solde)} fort />
