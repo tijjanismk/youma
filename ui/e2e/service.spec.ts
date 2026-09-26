@@ -656,3 +656,27 @@ test("quantité tapée au clavier, puis table libérée d'un geste (RG-SAL-01)",
   await expect(page.getByRole("button", { name: /^Table T6 Libre/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Libérer la table T6" })).toHaveCount(0);
 });
+
+test("stock : article et sortie saisis par des listes, sans texte libre (fiche 0034)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/stock");
+  await page.getByRole("button", { name: "+ Article" }).click();
+  const fiche = page.getByRole("dialog", { name: "Nouvel article de stock" });
+  await fiche.getByLabel("Nom").fill("Riz parfumé");
+  await fiche.getByLabel("Unité de base").selectOption("g");
+  await fiche.getByLabel("Famille").selectOption("Céréales et féculents");
+  await fiche.getByRole("button", { name: "+ Conditionnement" }).click();
+  await fiche.getByLabel("Conditionnement").selectOption("Sac de 25 kg");
+  await expect(fiche.getByLabel("Contient (g)")).toHaveValue("25000");
+  await fiche.getByRole("button", { name: "Enregistrer" }).click();
+  const ligne = page.getByRole("row", { name: /Riz parfumé/ });
+  await expect(ligne).toBeVisible();
+
+  await ligne.getByRole("button", { name: "Perte / sortie" }).click();
+  const sortie = page.getByRole("dialog", { name: "Sortie de stock — Riz parfumé" });
+  await sortie.getByLabel("Type").selectOption("regularisation");
+  await sortie.getByLabel("Motif").selectOption("Correction après comptage");
+  await sortie.getByRole("spinbutton").fill("500");
+  await sortie.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(ligne).toContainText("500 g");
+});

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { get, post } from "../api";
-import { Case, Champ, ChampMontant, Choix, Modal, TableauDonnees, Vide } from "../composants/Base";
+import { Case, ChampMontant, Choix, ChoixOuAutre, Modal, TableauDonnees, Vide } from "../composants/Base";
+import { EMBALLAGES, MOTIFS_EMBALLAGE } from "../listesStock";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
@@ -98,7 +99,7 @@ function FormEmballage({ e: initial, fermer, fait }: { e: Emballage; fermer: () 
   const [e, setE] = useState(initial);
   return (
     <Modal titre={e.id ? e.nom : "Nouvel emballage"} fermer={fermer}>
-      <Champ libelle="Nom" valeur={e.nom} changer={(v) => setE({ ...e, nom: v })} placeholder="Bouteille bière 65 cl" obligatoire autoFocus />
+      <ChoixOuAutre libelle="Emballage" valeur={e.nom} changer={(v) => setE({ ...e, nom: v })} groupes={[{ nom: "", options: EMBALLAGES }]} obligatoire />
       <ChampMontant libelle="Consigne d'un emballage" valeur={e.valeur} changer={(v) => setE({ ...e, valeur: v })} />
       <p className="aide">Articles dont une unité pleine est dans cet emballage (pour compter les vides automatiquement) :</p>
       {(articles ?? []).map((a) => (
@@ -134,7 +135,7 @@ function Mouvement({ e, fermer, fait }: { e: EtatEmballage; fermer: () => void; 
       <Choix
         libelle="Mouvement"
         valeur={type}
-        changer={setType}
+        changer={(v) => (setType(v), setMotif(""))}
         options={[
           { valeur: "casse", libelle: "Casse" },
           { valeur: "perte", libelle: "Perte" },
@@ -146,7 +147,7 @@ function Mouvement({ e, fermer, fait }: { e: EtatEmballage; fermer: () => void; 
         <span>Nombre</span>
         <input type="number" min={1} value={quantite} onChange={(x) => setQuantite(Number(x.target.value))} aria-label="Nombre" />
       </label>
-      <Champ libelle="Motif" valeur={motif} changer={setMotif} obligatoire />
+      <ChoixOuAutre key={type} libelle="Motif" valeur={motif} changer={setMotif} groupes={[{ nom: "", options: MOTIFS_EMBALLAGE[type] ?? [] }]} obligatoire />
       <button
         className="principal"
         disabled={quantite <= 0 || !motif.trim()}

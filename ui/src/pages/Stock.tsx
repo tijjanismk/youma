@@ -1,7 +1,8 @@
 import { AlertTriangle, Boxes, PackageX, Search, Wallet } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
-import { Champ, Choix, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
+import { Champ, Choix, ChoixOuAutre, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
+import { CONDITIONNEMENTS, contenanceSuggeree, FAMILLES, MOTIFS_SORTIE, UNITES } from "../listesStock";
 import { Chiffre, Chiffres, Etat } from "../composants/Chiffres";
 import Consignes from "./Consignes";
 import { useApp, useDonnees } from "../contexte";
@@ -99,7 +100,9 @@ export default function Stock() {
       {onglet === "inventaire" && <Inventaires articles={donnees ?? []} />}
       {onglet === "consignes" && <Consignes />}
       {mouvement && <MouvementStock n={mouvement} fermer={() => setMouvement(null)} fait={recharger} />}
-      {article && <FormArticle n={article === "nouveau" ? null : article} fermer={() => setArticle(null)} fait={recharger} />}
+      {article && (
+        <FormArticle n={article === "nouveau" ? null : article} familles={tous.map((a) => a.famille)} fermer={() => setArticle(null)} fait={recharger} />
+      )}
       {historique && <Historique n={historique} fermer={() => setHistorique(null)} />}
     </div>
   );
@@ -114,7 +117,7 @@ function MouvementStock({ n, fermer, fait }: { n: NiveauStock; fermer: () => voi
   const types = ["casse", "perte", "perime", "vol", "repas_personnel", "offert", "consommation_interne", "retour_fournisseur", "regularisation"];
   return (
     <Modal titre={`Sortie de stock — ${n.nom}`} fermer={fermer}>
-      <Choix libelle="Type" valeur={type} changer={setType} options={types.map((x) => ({ valeur: x, libelle: t(x) }))} />
+      <Choix libelle="Type" valeur={type} changer={(v) => (setType(v), setMotif(""))} options={types.map((x) => ({ valeur: x, libelle: t(x) }))} />
       <label className="champ">
         <span>Quantité {type === "regularisation" && "(négative pour retirer)"}</span>
         <input type="number" value={quantite} onChange={(e) => setQuantite(Number(e.target.value))} />
@@ -127,7 +130,7 @@ function MouvementStock({ n, fermer, fait }: { n: NiveauStock; fermer: () => voi
           options={[{ valeur: "", libelle: n.unite }, ...n.conditionnements.map((c) => ({ valeur: c.id, libelle: `${c.nom} (${c.contenance})` }))]}
         />
       )}
-      <Champ libelle="Motif" valeur={motif} changer={setMotif} obligatoire />
+      <ChoixOuAutre key={type} libelle="Motif" valeur={motif} changer={setMotif} groupes={[{ nom: "", options: MOTIFS_SORTIE[type] ?? [] }]} obligatoire />
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
         <button
@@ -147,7 +150,7 @@ function MouvementStock({ n, fermer, fait }: { n: NiveauStock; fermer: () => voi
   );
 }
 
-function FormArticle({ n, fermer, fait }: { n: NiveauStock | null; fermer: () => void; fait: () => void }) {
+function FormArticle({ n, familles, fermer, fait }: { n: NiveauStock | null; familles: string[]; fermer: () => void; fait: () => void }) {
   const { agir } = useApp();
   const [nom, setNom] = useState(n?.nom ?? "");
   const [unite, setUnite] = useState(n?.unite ?? "bouteille");
@@ -157,8 +160,13 @@ function FormArticle({ n, fermer, fait }: { n: NiveauStock | null; fermer: () =>
   return (
     <Modal titre={n ? `Modifier ${n.nom}` : "Nouvel article de stock"} fermer={fermer}>
       <Champ libelle="Nom" valeur={nom} changer={setNom} obligatoire autoFocus />
-      <Champ libelle="Unité de base (bouteille, pièce, g, ml…)" valeur={unite} changer={setUnite} />
-      <Champ libelle="Famille" valeur={famille} changer={setFamille} />
+      <ChoixOuAutre libelle="Unité de base" valeur={unite} changer={setUnite} groupes={UNITES} obligatoire />
+      <ChoixOuAutre
+        libelle="Famille"
+        valeur={famille}
+        changer={setFamille}
+        groupes={[{ nom: "", options: [...new Set([...FAMILLES, ...familles.filter((f) => f.trim())])] }]}
+      />
       <label className="champ">
         <span>Seuil d'alerte</span>
         <input type="number" value={seuil} onChange={(e) => setSeuil(Number(e.target.value))} />
@@ -166,7 +174,12 @@ function FormArticle({ n, fermer, fait }: { n: NiveauStock | null; fermer: () =>
       <h3>Conditionnements d'achat</h3>
       {conds.map((c, i) => (
         <div key={i} className="grille-2">
-          <Champ libelle="Nom" valeur={c.nom} changer={(v) => setConds(conds.map((x, j) => (j === i ? { ...x, nom: v } : x)))} />
+          <ChoixOuAutre
+            libelle="Conditionnement"
+            valeur={c.nom}
+            changer={(v) => setConds(conds.map((x, j) => (j === i ? { ...x, nom: v, contenance: contenanceSuggeree(v, unite) ?? x.contenance } : x)))}
+            groupes={[{ nom: "", options: CONDITIONNEMENTS }]}
+          />
           <label className="champ">
             <span>Contient ({unite})</span>
             <input
