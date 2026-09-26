@@ -26,8 +26,9 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 
 ## Ce qui reste (par ordre conseillé)
 
-1. **Installateur Windows** : construire la coquille Tauri (`apps/desktop`) sur un PC Windows (ou une caisse
-   POS sous Windows) et produire l'installateur hors ligne ; ajouter si possible un job Windows à la CI.
+1. **Installateur Windows** : construit par la CI (`.github/workflows/installateur-windows.yml`, artefact dans
+   l'onglet Actions). Reste : ajouter le secret `YOUMA_CLE_PUBLIQUE` (clé de production des licences), puis
+   installer sur une vraie caisse POS et vérifier démarrage, pare-feu et impression.
 2. **Guide d'installation et de formation** (français simple, avec captures) : installation sur la caisse POS,
    **IP locale fixe** de la caisse, imprimantes thermiques (largeur du papier, ticket de test), connexion des
    téléphones (QR, raccourci sur l'écran d'accueil, sans certificat), ouverture/clôture de journée.
