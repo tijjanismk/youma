@@ -205,6 +205,7 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   Désactivées par défaut. **Taux saisis à la main** par le restaurateur (aucun taux pré-rempli) ; une cotisation
   ne peut être activée sans taux salarié. La part employeur est affichée à titre informatif, jamais retenue sur le salaire.
 * **RG-PAI-08** Déduction d'absence = base ÷ jours ouvrables du mois (paramètre, défaut 26) × absences non justifiées, arrondie à l'entier.
+* **RG-PAI-09** La paie est indépendante des caisses : un salaire se paie depuis un compte choisi (coffre, banque, Mobile Money), jamais depuis le tiroir, et n'est rattaché à aucune session de caisse (fiche 0027).
 
 ### Livraison (LIV)
 * **RG-LIV-01** Une commande livraison porte adresse (quartier, repère, téléphone), frais et livreur.

@@ -92,6 +92,20 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
         QuartierLivraison { nom: "Kalaban Coura".into(), frais: 1_500 },
     ];
     parametres::ecrire(db.conn(), &p)?;
+    // Compte bancaire du TPE (paiement par carte, RG-CAI-15).
+    crate::caisse::enregistrer_compte(
+        db,
+        &sys,
+        &crate::caisse::Compte {
+            id: String::new(),
+            nom: "Banque (TPE)".into(),
+            type_: "banque".into(),
+            operateur: String::new(),
+            employe_id: None,
+            actif: true,
+            solde: 0,
+        },
+    )?;
 
     let u = |nom: &str, role: &str, pin: &str| NouvelUtilisateur {
         nom: nom.into(),

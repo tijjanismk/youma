@@ -118,6 +118,9 @@ describe("encaissement", () => {
     expect(verifierPaiement([], 1000, 0, true)).toMatch(/moyen/);
     expect(verifierPaiement([{ moyen: "especes", montant: 2000 }], 1000, 0, true)).toMatch(/dépasse/);
     expect(verifierPaiement([{ moyen: "mobile_money", montant: 1000, compte_id: "om" }], 1000, 0, true)).toMatch(/référence/);
+    // RG-CAI-15 : carte sur TPE, numéro d'autorisation toujours demandé.
+    expect(verifierPaiement([{ moyen: "carte", montant: 1000, compte_id: "banque" }], 1000, 0, false)).toMatch(/autorisation/);
+    expect(verifierPaiement([{ moyen: "carte", montant: 1000, compte_id: "banque", reference: "A12345" }], 1000, 0, false)).toBeNull();
     expect(verifierPaiement([{ moyen: "mobile_money", montant: 1000, compte_id: "om" }], 1000, 0, false)).toBeNull();
     expect(verifierPaiement([{ moyen: "credit", montant: 1000 }], 1000, 0, true)).toMatch(/client/);
     expect(verifierPaiement([{ moyen: "especes", montant: 1000 }], 1000, 500, true)).toMatch(/insuffisantes/);
@@ -261,5 +264,18 @@ describe("thème (Mali vivant)", () => {
     appliquerTheme("clair");
     expect(document.documentElement.dataset.theme).toBe("clair");
     localStorage.clear();
+  });
+});
+
+describe("WhatsApp par lien wa.me (fiche 0028)", () => {
+  it("numéro malien au format international, message encodé", async () => {
+    const { lienWhatsApp, messageTicket, numeroWhatsApp } = await import("./whatsapp");
+    expect(numeroWhatsApp("76 00 00 01")).toBe("22376000001");
+    expect(numeroWhatsApp("+223 76 00 00 01")).toBe("22376000001");
+    expect(numeroWhatsApp("0022376000001")).toBe("22376000001");
+    expect(numeroWhatsApp("")).toBe("");
+    expect(lienWhatsApp("Merci !", "76000001")).toBe("https://wa.me/22376000001?text=Merci%20!");
+    expect(lienWhatsApp("Bonjour")).toBe("https://wa.me/?text=Bonjour");
+    expect(messageTicket("TOTAL 3 500\n")).toBe("```\nTOTAL 3 500\n```");
   });
 });

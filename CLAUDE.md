@@ -10,11 +10,12 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0024.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0028.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
-  (Playwright lance `target/debug/youma-server` : faire `cargo build -p youma-server` avant).
+  (Playwright lance `target/debug/youma-server` : faire `cargo build -p youma-server` avant ; Chromium local plus ancien :
+  `PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
 
 ## Règles non négociables
 
@@ -31,7 +32,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
 
 ## Carte du code
 
-- `crates/youma-core` : tout le métier (rusqlite). Migrations `migrations/NNNN_*.sql` par `PRAGMA user_version` (0001 → 0007, le test
+- `crates/youma-core` : tout le métier (rusqlite). Migrations `migrations/NNNN_*.sql` par `PRAGMA user_version` (0001 → 0008, le test
   `regles.rs` vérifie la version). Écritures via `Db::executer(acteur, |op| …)` (transaction + audit +
   permissions `op.exiger(perm::…)`). Horloge injectable (`HorlogeFixe` en test), jamais l'heure système en dur.
   Valeurs techniques : `db::valeur_systeme` / `definir_valeur_systeme` (table `systeme`, incluse dans les sauvegardes).
@@ -44,7 +45,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   (`relais-en-ligne.md`, fichiers dans `deploiement/relais/`).
 - `apps/desktop` : coquille Tauri (hors workspace, construite à part) ; elle construit `youma_server::Config`
   elle aussi : tout nouveau champ de `Config` s'y ajoute.
-- `ui/` : React + TypeScript (Vite). `src/pages` (écrans du personnel), `src/public` (menu client, suivi,
+- `ui/` : React 19 + TypeScript (Vite 8, React Router 7 : importer depuis `react-router`, fiche 0025). `src/pages` (écrans du personnel), `src/public` (menu client, suivi,
   livreur, propriétaire : sans connexion), `src/composants`, `src/contexte.tsx` (`useApp().agir` : PIN/mot de
   passe redemandés automatiquement), `src/api.ts`, `src/pwa.ts`.
 
@@ -57,7 +58,8 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
 - Icônes `lucide-react`, police Poppins embarquée (`@fontsource/poppins`). Pas de CDN.
 - PC : menu latéral repliable. Téléphone : barre du bas, prise de commande avec la commande en tiroir
   (« Voir la commande (n) »). Écrans secondaires : chiffres clés `composants/Chiffres.tsx` ; `TableauDonnees`
-  devient des cartes sur téléphone (`data-label`). Photos des plats en URL `data:` compressées côté navigateur (`composants/Plat.tsx`).
+  devient des cartes sur téléphone (`data-label`). Ticket à imprimer par le navigateur : `composants/Ticket.tsx` (`.zone-ticket`,
+  seule imprimée) ; WhatsApp par liens wa.me : `src/whatsapp.ts` (fiche 0028). Photos des plats en URL `data:` compressées côté navigateur (`composants/Plat.tsx`).
 - Les tests e2e ciblent les rôles et `aria-label` (« Menu », « Autres écrans », « Changer d'utilisateur »,
   « Ajouter un X »…) : ne pas les renommer sans mettre à jour `ui/e2e/`.
 - PWA : `ui/public/manifest*.webmanifest`, icônes produites par `cd ui && node outils/icones.mjs`, service worker

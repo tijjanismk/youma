@@ -501,3 +501,86 @@ test("mode réseau : interrupteur dans Administration, appliqué au redémarrage
   await expect(interrupteur).not.toBeChecked();
   await expect(page.getByText(/Fermez Youma puis rouvrez-le/)).toBeHidden();
 });
+
+test("carte bancaire sur le TPE : numéro d'autorisation obligatoire (RG-CAI-15)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  // La caisse de Kadi a été clôturée par un test précédent : on la rouvre si besoin.
+  await page.goto("/caisse");
+  const ouvrir = page.getByRole("button", { name: "Ouvrir la caisse" });
+  const session = page.getByText("Session de Kadi (caisse)");
+  await expect(ouvrir.or(session)).toBeVisible();
+  // Fond proposé = solde attendu du tiroir : pas d'écart à justifier.
+  if (await ouvrir.isVisible()) await ouvrir.click();
+  await expect(session).toBeVisible();
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Encaisser/ }).click();
+  await page.getByRole("button", { name: /Carte \(TPE\)/ }).click();
+  await expect(page.getByText("Saisissez le numéro d'autorisation imprimé par le TPE")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Valider le paiement" })).toBeDisabled();
+  await page.getByLabel("Numéro d'autorisation (ticket du TPE)").fill("A12345");
+  await page.getByRole("button", { name: "Valider le paiement" }).click();
+  await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
+  await expect(page.getByText("Addition soldée.")).toBeVisible();
+});
+
+test("paie indépendante des caisses : salaire payé depuis le coffre (RG-PAI-09)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/paie");
+  const ligne = page.getByRole("row").filter({ hasText: "Bakary Diallo" });
+  await ligne.getByRole("button", { name: "Clôturer" }).click();
+  const bulletin = page.getByRole("dialog", { name: "Bulletin" });
+  await bulletin.getByRole("button", { name: /^Payer / }).click();
+  const paiement = page.getByRole("dialog", { name: "Payer Bakary Diallo" });
+  const compte = paiement.getByLabel("Payé depuis");
+  // Seuls les comptes hors caisse sont proposés.
+  await expect(compte.locator("option", { hasText: "Caisse principale" })).toHaveCount(0);
+  await expect(compte.locator("option", { hasText: "Coffre / propriétaire" })).toHaveCount(1);
+  await compte.selectOption({ label: "Coffre / propriétaire" });
+  await paiement.getByRole("button", { name: "Payer", exact: true }).click();
+  await expect(page.getByText("Paiement enregistré")).toBeVisible();
+});
+
+test("avance sur salaire : tiroir de la caisse ou compte hors caisse", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/employes");
+  await page.getByRole("link", { name: /Bakary Diallo/ }).click();
+  await page.getByRole("button", { name: "Avance" }).click();
+  const avance = page.getByRole("dialog", { name: "Avance à Bakary Diallo" });
+  await avance.getByLabel("Montant").fill("1000");
+  await avance.getByLabel("Payée depuis").selectOption({ label: "Coffre / propriétaire" });
+  await expect(avance.getByText("Hors caisse : la clôture de caisse n'en dépend pas.")).toBeVisible();
+  await avance.getByRole("button", { name: "Donner l'avance" }).click();
+  await expect(page.getByText("Avance enregistrée")).toBeVisible();
+});
+
+test("ticket : Ctrl+P n'imprime que le ticket, envoi par WhatsApp (fiche 0028)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/caisse");
+  const ouvrir = page.getByRole("button", { name: "Ouvrir la caisse" });
+  const session = page.getByText("Session de Kadi (caisse)");
+  await expect(ouvrir.or(session)).toBeVisible();
+  if (await ouvrir.isVisible()) await ouvrir.click();
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Encaisser/ }).click();
+  await page.getByRole("button", { name: /Espèces$/ }).first().click();
+  await page.getByRole("button", { name: "Valider le paiement" }).click();
+  await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
+  const whatsapp = page.getByRole("link", { name: "Envoyer par WhatsApp" });
+  await expect(whatsapp).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=%60%60%60/);
+  // À l'impression navigateur : le vrai ticket (bon de sortie), sans l'écran autour.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".zone-ticket")).toBeVisible();
+  await expect(page.locator(".zone-ticket")).toContainText("Maquis Le Baobab");
+  await expect(page.locator(".zone-ticket")).toContainText("BON DE SORTIE");
+  await expect(page.getByText(/Reçu n°\d+/)).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+  await expect(page.locator(".zone-ticket")).toBeHidden();
+});

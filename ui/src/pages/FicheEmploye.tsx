@@ -1,6 +1,6 @@
 import { Phone } from "lucide-react";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
@@ -116,24 +116,29 @@ function AvanceModal({ employe, fermer, fait }: { employe: Employe; fermer: () =
   const { donnees: caisse } = useDonnees(() => get<{ session: { compte_id: string } | null; comptes: Compte[] }>("/caisse"), []);
   const [montant, setMontant] = useState(0);
   const [motif, setMotif] = useState("");
-  const [compte, setCompte] = useState("");
-  const comptes = (caisse?.comptes ?? []).filter((c) => c.actif && c.type !== "livreur");
+  // Deux possibilités (fiche 0027) : le tiroir de sa caisse (compte dans la clôture), ou un compte hors caisse.
+  const horsCaisse = (caisse?.comptes ?? []).filter((c) => c.actif && ["coffre", "banque", "mobile_money"].includes(c.type));
+  const [choix, setCompte] = useState<string | null>(null);
+  const compte = choix ?? (caisse?.session ? "" : (horsCaisse[0]?.id ?? ""));
   return (
     <Modal titre={`Avance à ${employe.nom}`} fermer={fermer}>
-      <p className="aide">L'avance sort de la caisse et sera déduite à la prochaine paie. Au-delà du plafond, le propriétaire doit autoriser.</p>
+      <p className="aide">L'avance sera déduite à la prochaine paie. Au-delà du plafond, le propriétaire doit autoriser.</p>
       <ChampMontant libelle="Montant" valeur={montant} changer={setMontant} autoFocus />
       <Choix
         libelle="Payée depuis"
         valeur={compte}
         changer={setCompte}
-        options={[{ valeur: "", libelle: "Ma caisse (session ouverte)" }, ...comptes.map((c) => ({ valeur: c.id, libelle: c.nom }))]}
+        options={[...(caisse?.session ? [{ valeur: "", libelle: "Tiroir de ma caisse" }] : []), ...horsCaisse.map((c) => ({ valeur: c.id, libelle: c.nom }))]}
       />
+      <p className="aide">
+        {compte === "" ? "Sortie du tiroir : l'avance compte dans la clôture de votre caisse." : "Hors caisse : la clôture de caisse n'en dépend pas."}
+      </p>
       <Champ libelle="Motif" valeur={motif} changer={setMotif} placeholder="Maladie, transport, fête…" />
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
         <button
           className="principal"
-          disabled={montant <= 0}
+          disabled={montant <= 0 || (compte === "" && !caisse?.session)}
           onClick={() =>
             agir((pin) => post("/employes/avance", { employe_id: employe.id, montant, motif, compte_id: compte || null }, pin), "Avance enregistrée").then(
               (r) => r !== undefined && (fait(), fermer()),

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { get, post } from "../api";
 import { ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
+import { lienWhatsApp } from "../whatsapp";
 import { fcfa, heure } from "../format";
 import { t } from "../i18n";
 import type { CommandeResume, Employe } from "../types";
@@ -18,9 +19,11 @@ export default function Livraisons() {
   const { donnees: employes } = useDonnees(() => get<Employe[]>("/employes").catch(() => [] as Employe[]), []);
   const [assigner, setAssigner] = useState<CommandeResume | null>(null);
   const [remise, setRemise] = useState<Livreur | null>(null);
-  const [liens, setLiens] = useState<{ numero: number; code_suivi: string; code_livreur: string | null } | null>(null);
+  const [liens, setLiens] = useState<{ numero: number; telephone: string | null; code_suivi: string; code_livreur: string | null } | null>(null);
   const ouvrirLiens = (c: CommandeResume) =>
-    agir((pin) => post<{ code_suivi: string; code_livreur: string | null }>(`/commandes/${c.id}/liens`, {}, pin)).then((l) => l && setLiens({ ...l, numero: c.numero }));
+    agir((pin) => post<{ code_suivi: string; code_livreur: string | null; telephone: string | null }>(`/commandes/${c.id}/liens`, {}, pin)).then(
+      (l) => l && setLiens({ ...l, numero: c.numero }),
+    );
   const tout = () => {
     recharger();
     rechargerLivreurs();
@@ -137,7 +140,19 @@ function RemiseLivreur({ l, fermer, fait }: { l: Livreur; fermer: () => void; fa
 }
 
 /** Liens de suivi : le client suit sa commande ; le livreur partage sa position pendant la course. */
-function LiensSuivi({ numero, code_suivi, code_livreur, fermer }: { numero: number; code_suivi: string; code_livreur: string | null; fermer: () => void }) {
+function LiensSuivi({
+  numero,
+  telephone,
+  code_suivi,
+  code_livreur,
+  fermer,
+}: {
+  numero: number;
+  telephone: string | null;
+  code_suivi: string;
+  code_livreur: string | null;
+  fermer: () => void;
+}) {
   const { donnees: reseau } = useDonnees(() => get<{ adresses: string[] }>("/reseau").catch(() => null), []);
   const { etat } = useApp();
   const base = (etat?.parametres.canaux?.relais_url || reseau?.adresses[0] || `${location.origin}/`).replace(/\/?$/, "/");
@@ -153,7 +168,7 @@ function LiensSuivi({ numero, code_suivi, code_livreur, fermer }: { numero: numb
         Lien à envoyer au client (SMS, WhatsApp) : <br />
         <strong className="selectionnable">{client}</strong>
       </p>
-      <a className="bouton" href={`https://wa.me/?text=${encodeURIComponent(`Suivez votre commande n°${numero} : ${client}`)}`} target="_blank" rel="noreferrer">
+      <a className="bouton" href={lienWhatsApp(`Suivez votre commande n°${numero} : ${client}`, telephone)} target="_blank" rel="noreferrer">
         Envoyer par WhatsApp
       </a>
       {livreur && (

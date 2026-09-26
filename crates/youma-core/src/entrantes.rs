@@ -686,17 +686,19 @@ pub struct Liens {
     pub code_suivi: String,
     /// Code de la page du livreur (livraisons seulement).
     pub code_livreur: Option<String>,
+    /// Téléphone de livraison du client : destinataire du lien de suivi (WhatsApp, fiche 0028).
+    pub telephone: Option<String>,
 }
 
 /// Codes de suivi d'une commande, créés à la demande (pour l'envoyer au client ou ouvrir la page livreur).
 pub fn liens(db: &mut Db, acteur: &Acteur, commande_id: &str) -> Resultat<Liens> {
     db.executer(acteur, |op| {
         op.exiger(perm::COMMANDE_CREER)?;
-        let (suivi, livreur, type_): (Option<String>, Option<String>, String) = trouver(
+        let (suivi, livreur, type_, telephone): (Option<String>, Option<String>, String, Option<String>) = trouver(
             op.query_row(
-                "SELECT code_suivi, code_livreur, type FROM commandes WHERE id = ?1",
+                "SELECT code_suivi, code_livreur, type, livraison_telephone FROM commandes WHERE id = ?1",
                 params![commande_id],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             ),
             "Commande",
         )?;
@@ -717,7 +719,7 @@ pub fn liens(db: &mut Db, acteur: &Acteur, commande_id: &str) -> Resultat<Liens>
             }
             _ => None,
         };
-        Ok(Liens { code_suivi: suivi, code_livreur: livreur })
+        Ok(Liens { code_suivi: suivi, code_livreur: livreur, telephone })
     })
 }
 

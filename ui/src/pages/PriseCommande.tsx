@@ -1,8 +1,9 @@
 import { Bike, Receipt } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { ErreurApi, get, post } from "../api";
 import { Champ, ChampMontant, DemandeMotif, Modal, Montant } from "../composants/Base";
+import { TicketImprimable, TicketWhatsApp } from "../composants/Ticket";
 import { VisuelPlat } from "../composants/Plat";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
@@ -562,8 +563,10 @@ function PlusDActions({ commande, fermer, recharger }: { commande: Commande; fer
     return (
       <Modal titre="Addition" fermer={fermer}>
         <pre className="apercu-ticket">{ticket}</pre>
+        <TicketImprimable texte={ticket} />
         <div className="actions">
           <button onClick={() => window.print()}>Imprimer (navigateur)</button>
+          <TicketWhatsApp texte={ticket} telephone={commande.livraison_telephone} />
           <button className="principal" onClick={() => agir(() => post(`/commandes/${commande.id}/imprimer`), "Envoyé à l'imprimante de caisse")}>
             Imprimante ticket
           </button>

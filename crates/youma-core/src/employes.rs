@@ -451,7 +451,8 @@ fn avances_depuis_bulletin(conn: &Connection, employe_id: &str) -> Resultat<i64>
 pub(crate) fn compte_payeur(op: &Op, compte_id: Option<&str>) -> Resultat<(String, Option<String>)> {
     let session = op.utilisateur().map(|u| caisse::session_utilisateur(op, u)).transpose()?.flatten();
     match (compte_id, session) {
-        (Some(c), s) => Ok((c.to_string(), s.map(|s| s.id))),
+        // Rattachée à la session seulement si l'argent sort de son tiroir (un paiement depuis le coffre n'y est pour rien).
+        (Some(c), s) => Ok((c.to_string(), s.filter(|s| s.compte_id == c).map(|s| s.id))),
         (None, Some(s)) => Ok((s.compte_id.clone(), Some(s.id))),
         (None, None) => Err(Erreur::regle("RG-CAI-01", "Ouvrez une session de caisse ou choisissez le compte payeur")),
     }

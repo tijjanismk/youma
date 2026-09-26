@@ -534,9 +534,31 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
                 }
                 (Some(c), None)
             }
-            "virement" | "carte" => {
+            "virement" => {
                 let c = p.compte_id.clone().ok_or_else(|| Erreur::validation("Choisissez le compte bancaire"))?;
                 type_compte(op, &c)?;
+                (Some(c), None)
+            }
+            // RG-CAI-15 : carte passée sur un TPE non relié à Youma. Compte bancaire, numéro d'autorisation imprimé
+            // par le TPE obligatoire, jamais deux fois dans la journée (un même ticket ne paie pas deux additions).
+            "carte" => {
+                let c = p.compte_id.clone().ok_or_else(|| Erreur::validation("Choisissez le compte bancaire du TPE"))?;
+                if type_compte(op, &c)? != "banque" {
+                    return Err(Erreur::validation("Ce compte n'est pas un compte bancaire"));
+                }
+                let reference = p.reference.as_deref().unwrap_or("").trim();
+                if reference.is_empty() {
+                    return Err(Erreur::regle("RG-CAI-15", "Saisissez le numéro d'autorisation imprimé par le TPE"));
+                }
+                let deja: i64 = op.query_row(
+                    "SELECT COUNT(*) FROM parts_paiement pp JOIN paiements pa ON pa.id = pp.paiement_id
+                     WHERE pp.moyen = 'carte' AND pp.compte_id = ?1 AND pp.reference = ?2 AND pp.montant > 0 AND pa.journee_id = ?3",
+                    params![c, reference, journee.id],
+                    |r| r.get(0),
+                )?;
+                if deja > 0 {
+                    return Err(Erreur::regle("RG-CAI-15", format!("Le ticket TPE {reference} a déjà servi aujourd'hui : possible fraude")));
+                }
                 (Some(c), None)
             }
             "credit" => {

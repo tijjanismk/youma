@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets, Vide } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";

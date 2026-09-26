@@ -91,6 +91,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/journees", get(journees))
         .route("/journee/ouvrir", post(journee_ouvrir))
         .route("/journee/cloturer", post(journee_cloturer))
+        .route("/journee/resume", get(journee_resume))
         // Catalogue
         .route("/catalogue", get(catalogue_tout))
         .route("/categories", post(categorie_enregistrer))
@@ -952,6 +953,15 @@ async fn livreur_remise(State(e): State<Etat>, a: Auth, Path(id): Path<String>, 
 }
 
 // ───────────── Rapports ─────────────
+
+/// Résumé de la dernière journée et numéro du propriétaire : envoi par WhatsApp (lien wa.me, fiche 0028).
+async fn journee_resume(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    lire!(e, a, Some(perm::RAPPORT_VOIR), |db| {
+        let texte = youma_core::cloud::texte_derniere_journee(db.conn(), db.maintenant())?;
+        let telephone = youma_core::parametres::lire(db.conn())?.cloud.telephone_proprietaire;
+        Ok(json!({ "texte": texte, "telephone": telephone }))
+    })
+}
 
 async fn tableau_de_bord(State(e): State<Etat>, a: Auth) -> Rep<rapports::TableauDeBord> {
     lire!(e, a, Some(perm::RAPPORT_VOIR), |db| rapports::tableau_de_bord(db.conn()))

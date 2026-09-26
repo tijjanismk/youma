@@ -25,7 +25,7 @@ obligatoire. Les propriétaires de maquis ont souvent plusieurs établissements 
 * Réplication complète des tables vers le cloud : plus lourde, plus de données personnelles hors du restaurant, sans
   besoin exprimé ; l'outbox la rend possible plus tard (fiche 0008).
 * Modification des prix ou du menu depuis le cloud : non demandée pour l'instant ; consultation seule **[HYPOTHÈSE]**.
-* WhatsApp : exige un compte WhatsApp Business et un fournisseur agréé ; SMS seulement pour commencer **[HYPOTHÈSE]**.
+* WhatsApp : exige un compte WhatsApp Business et un fournisseur agréé ; SMS seulement pour commencer **[HYPOTHÈSE]**. Fiche 0028 : résumé envoyable par lien wa.me en attendant l'API.
 * Phrase de chiffrement gardée par le fournisseur : il pourrait lire les données ; refusé.
 
 ## Conséquences
