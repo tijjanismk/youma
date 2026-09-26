@@ -22,7 +22,7 @@ Le pilote en conditions réelles reste à faire. Ce qui reste : [`docs/REPRISE.m
 | Clients et crédit, fournisseurs et dettes | ✅ |
 | Employés (contrat, INPS et AMO facultatifs), présences, avances, paie, bulletins | ✅ |
 | Livraison et remise livreur | ✅ (base) |
-| Rapports avec formules, export CSV, journal d'audit | ✅ |
+| Rapports (sans formule affichée, fiche 0033), export CSV, journal d'audit | ✅ |
 | Ticket de caisse = bon de sortie (code de contrôle, écran de contrôle) | ✅ |
 | Mot de passe personnel pour l'administration (en plus du PIN) | ✅ |
 | Sauvegardes, intégrité, restauration, licence hors ligne, diagnostic | ✅ |

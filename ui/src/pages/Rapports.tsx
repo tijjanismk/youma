@@ -21,7 +21,7 @@ export function valeurIndicateur(cle: string, valeur: number): string {
   return fcfa(valeur);
 }
 
-/** Rapport lisible et imprimable, avec les formules (RG-RAP-01). */
+/** Rapport lisible et imprimable : chiffres seuls, sans formule (fiche 0033). */
 export function AffichageRapport({ r }: { r: Rapport }) {
   return (
     <div className="imprimable rapport">
@@ -30,13 +30,12 @@ export function AffichageRapport({ r }: { r: Rapport }) {
       </h2>
       <div className="indicateurs">
         {r.indicateurs.map((i) => (
-          <details key={i.cle} className="indicateur" open>
-            <summary>
+          <div key={i.cle} className="indicateur">
+            <div className="resume">
               <span>{i.libelle}</span>
               <strong>{valeurIndicateur(i.cle, i.valeur)}</strong>
-            </summary>
-            <p className="formule">{i.formule}</p>
-          </details>
+            </div>
+          </div>
         ))}
       </div>
       {r.tableaux.map((t) => (
@@ -47,7 +46,6 @@ export function AffichageRapport({ r }: { r: Rapport }) {
           ) : (
             <TableauDonnees colonnes={t.colonnes} lignes={t.lignes.map((l) => l.map((v, j) => cellule(t.colonnes[j], v)))} />
           )}
-          {t.formule && <p className="formule">{t.formule}</p>}
         </section>
       ))}
     </div>
@@ -100,7 +98,7 @@ export default function Rapports() {
   );
 }
 
-/** RG-REC-04 : coût matière des plats avec recette, avec la formule. */
+/** RG-REC-04 : coût matière des plats avec recette. */
 function CoutsMatiere() {
   const { donnees } = useDonnees(() => get<CoutMatiere[]>("/rapports/cout-matiere"), ["catalogue", "stock"]);
   if (!donnees) return <p className="aide">Chargement…</p>;
@@ -115,7 +113,6 @@ function CoutsMatiere() {
           lignes={donnees.map((c) => [c.nom, fcfa(c.prix), fcfa(c.cout), pourcentage(c.part_bp)])}
         />
       )}
-      <p className="formule">Coût matière = Σ quantité × coût unitaire de l'article ; part = coût matière ÷ prix de vente.</p>
     </div>
   );
 }

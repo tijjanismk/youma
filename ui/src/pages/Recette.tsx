@@ -38,7 +38,6 @@ export default function EditeurRecette({ p, fermer, fait }: { p: Produit; fermer
       <p>
         Coût matière : <strong>{fcfa(cout)}</strong> pour un prix de {fcfa(p.prix)}, soit <strong>{pourcentage(partBp(cout, p.prix))}</strong>
       </p>
-      <p className="formule">Coût matière = Σ quantité × coût unitaire de l'article</p>
       {options.length > 0 && <h3>Ingrédients en plus selon l'option choisie</h3>}
       {options.map((o) => (
         <details key={o.id} open={lignesOption(o.id).length > 0}>

@@ -1,4 +1,5 @@
-//! Rapports. RG-RAP-01 : chaque indicateur porte sa formule écrite.
+//! Rapports. Chaque indicateur garde sa formule écrite dans le code (documentation, RG-RAP-01),
+//! mais elle n'est plus affichée ni exportée (fiche 0033).
 
 use rusqlite::{params, Connection};
 use serde::Serialize;
@@ -596,7 +597,7 @@ pub fn en_csv(r: &Rapport) -> String {
     let mut out = String::from("\u{feff}");
     out.push_str(&format!("{};{} ;{}\n\n", r.titre, r.debut, r.fin));
     for i in &r.indicateurs {
-        out.push_str(&format!("{};{};{}\n", i.libelle, i.valeur, echapper(&serde_json::json!(i.formule))));
+        out.push_str(&format!("{};{}\n", i.libelle, i.valeur));
     }
     for t in &r.tableaux {
         out.push_str(&format!("\n{}\n", t.titre));

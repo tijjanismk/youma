@@ -135,7 +135,6 @@ function Reception() {
               </label>
             </div>
           ))}
-          <p className="formule">Consigne = Σ (reçus − rendus) × consigne de l'emballage ; ajoutée au total.</p>
         </details>
       )}
       <Champ libelle="Note" valeur={note} changer={setNote} />

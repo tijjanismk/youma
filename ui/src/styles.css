@@ -1037,13 +1037,6 @@ code {
 .indicateur.benefice {
   border-color: var(--vert);
 }
-.formule {
-  font-size: 0.9rem;
-  color: var(--doux);
-  background: var(--carte-2);
-  padding: 8px;
-  border-radius: 8px;
-}
 .ligne-valeur {
   display: flex;
   justify-content: space-between;
@@ -2333,14 +2326,6 @@ label.bouton {
 }
 .filtres.periode .champ {
   flex: 0 1 200px;
-}
-.explication {
-  flex: 1 1 100%;
-}
-.explication summary {
-  cursor: pointer;
-  color: var(--accent-fonce);
-  font-weight: 600;
 }
 .formulaire-etroit {
   max-width: 560px;

@@ -258,7 +258,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   signalée « déjà présenté » avec l'heure et le contrôleur, et journalisée.
 
 ### Rapports (RAP)
-* **RG-RAP-01** Chaque indicateur est accompagné de sa formule écrite.
+* **RG-RAP-01** Chaque indicateur a sa formule écrite, tenue dans le code ; elle n'est **pas affichée** dans l'application
+  ni dans les exports (fiche 0033, décision du porteur de projet, contraire au cahier des charges § 18).
 * **RG-RAP-02** CA = Σ totaux des commandes payées de la période (hors consommations employés, hors offerts).
 * **RG-STA-01** Panier moyen = CA ÷ nombre de commandes payées ; dépense par couvert = ventes brutes des tables avec
   couverts ÷ Σ couverts. Divisions entières (FCFA).

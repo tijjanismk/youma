@@ -52,7 +52,7 @@ export default function Stock() {
       {onglet === "niveaux" && (
         <>
           <Chiffres>
-            <Chiffre libelle="Valeur du stock" valeur={fcfa(valeur)} Icone={Wallet} detail="quantité × dernier prix d'achat" />
+            <Chiffre libelle="Valeur du stock" valeur={fcfa(valeur)} Icone={Wallet} />
             <Chiffre libelle="Articles suivis" valeur={tous.length} Icone={Boxes} ton="bleu" />
             <Chiffre libelle="Sous le seuil" valeur={sousSeuil} Icone={AlertTriangle} ton={sousSeuil ? "accent" : "vert"} />
             <Chiffre libelle="En rupture" valeur={ruptures} Icone={PackageX} ton={ruptures ? "rouge" : "vert"} />

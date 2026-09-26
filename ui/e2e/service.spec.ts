@@ -199,7 +199,7 @@ test("contrôle de sortie : le ticket payé est un bon de sortie, une seule fois
   await expect(page.getByText("DÉJÀ PRÉSENTÉ")).toBeVisible();
 });
 
-test("tableau de bord : chiffres de la journée, sans formule (elles sont dans les rapports)", async ({ page }) => {
+test("tableau de bord : chiffres de la journée, sans formule (fiche 0033)", async ({ page }) => {
   await connexion(page, /Adama/, "2222");
   await page.goto("/tableau-de-bord");
   const ca = page.locator(".indicateur").filter({ hasText: "Chiffre d'affaires" });

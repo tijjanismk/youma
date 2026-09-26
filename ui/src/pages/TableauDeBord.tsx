@@ -64,7 +64,7 @@ function Bloc({ titre, Icone, children }: { titre: string; Icone: LucideIcon; ch
   );
 }
 
-/** Un propriétaire comprend sa journée en 10 secondes : peu de chiffres (les formules sont dans les rapports). */
+/** Un propriétaire comprend sa journée en 10 secondes : peu de chiffres, sans formule (fiche 0033). */
 export default function TableauDeBord() {
   const { donnees: d } = useDonnees(() => get<Tdb>("/tableau-de-bord"), ["paiement", "commande", "caisse", "stock", "journee"]);
   const { donnees: resume } = useDonnees(() => get<{ texte: string | null; telephone: string }>("/journee/resume"), ["paiement", "caisse", "journee"]);

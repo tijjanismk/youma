@@ -77,7 +77,6 @@ export default function Consignes() {
           ])}
         />
       )}
-      <p className="formule">Vides = détenus − pleins en stock (articles liés). La vente ne change pas les détenus : la bouteille reste au restaurant.</p>
       {donnees.fournisseurs.length > 0 && (
         <>
           <h3>Consigne à récupérer par fournisseur</h3>
