@@ -18,6 +18,7 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
   (résumés, sauvegardes chiffrées, espace propriétaire).
 - **Interface refaite** (fiche 0019) : thème, menu repliable sur PC, écrans téléphone, photos des plats.
 - **Application installable (PWA)** (fiche 0020) : icône sur le téléphone, HTTPS du réseau local.
+- **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 

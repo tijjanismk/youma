@@ -1,3 +1,4 @@
+import { AlertTriangle, Banknote, Bike, HandCoins, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { get, post } from "../api";
@@ -148,16 +149,16 @@ export default function Encaissement() {
           <h3>Moyen de paiement</h3>
           <div className="moyens">
             <button className="principal grand" onClick={() => ajouterPart({ moyen: "especes", montant: 0 })} disabled={reste <= 0}>
-              💵 Espèces
+              <Banknote size={20} aria-hidden /> Espèces
             </button>
             {livraison && (
               <button className="grand" onClick={() => ajouterPart({ moyen: "especes", montant: 0, par_livreur: true })} disabled={reste <= 0}>
-                🛵 Espèces au livreur
+                <Bike size={20} aria-hidden /> Espèces au livreur
               </button>
             )}
             {mm.map((c) => (
               <button key={c.id} className="grand mm" onClick={() => ajouterPart({ moyen: "mobile_money", montant: 0, compte_id: c.id })} disabled={reste <= 0}>
-                📱 {c.nom}
+                <Smartphone size={20} aria-hidden /> {c.nom}
               </button>
             ))}
             <button
@@ -165,7 +166,7 @@ export default function Encaissement() {
               onClick={() => (client ? ajouterPart({ moyen: "credit", montant: 0, client_id: client.id }) : setChoixClient(true))}
               disabled={reste <= 0}
             >
-              🧾 Crédit {client ? `(${client.nom})` : ""}
+              <HandCoins size={20} aria-hidden /> Crédit {client ? `(${client.nom})` : ""}
             </button>
           </div>
         </div>
@@ -188,7 +189,10 @@ export default function Encaissement() {
                 <>
                   <Champ libelle="Référence de la transaction" valeur={p.reference ?? ""} changer={(v) => modifierPart(i, { reference: v })} obligatoire={refObligatoire} />
                   <Champ libelle="Numéro du payeur" valeur={p.numero_payeur ?? ""} changer={(v) => modifierPart(i, { numero_payeur: v })} type="tel" />
-                  <p className="aide">⚠️ Vérifiez le SMS de l'opérateur sur le téléphone du restaurant, pas la capture du client.</p>
+                  <p className="aide">
+                    <AlertTriangle size={16} className="icone-texte" aria-hidden /> Vérifiez le SMS de l'opérateur sur le téléphone du restaurant, pas la
+                    capture du client.
+                  </p>
                 </>
               )}
             </div>

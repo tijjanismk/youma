@@ -1,25 +1,106 @@
-/* Youma — clair et chaleureux (maquette de référence), lisible au soleil, grands boutons, fluide sur téléphone. */
+/* Youma — design system « Mali vivant » : lisible au soleil, grands boutons, fluide sur téléphone.
+   Deux thèmes, mêmes jetons : « clair » dans :root, « sombre » sous [data-theme="sombre"] (choix mémorisé par poste,
+   voir src/theme.ts). N'écrivez jamais une couleur en dur : prenez la variable. */
 :root {
-  /* Accent orange : texte blanc dessus en gras (≥ 3:1), texte orange foncé sur blanc (≥ 4,5:1). */
-  --accent: #e0680a;
-  --accent-fonce: #b4520a;
-  --accent-doux: #fdebd7;
-  --vert: #15803d;
-  --vert-clair: #16a34a;
-  --fond: #f6f1ea;
+  color-scheme: light;
+  --fond: #f5f6fa;
   --carte: #ffffff;
-  --texte: #1c1917;
-  --doux: #6b625a;
-  --bord: #e7dfd5;
-  --rouge: #b91c1c;
+  --carte-2: #eceef6;
+  --texte: #1c2150;
+  --doux: #595e80;
+  --bord: #dde0ec;
+  --bord-fort: #7f84a6;
+  --mangue: #ee7a1c;
+  --accent: #c45200;
+  --sur-accent: #ffffff;
+  --accent-fonce: #a84700;
+  --accent-doux: #ffe8d4;
+  --menu-fond: #1c2150;
+  --menu-texte: #eef0fa;
+  --vert: #0d7244;
+  --vert-doux: #d9f2e5;
+  --rouge: #b3123f;
+  --rouge-doux: #fde0e7;
+  --jaune: #8f5c00;
+  --jaune-doux: #fbefd0;
+  --bleu: #3342c4;
+  --bleu-doux: #e1e5fb;
   --orange: #c2410c;
-  --jaune: #a16207;
-  --bleu: #1d4ed8;
+  --sur-etat: #ffffff;
+  --focus: #3342c4;
+  --ombre: 0 1px 2px rgba(28, 33, 80, 0.06), 0 8px 24px rgba(28, 33, 80, 0.08);
+  --ombre-accent: 0 6px 16px rgba(196, 82, 0, 0.28);
   --rayon: 12px;
+  --rayon-tuile: 14px;
   --rayon-carte: 20px;
-  --ombre: 0 4px 18px rgba(92, 60, 26, 0.07);
+  --rayon-pilule: 999px;
   --tactile: 52px;
   --rail: 232px;
+}
+[data-theme="sombre"] {
+  color-scheme: dark;
+  --fond: #12152b;
+  --carte: #1b1f3d;
+  --carte-2: #262b52;
+  --texte: #eef0fa;
+  --doux: #a9aed0;
+  --bord: #2f3560;
+  --bord-fort: #6d73a0;
+  --mangue: #ff8a2a;
+  --accent: #ff8a2a;
+  --sur-accent: #12152b;
+  --accent-fonce: #ffa25a;
+  --accent-doux: #3d2616;
+  --menu-fond: #0b0d1d;
+  --menu-texte: #eef0fa;
+  --vert: #4fd08f;
+  --vert-doux: #12392a;
+  --rouge: #ff6b8b;
+  --rouge-doux: #46162a;
+  --jaune: #f2b544;
+  --jaune-doux: #3a2d10;
+  --bleu: #9aa5ff;
+  --bleu-doux: #252c60;
+  --orange: #ff9153;
+  --sur-etat: #12152b;
+  --focus: #9aa5ff;
+  --ombre: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --ombre-accent: 0 6px 16px rgba(255, 138, 42, 0.22);
+}
+/* Une page imprimée reste claire, quel que soit le thème de l'écran. */
+@media print {
+  [data-theme="sombre"] {
+    color-scheme: light;
+    --fond: #f5f6fa;
+    --carte: #ffffff;
+    --carte-2: #eceef6;
+    --texte: #1c2150;
+    --doux: #595e80;
+    --bord: #dde0ec;
+    --bord-fort: #7f84a6;
+    --mangue: #ee7a1c;
+    --accent: #c45200;
+    --sur-accent: #ffffff;
+    --accent-fonce: #a84700;
+    --accent-doux: #ffe8d4;
+    --menu-fond: #1c2150;
+    --menu-texte: #eef0fa;
+    --vert: #0d7244;
+    --vert-doux: #d9f2e5;
+    --rouge: #b3123f;
+    --rouge-doux: #fde0e7;
+    --jaune: #8f5c00;
+    --jaune-doux: #fbefd0;
+    --bleu: #3342c4;
+    --bleu-doux: #e1e5fb;
+    --orange: #c2410c;
+    --sur-etat: #ffffff;
+    --focus: #3342c4;
+    --ombre: 0 1px 2px rgba(28, 33, 80, 0.06), 0 8px 24px rgba(28, 33, 80, 0.08);
+    --ombre-accent: 0 6px 16px rgba(196, 82, 0, 0.28);
+  }
+}
+:root {
   font-family: "Poppins", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   font-size: 16px;
   color: var(--texte);
@@ -54,7 +135,7 @@ button,
   padding: 0 18px;
   border: 2px solid var(--bord);
   border-radius: var(--rayon);
-  background: #fff;
+  background: var(--carte);
   color: var(--texte);
   font-size: 1rem;
   font-weight: 600;
@@ -77,7 +158,7 @@ button.principal,
 .bouton.principal {
   background: var(--vert);
   border-color: var(--vert);
-  color: #fff;
+  color: var(--sur-etat);
 }
 button.attention {
   border-color: var(--rouge);
@@ -109,7 +190,7 @@ button.lien {
 button.actif,
 .onglets button.actif {
   background: var(--vert);
-  color: #fff;
+  color: var(--sur-etat);
   border-color: var(--vert);
 }
 
@@ -121,7 +202,7 @@ textarea {
   border: 2px solid var(--bord);
   border-radius: var(--rayon);
   font-size: 1.05rem;
-  background: #fff;
+  background: var(--carte);
   color: var(--texte);
   width: 100%;
 }
@@ -129,7 +210,7 @@ input:focus,
 select:focus,
 textarea:focus,
 button:focus-visible {
-  outline: 3px solid #f59e0b;
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 .champ {
@@ -184,7 +265,7 @@ button:focus-visible {
   color: var(--rouge);
 }
 code {
-  background: #eee;
+  background: var(--carte-2);
   padding: 2px 6px;
   border-radius: 6px;
 }
@@ -197,7 +278,7 @@ code {
 }
 .entete {
   background: var(--vert);
-  color: #fff;
+  color: var(--sur-etat);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -207,7 +288,7 @@ code {
   z-index: 20;
 }
 .entete .marque {
-  color: #fff;
+  color: var(--sur-etat);
   font-weight: 800;
   font-size: 1.2rem;
   text-decoration: none;
@@ -221,7 +302,7 @@ code {
 }
 .entete button {
   background: transparent;
-  color: #fff;
+  color: var(--sur-etat);
   border-color: rgba(255, 255, 255, 0.6);
 }
 .entete .burger {
@@ -233,7 +314,7 @@ code {
 }
 .menu {
   width: 220px;
-  background: #fff;
+  background: var(--carte);
   border-right: 2px solid var(--bord);
   display: flex;
   flex-direction: column;
@@ -249,7 +330,7 @@ code {
 }
 .menu a.actif,
 .menu a:hover {
-  background: #e7efe9;
+  background: var(--vert-doux);
 }
 .contenu {
   flex: 1;
@@ -337,14 +418,14 @@ code {
 }
 .bandeau.erreur {
   background: var(--rouge);
-  color: #fff;
+  color: var(--sur-etat);
 }
 .bandeau.erreur button {
-  background: #fff;
+  background: var(--carte);
 }
 .bandeau.demo {
   background: #fde047;
-  color: #111;
+  color: #1c2150;
 }
 .notifications {
   position: fixed;
@@ -360,8 +441,8 @@ code {
 .notification {
   padding: 14px 16px;
   border-radius: var(--rayon);
-  background: #111;
-  color: #fff;
+  background: var(--menu-fond);
+  color: var(--menu-texte);
   font-weight: 700;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
@@ -384,7 +465,7 @@ code {
   padding: 12px;
 }
 .modal {
-  background: #fff;
+  background: var(--carte);
   border-radius: 14px;
   width: min(520px, 100%);
   max-height: 94vh;
@@ -401,7 +482,7 @@ code {
   border-bottom: 2px solid var(--bord);
   position: sticky;
   top: 0;
-  background: #fff;
+  background: var(--carte);
 }
 .modal-entete h2 {
   margin: 0;
@@ -428,7 +509,7 @@ code {
 .tuile {
   min-height: 120px;
   flex-direction: column;
-  background: #fff;
+  background: var(--carte);
   border: 2px solid var(--bord);
   border-radius: 14px;
   padding: 12px;
@@ -448,7 +529,7 @@ code {
   height: 48px;
   border-radius: 50%;
   background: var(--vert);
-  color: #fff;
+  color: var(--sur-etat);
   font-size: 1.4rem;
   display: flex;
   align-items: center;
@@ -472,7 +553,7 @@ code {
   justify-content: center;
   border: 2px solid var(--bord);
   border-radius: var(--rayon);
-  background: #fff;
+  background: var(--carte);
 }
 .pin-touches {
   display: grid;
@@ -539,20 +620,20 @@ code {
   font-size: 1.5rem;
 }
 .table-salle.libre {
-  border-color: #16a34a;
-  background: #f0fdf4;
+  border-color: var(--vert);
+  background: var(--vert-doux);
 }
 .table-salle.occupee {
   border-color: var(--orange);
-  background: #fff7ed;
+  background: var(--accent-doux);
 }
 .table-salle.reservee {
   border-color: var(--bleu);
-  background: #eff6ff;
+  background: var(--bleu-doux);
 }
 .table-salle.a_nettoyer {
-  border-color: #6b7280;
-  background: #f3f4f6;
+  border-color: var(--bord-fort);
+  background: var(--carte-2);
 }
 .pastille {
   position: absolute;
@@ -561,10 +642,10 @@ code {
   font-size: 0.75rem;
   padding: 2px 6px;
   border-radius: 8px;
-  color: #fff;
+  color: var(--sur-etat);
 }
 .pastille.pret {
-  background: #16a34a;
+  background: var(--vert);
 }
 .pastille.attente {
   background: var(--jaune);
@@ -602,7 +683,7 @@ code {
   border-width: 3px;
 }
 .categories button.actif {
-  color: #fff;
+  color: var(--sur-etat);
 }
 .produits {
   display: grid;
@@ -627,7 +708,7 @@ code {
   text-decoration: line-through;
 }
 .ticket {
-  background: #fff;
+  background: var(--carte);
   border: 2px solid var(--bord);
   border-radius: var(--rayon);
   padding: 12px;
@@ -642,11 +723,11 @@ code {
 .statut {
   padding: 4px 10px;
   border-radius: 8px;
-  background: #eee;
+  background: var(--carte-2);
   font-weight: 700;
 }
 .statut.payee {
-  background: #dcfce7;
+  background: var(--vert-doux);
 }
 .lignes {
   list-style: none;
@@ -656,7 +737,7 @@ code {
   overflow: auto;
 }
 .ligne {
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--bord);
 }
 .ligne-bouton,
 .ligne.panier {
@@ -673,7 +754,7 @@ code {
   font-weight: 500;
 }
 .ligne.panier {
-  background: #fefce8;
+  background: var(--jaune-doux);
 }
 .lien-ligne {
   border: none;
@@ -739,7 +820,7 @@ code {
   padding: 4px 0;
 }
 .envoi.pret {
-  color: #15803d;
+  color: var(--vert);
   font-weight: 700;
 }
 .envoi.probleme {
@@ -757,7 +838,7 @@ code {
 }
 .apercu-ticket {
   font-family: "Courier New", monospace;
-  background: #fafafa;
+  background: var(--carte-2);
   border: 1px dashed var(--bord);
   padding: 12px;
   white-space: pre-wrap;
@@ -837,7 +918,7 @@ code {
   gap: 12px;
 }
 .carte-cuisine {
-  background: #fff;
+  background: var(--carte);
   border: 4px solid var(--bord);
   border-radius: 14px;
   padding: 12px;
@@ -847,8 +928,8 @@ code {
   border-color: var(--jaune);
 }
 .carte-cuisine.pret {
-  border-color: #16a34a;
-  background: #f0fdf4;
+  border-color: var(--vert);
+  background: var(--vert-doux);
 }
 .carte-cuisine.probleme {
   border-color: var(--rouge);
@@ -859,7 +940,7 @@ code {
 .carte-cuisine-entete {
   display: flex;
   flex-direction: column;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--bord);
   padding-bottom: 6px;
 }
 .carte-cuisine-entete strong {
@@ -889,17 +970,17 @@ code {
 .tableau {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
+  background: var(--carte);
 }
 .tableau th,
 .tableau td {
   padding: 8px 10px;
-  border-bottom: 1px solid #e3e3e3;
+  border-bottom: 1px solid var(--bord);
   text-align: left;
   vertical-align: middle;
 }
 .tableau th {
-  background: #eef2ee;
+  background: var(--carte-2);
   font-size: 0.9rem;
 }
 .tableau .droite {
@@ -910,7 +991,7 @@ code {
 }
 .tableau tr.total td {
   font-weight: 800;
-  border-top: 2px solid #111;
+  border-top: 2px solid var(--texte);
 }
 .matrice td,
 .matrice th {
@@ -924,7 +1005,7 @@ code {
   margin-bottom: 14px;
 }
 .indicateur {
-  background: #fff;
+  background: var(--carte);
   border: 2px solid var(--bord);
   border-radius: var(--rayon);
   padding: 12px;
@@ -948,7 +1029,7 @@ code {
 .formule {
   font-size: 0.9rem;
   color: var(--doux);
-  background: #f8f8f5;
+  background: var(--carte-2);
   padding: 8px;
   border-radius: 8px;
 }
@@ -956,7 +1037,7 @@ code {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  border-bottom: 1px dashed #e3e3e3;
+  border-bottom: 1px dashed var(--bord);
   gap: 10px;
 }
 .alerte {
@@ -973,7 +1054,7 @@ code {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--bord);
   padding: 6px 0;
 }
 .bulletin .signatures {
@@ -986,7 +1067,7 @@ code {
   grid-template-columns: 2fr 1.4fr 0.7fr 1.2fr 1fr auto;
   gap: 8px;
   align-items: end;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--bord);
   padding-bottom: 6px;
 }
 .qr {
@@ -1006,12 +1087,12 @@ code {
   text-align: center;
 }
 .resultat-sortie.ok {
-  border-color: #16a34a;
-  background: #f0fdf4;
+  border-color: var(--vert);
+  background: var(--vert-doux);
 }
 .resultat-sortie.ko {
   border-color: var(--rouge);
-  background: #fef2f2;
+  background: var(--rouge-doux);
 }
 .resultat-sortie h2 {
   font-size: 1.8rem;
@@ -1114,7 +1195,7 @@ code {
   body,
   .carte,
   .indicateur {
-    background: #fff;
+    background: var(--carte);
     border-color: #999;
   }
   details {
@@ -1171,7 +1252,7 @@ code {
   margin-left: 6px;
   border-radius: 999px;
   background: var(--rouge);
-  color: #fff;
+  color: var(--sur-etat);
   font-size: 0.85rem;
   font-weight: 700;
   text-align: center;
@@ -1250,7 +1331,7 @@ code {
 .etapes-suivi li.courante {
   border-color: var(--vert);
   font-weight: 700;
-  background: #f0fdf4;
+  background: var(--vert-doux);
 }
 
 /* ───── Recettes (fiche 0014) ───── */
@@ -1274,7 +1355,7 @@ code {
 }
 .pastille.promo {
   background: var(--orange);
-  color: #fff;
+  color: var(--sur-etat);
 }
 
 @media (min-width: 901px) {
@@ -1301,8 +1382,8 @@ button.principal,
 .bouton.principal {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(224, 104, 10, 0.25);
+  color: var(--sur-etat);
+  box-shadow: var(--ombre-accent);
 }
 button.principal:hover:not(:disabled) {
   background: var(--accent-fonce);
@@ -1326,7 +1407,7 @@ select:focus,
 textarea:focus,
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgba(224, 104, 10, 0.45);
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 .carte,
@@ -1352,7 +1433,7 @@ a:focus-visible {
 }
 .onglets button {
   border-radius: 999px;
-  background: #efe9e1;
+  background: var(--carte-2);
   border-color: transparent;
   min-height: 44px;
 }
@@ -1362,7 +1443,7 @@ a:focus-visible {
 }
 .statut {
   border-radius: 999px;
-  background: #f1ece5;
+  background: var(--carte-2);
 }
 
 /* ── Coquille : en-tête clair, barre latérale rétractable, barre du bas sur téléphone ── */
@@ -1385,7 +1466,7 @@ a:focus-visible {
   opacity: 1;
 }
 .entete button {
-  background: #fff;
+  background: var(--carte);
   color: var(--texte);
   border-color: var(--bord);
 }
@@ -1432,7 +1513,7 @@ a:focus-visible {
   font-weight: 600;
 }
 .menu a:hover {
-  background: #f7f1ea;
+  background: var(--carte-2);
   color: var(--texte);
 }
 .menu .replier {
@@ -1501,15 +1582,15 @@ a:focus-visible {
   border-width: 2px;
 }
 .table-salle.libre {
-  border-color: #bfe3cb;
-  background: #fff;
+  border-color: var(--vert);
+  background: var(--carte);
 }
 .table-salle.libre small {
   color: var(--vert);
 }
 .table-salle.occupee {
   border-color: var(--accent);
-  background: #fff8f0;
+  background: var(--accent-doux);
 }
 .table-salle.occupee small {
   color: var(--accent-fonce);
@@ -1523,7 +1604,7 @@ a:focus-visible {
 .recherche {
   border-radius: 999px;
   padding-left: 20px;
-  background: #fff;
+  background: var(--carte);
   border-color: var(--bord);
   min-height: 50px;
 }
@@ -1533,7 +1614,7 @@ a:focus-visible {
 .categories button {
   border-radius: 999px;
   border: 1.5px solid transparent;
-  background: #efe9e1;
+  background: var(--carte-2);
   color: var(--doux);
   min-height: 46px;
   font-weight: 600;
@@ -1635,14 +1716,14 @@ a:focus-visible {
 .type-pastille {
   padding: 5px 14px;
   border-radius: 999px;
-  background: #f1ece5;
+  background: var(--carte-2);
   color: var(--doux);
   font-size: 0.85rem;
   font-weight: 600;
 }
 .type-pastille.actif {
   background: var(--accent);
-  color: #fff;
+  color: var(--sur-etat);
 }
 .ligne {
   border-bottom: 1px solid var(--bord);
@@ -1677,7 +1758,7 @@ a:focus-visible {
   display: inline-block;
   padding: 1px 8px;
   border-radius: 999px;
-  background: #f1ece5;
+  background: var(--carte-2);
   font-size: 0.75rem;
 }
 .boutons-qte {
@@ -1986,22 +2067,22 @@ label.bouton {
 }
 .ton-vert .chiffre-icone,
 .etat-pastille.ton-vert {
-  background: #dcfce7;
+  background: var(--vert-doux);
   color: var(--vert);
 }
 .ton-rouge .chiffre-icone,
 .etat-pastille.ton-rouge {
-  background: #fee2e2;
+  background: var(--rouge-doux);
   color: var(--rouge);
 }
 .ton-bleu .chiffre-icone,
 .etat-pastille.ton-bleu {
-  background: #dbeafe;
+  background: var(--bleu-doux);
   color: var(--bleu);
 }
 .ton-neutre .chiffre-icone,
 .etat-pastille.ton-neutre {
-  background: #efe9e1;
+  background: var(--carte-2);
   color: var(--doux);
 }
 .etat-pastille {
@@ -2042,8 +2123,8 @@ label.bouton {
   color: var(--accent-fonce);
 }
 .indicateur.benefice {
-  border-color: #bbf7d0;
-  background: linear-gradient(180deg, #f0fdf4, var(--carte));
+  border-color: var(--vert);
+  background: linear-gradient(180deg, var(--vert-doux), var(--carte));
 }
 .indicateur[open] {
   grid-row: span 2;
@@ -2106,7 +2187,7 @@ label.bouton {
 .pilule {
   border-radius: 999px;
   min-height: 46px;
-  background: #efe9e1;
+  background: var(--carte-2);
   border: 1.5px solid transparent;
   color: var(--doux);
   font-weight: 600;
@@ -2131,12 +2212,12 @@ label.bouton {
   background: transparent;
 }
 .tableau th {
-  background: #faf6f1;
+  background: var(--carte-2);
   color: var(--doux);
   font-weight: 600;
 }
 .tableau tbody tr:hover {
-  background: #fdf9f4;
+  background: var(--carte-2);
 }
 .tableau tbody tr:last-child td {
   border-bottom: none;
@@ -2304,4 +2385,186 @@ label.bouton {
   .indicateur .texte-court {
     display: inline;
   }
+}
+
+/* ═════════════ Couche « Mali vivant » ═════════════ */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+.montant,
+.chiffre strong,
+.tableau td,
+.pin-affichage,
+.raccourcis button {
+  font-variant-numeric: tabular-nums;
+}
+button,
+.bouton {
+  border-color: var(--bord-fort);
+  background: var(--carte);
+  color: var(--texte);
+}
+button.principal,
+.bouton.principal {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--sur-accent);
+  box-shadow: var(--ombre-accent);
+}
+button.principal:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+button.actif,
+.onglets button.actif {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  border-color: var(--accent);
+}
+button.attention {
+  border-color: var(--rouge);
+  color: var(--rouge);
+}
+button.lien {
+  border: none;
+  background: none;
+  color: var(--accent-fonce);
+  text-underline-offset: 3px;
+}
+input,
+select,
+textarea {
+  border-color: var(--bord-fort);
+  background: var(--carte);
+  color: var(--texte);
+}
+input::placeholder {
+  color: var(--doux);
+}
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+.carte,
+.chiffre,
+.indicateur,
+.tuile,
+.produit {
+  border-color: var(--bord);
+  box-shadow: var(--ombre);
+}
+.onglets button {
+  background: var(--carte-2);
+  border-color: transparent;
+  color: var(--texte);
+  border-radius: var(--rayon-pilule);
+}
+@media (min-width: 901px) {
+  .tableau {
+    background: var(--carte);
+    border-radius: var(--rayon-carte);
+    overflow: hidden;
+  }
+  .tableau th {
+    background: var(--carte-2);
+    color: var(--doux);
+  }
+  .tableau th,
+  .tableau td {
+    border-bottom-color: var(--bord);
+    padding: 12px 14px;
+  }
+  .tableau-conteneur {
+    border: 1px solid var(--bord);
+    border-radius: var(--rayon-carte);
+    box-shadow: var(--ombre);
+  }
+}
+.pin-affichage {
+  border-color: var(--bord-fort);
+  background: var(--carte);
+  color: var(--texte);
+}
+
+/* Le moment fort : les chiffres clés en tuiles pleines de couleur. */
+.chiffre-icone {
+  border-radius: var(--rayon-tuile);
+  background: var(--accent);
+  color: var(--sur-accent);
+}
+.ton-vert .chiffre-icone {
+  background: var(--vert);
+  color: var(--sur-etat);
+}
+.ton-rouge .chiffre-icone {
+  background: var(--rouge);
+  color: var(--sur-etat);
+}
+.ton-bleu .chiffre-icone {
+  background: var(--bleu);
+  color: var(--sur-etat);
+}
+.ton-neutre .chiffre-icone {
+  background: var(--menu-fond);
+  color: var(--menu-texte);
+}
+
+/* Pastilles : teinte claire + couleur d'état + mot. */
+.etat-pastille {
+  border-radius: var(--rayon-pilule);
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+}
+.etat-pastille.ton-vert {
+  background: var(--vert-doux);
+  color: var(--vert);
+}
+.etat-pastille.ton-rouge {
+  background: var(--rouge-doux);
+  color: var(--rouge);
+}
+.etat-pastille.ton-bleu {
+  background: var(--bleu-doux);
+  color: var(--bleu);
+}
+.etat-pastille.ton-neutre {
+  background: var(--carte-2);
+  color: var(--doux);
+}
+.bandeau.info {
+  background: var(--accent-doux);
+  color: var(--accent-fonce);
+  border-radius: var(--rayon);
+}
+.installation {
+  border: 1.5px dashed var(--accent);
+}
+.installation a {
+  color: var(--accent-fonce);
+}
+.vide {
+  color: var(--doux);
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .bouton {
+    transition: none;
+  }
+  button:active:not(:disabled) {
+    transform: none;
+  }
+}
+.icone-texte {
+  vertical-align: -3px;
+  margin-right: 2px;
 }

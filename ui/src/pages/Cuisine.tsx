@@ -59,7 +59,7 @@ export default function Cuisine() {
           ))}
         </div>
       )}
-      {envois && envois.length === 0 && <Vide>Aucune commande en attente. 👌</Vide>}
+      {envois && envois.length === 0 && <Vide>Aucune commande en attente.</Vide>}
       <div className="cartes-cuisine">
         {(envois ?? []).map((e) => {
           const attente = minutesDepuis(e.cree_le);

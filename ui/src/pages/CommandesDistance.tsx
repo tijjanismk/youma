@@ -1,3 +1,4 @@
+import { MapPin, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { appel, get, post } from "../api";
@@ -194,7 +195,7 @@ function FormZone({ z: initiale, quartiers, fermer, enregistrer }: { z: ZoneRisq
             <input type="number" value={z.rayon_m ?? ""} onChange={(e) => setZ({ ...z, rayon_m: Number(e.target.value) || null })} aria-label="Rayon (mètres)" />
           </label>
           <button type="button" onClick={ici}>
-            📍 Ma position actuelle
+            <MapPin size={20} aria-hidden /> Ma position actuelle
           </button>
         </div>
       )}
@@ -325,7 +326,7 @@ function QrTables() {
               document.body.classList.remove("impression-qr");
             }}
           >
-            🖨️ Imprimer
+            <Printer size={20} aria-hidden /> Imprimer
           </button>
           <button
             className="attention petit"

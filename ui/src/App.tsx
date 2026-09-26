@@ -1,4 +1,4 @@
-import { ArrowLeftRight, House, Menu as MenuIcone, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ArrowLeftRight, House, Menu as MenuIcone, Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { definirJetonAppareil, get, post } from "./api";
@@ -6,6 +6,7 @@ import { BandeauMiseAJour } from "./composants/Installation";
 import { Fournisseur, useApp } from "./contexte";
 import { dateFr, dateHeure } from "./format";
 import Connexion from "./pages/Connexion";
+import { choisirTheme, lireTheme, Theme } from "./theme";
 import Installation from "./pages/Installation";
 import Accueil, { menuVisible } from "./pages/Accueil";
 import Salle from "./pages/Salle";
@@ -143,6 +144,28 @@ function useEntrantesEnAttente(): number {
   return n;
 }
 
+/** Clair / Sombre, mémorisé par poste. */
+function ChoixTheme() {
+  const [theme, setTheme] = useState<Theme>(() => lireTheme());
+  const sombre = theme === "sombre";
+  const basculer = () => {
+    const t: Theme = sombre ? "clair" : "sombre";
+    choisirTheme(t);
+    setTheme(t);
+  };
+  return (
+    <button
+      className="petit theme"
+      onClick={basculer}
+      aria-label="Thème sombre"
+      aria-pressed={sombre}
+      title={sombre ? "Passer en thème clair" : "Passer en thème sombre"}
+    >
+      {sombre ? <Sun size={20} aria-hidden /> : <Moon size={20} aria-hidden />}
+    </button>
+  );
+}
+
 const CLE_REPLIE = "youma.menu-replie";
 
 function lireReplie(): boolean {
@@ -225,6 +248,7 @@ function Coquille() {
           {session.utilisateur.nom.trim().charAt(0).toUpperCase()}
         </span>
         <span className="utilisateur">{session.utilisateur.nom}</span>
+        <ChoixTheme />
         <button className="petit changer" onClick={deconnecter} aria-label="Changer d'utilisateur" title="Changer d'utilisateur">
           <span className="texte-long">Changer d'utilisateur</span>
           <span className="texte-court" aria-hidden>
