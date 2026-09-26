@@ -41,7 +41,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   privées, port HTTP + 1, `--port-https 0` pour couper). `relais.rs`/`cloud.rs` : tâches de fond facultatives.
 - `crates/youma-relais` : serveur Internet facultatif (relais des commandes en ligne + cloud multi-restaurants,
   SMS Orange Mali ou simulation). `crates/youma-licence` : licences hors ligne.
-- `docs/guides/` : installation sur la caisse (`installation-caisse.md`), mise en ligne du relais
+- `docs/guides/` : installation sur la caisse (`installation-caisse.md`), formation du personnel (`formation-personnel.md`), mise en ligne du relais
   (`relais-en-ligne.md` : Railway avec `railway.toml` et `deploiement/railway/Dockerfile`, ou VPS avec `deploiement/relais/`).
 - `apps/desktop` : coquille Tauri (hors workspace, construite à part) ; elle construit `youma_server::Config`
   elle aussi : tout nouveau champ de `Config` s'y ajoute.

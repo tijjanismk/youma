@@ -44,7 +44,8 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
    l'onglet Actions). Reste : ajouter le secret `YOUMA_CLE_PUBLIQUE` (clé de production des licences), puis
    installer sur une vraie caisse POS et vérifier démarrage, pare-feu et impression.
 2. **Guide d'installation sur la caisse** : écrit, `docs/guides/installation-caisse.md`. Reste : captures d'écran
-   lors de la première installation réelle, et un guide de formation du personnel (ouverture/clôture, service).
+   lors de la première installation réelle. Formation du personnel : `docs/guides/formation-personnel.md` (par poste,
+   exercice de fin de formation).
    Le mode réseau s'active dans Administration → Téléphones et tablettes (fiche 0024).
 3. **Essais sur vrais appareils** :
    - téléphones Android et iPhone sur le Wi-Fi du restaurant, en service ;
