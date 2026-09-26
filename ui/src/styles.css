@@ -1677,6 +1677,20 @@ a:focus-visible {
   box-shadow: none;
   margin: 0;
 }
+/* Photo entière, jamais rognée : elle tient dans le cadre quelle que soit sa forme (fiche 0029). */
+.visuel-plat.photo {
+  object-fit: contain;
+  border-radius: var(--rayon-tuile);
+  background: var(--carte-2);
+}
+.produit .visuel-plat.photo,
+.choix-photo .visuel-plat.photo {
+  width: 100%;
+  max-width: 200px;
+}
+.produit-client .visuel-plat.photo {
+  width: 88px;
+}
 .produit .nom-plat {
   font-weight: 600;
   line-height: 1.2;
