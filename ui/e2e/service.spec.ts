@@ -526,3 +526,20 @@ test("carte bancaire sur le TPE : numéro d'autorisation obligatoire (RG-CAI-15)
   await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
   await expect(page.getByText("Addition soldée.")).toBeVisible();
 });
+
+test("paie indépendante des caisses : salaire payé depuis le coffre (RG-PAI-09)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/paie");
+  const ligne = page.getByRole("row").filter({ hasText: "Bakary Diallo" });
+  await ligne.getByRole("button", { name: "Clôturer" }).click();
+  const bulletin = page.getByRole("dialog", { name: "Bulletin" });
+  await bulletin.getByRole("button", { name: /^Payer / }).click();
+  const paiement = page.getByRole("dialog", { name: "Payer Bakary Diallo" });
+  const compte = paiement.getByLabel("Payé depuis");
+  // Seuls les comptes hors caisse sont proposés.
+  await expect(compte.locator("option", { hasText: "Caisse principale" })).toHaveCount(0);
+  await expect(compte.locator("option", { hasText: "Coffre / propriétaire" })).toHaveCount(1);
+  await compte.selectOption({ label: "Coffre / propriétaire" });
+  await paiement.getByRole("button", { name: "Payer", exact: true }).click();
+  await expect(page.getByText("Paiement enregistré")).toBeVisible();
+});

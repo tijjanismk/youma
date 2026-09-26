@@ -371,7 +371,7 @@ pub struct PaiementSalaire {
     pub note: String,
 }
 
-/// RG-PAI-05 : paiement (éventuellement partiel) depuis un compte de trésorerie.
+/// RG-PAI-05 / RG-PAI-09 : paiement (éventuellement partiel) depuis un compte hors caisse.
 pub fn payer(db: &mut Db, acteur: &Acteur, p: &PaiementSalaire) -> Resultat<String> {
     db.executer(acteur, |op| {
         let autorise_par = op.exiger(perm::PAIE_GERER)?;
@@ -393,8 +393,17 @@ pub fn payer(db: &mut Db, acteur: &Acteur, p: &PaiementSalaire) -> Resultat<Stri
                 return Err(Erreur::regle("RG-PAI-05", format!("Le compte de l'employé n'est créditeur que de {s}")));
             }
         }
-        let (compte, session) = employes::compte_payeur(op, p.compte_id.as_deref())?;
-        let mvt = crate::caisse::mouvement(op, &compte, session.as_deref(), "paiement_salaire", -p.montant, Some(("employe", &p.employe_id)), &format!("Salaire {}", e.nom), autorise_par.as_deref())?;
+        // RG-PAI-09 : la paie est indépendante des caisses. Le salaire sort d'un compte choisi (coffre, banque,
+        // Mobile Money), jamais du tiroir, et n'est rattaché à aucune session : la clôture de caisse n'en dépend pas.
+        let compte = p.compte_id.clone().ok_or_else(|| Erreur::regle("RG-PAI-09", "Choisissez le compte qui paie le salaire"))?;
+        let type_compte: String = op
+            .query_row("SELECT type FROM comptes_tresorerie WHERE id = ?1 AND actif = 1", params![compte], |r| r.get(0))
+            .optional()?
+            .ok_or_else(|| Erreur::NonTrouve("Compte".into()))?;
+        if !["coffre", "banque", "mobile_money"].contains(&type_compte.as_str()) {
+            return Err(Erreur::regle("RG-PAI-09", "Les salaires ne se paient pas depuis la caisse : choisissez le coffre, la banque ou le Mobile Money"));
+        }
+        let mvt = crate::caisse::mouvement(op, &compte, None, "paiement_salaire", -p.montant, Some(("employe", &p.employe_id)), &format!("Salaire {}", e.nom), autorise_par.as_deref())?;
         let id = inserer_mouvement(op, &p.employe_id, "paiement", -p.montant, None, Some((&compte, &mvt)), None, p.bulletin_id.as_deref(), p.note.trim(), autorise_par.as_deref())?;
         op.audit("paie.payer", "employe", Some(&p.employe_id), None, Some(json!({ "montant": p.montant, "bulletin": p.bulletin_id })), None, autorise_par.as_deref())?;
         op.evenement("caisse", None);

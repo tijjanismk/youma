@@ -442,13 +442,21 @@ fn rg_pai_05_06_paiement_partiel_et_periode_figee() {
     assert_eq!(bul.total_gains, 60_000);
     assert_eq!(bul.total_retenues, 25_000);
     let bid = bul.id.clone().unwrap();
+    // RG-PAI-09 : pas de salaire depuis la caisse (ni sans compte) ; le coffre paie, hors session.
+    let payer_depuis = |compte: Option<String>, montant| PaiementSalaire { employe_id: awa.clone(), montant, bulletin_id: Some(bid.clone()), compte_id: compte, note: String::new() };
+    assert_eq!(paie::payer(&mut b.db, &g, &payer_depuis(Some(caisse_id.clone()), 20_000)).unwrap_err().regle_code(), Some("RG-PAI-09"));
+    assert_eq!(paie::payer(&mut b.db, &g, &payer_depuis(None, 20_000)).unwrap_err().regle_code(), Some("RG-PAI-09"));
+    let coffre = b.compte("Coffre / propriétaire");
     // Paiement partiel puis solde.
-    paie::payer(&mut b.db, &g, &PaiementSalaire { employe_id: awa.clone(), montant: 20_000, bulletin_id: Some(bid.clone()), compte_id: Some(caisse_id.clone()), note: String::new() }).unwrap();
+    paie::payer(&mut b.db, &g, &payer_depuis(Some(coffre.clone()), 20_000)).unwrap();
     assert_eq!(paie::bulletin(b.db.conn(), &bid).unwrap().reste_a_payer, 15_000);
-    let e = paie::payer(&mut b.db, &g, &PaiementSalaire { employe_id: awa.clone(), montant: 20_000, bulletin_id: Some(bid.clone()), compte_id: Some(caisse_id.clone()), note: String::new() }).unwrap_err();
+    let e = paie::payer(&mut b.db, &g, &payer_depuis(Some(coffre.clone()), 20_000)).unwrap_err();
     assert_eq!(e.regle_code(), Some("RG-PAI-05"));
-    paie::payer(&mut b.db, &g, &PaiementSalaire { employe_id: awa.clone(), montant: 15_000, bulletin_id: Some(bid.clone()), compte_id: Some(caisse_id), note: String::new() }).unwrap();
-    assert_eq!(b.solde("Caisse principale"), 100_000 - 20_000 - 35_000);
+    paie::payer(&mut b.db, &g, &payer_depuis(Some(coffre), 15_000)).unwrap();
+    // Le tiroir ne porte que l'avance ; les salaires sortent du coffre, hors de toute session de caisse.
+    assert_eq!(b.solde("Caisse principale"), 100_000 - 20_000);
+    assert_eq!(b.solde("Coffre / propriétaire"), -35_000);
+    assert_eq!(b.compter("SELECT COUNT(*) FROM mouvements_tresorerie WHERE type = 'paiement_salaire' AND session_id IS NOT NULL"), 0);
     // Période chevauchante refusée ; correction par régularisation sur la suivante.
     assert_eq!(paie::cloturer(&mut b.db, &g, &awa, "2026-03-15", "2026-04-14").unwrap_err().regle_code(), Some("RG-PAI-06"));
     employes::evenement(&mut b.db, &g, &Evenement { employe_id: awa.clone(), type_: "regularisation".into(), montant: 2_000, quantite: None, motif: "Oubli prime mars".into() }).unwrap();
@@ -457,6 +465,10 @@ fn rg_pai_05_06_paiement_partiel_et_periode_figee() {
     assert_eq!(avril.net_a_payer, 52_000);
     // Le bulletin figé ne change pas.
     assert!(b.db.conn().execute("UPDATE bulletins SET net_a_payer = 0", []).is_err());
+    // Une avance payée depuis le coffre n'entre pas non plus dans la session de caisse ouverte.
+    let coffre = b.compte("Coffre / propriétaire");
+    employes::avance(&mut b.db, &g, &employes::Avance { employe_id: awa.clone(), montant: 1_000, compte_id: Some(coffre.clone()), motif: String::new() }).unwrap();
+    assert_eq!(b.compter(&format!("SELECT COUNT(*) FROM mouvements_tresorerie WHERE compte_id = '{coffre}' AND session_id IS NOT NULL")), 0);
 }
 
 #[test]

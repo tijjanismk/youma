@@ -1,12 +1,12 @@
 import { Banknote, MinusCircle, Users, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post } from "../api";
-import { Champ, ChampMontant, Modal, Montant, TableauDonnees } from "../composants/Base";
+import { Champ, ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { Chiffre, Chiffres } from "../composants/Chiffres";
 import { useApp, useDonnees } from "../contexte";
 import { dateFr, fcfa, finDuMois, premierDuMois } from "../format";
 import { t } from "../i18n";
-import type { Bulletin, Employe } from "../types";
+import type { Bulletin, Compte, Employe } from "../types";
 
 /** Bulletin simple, imprimable (A4 ou ticket). */
 export function BulletinImprimable({ b }: { b: Bulletin }) {
@@ -212,18 +212,30 @@ function BulletinsAPayer({ ouvrir }: { ouvrir: (b: Bulletin) => void }) {
 function PaiementSalaire({ b, fermer, fait }: { b: Bulletin; fermer: () => void; fait: () => void }) {
   const { agir } = useApp();
   const [montant, setMontant] = useState(b.reste_a_payer);
+  // RG-PAI-09 : la paie est indépendante des caisses (coffre, banque ou Mobile Money, jamais le tiroir).
+  const { donnees: comptes } = useDonnees(() => get<Compte[]>("/comptes"), []);
+  const payeurs = (comptes ?? []).filter((c) => c.actif && ["coffre", "banque", "mobile_money"].includes(c.type));
+  const [compte, setCompte] = useState("");
+  const compteId = compte || payeurs[0]?.id || "";
   return (
     <Modal titre={`Payer ${b.employe_nom}`} fermer={fermer}>
       <p>Reste à payer sur ce bulletin : {fcfa(b.reste_a_payer)}. Un paiement partiel est possible.</p>
       <ChampMontant libelle="Montant payé" valeur={montant} changer={setMontant} raccourcis={[b.reste_a_payer]} />
-      <p className="aide">Payé depuis votre caisse (session ouverte).</p>
+      {payeurs.length > 0 ? (
+        <Choix libelle="Payé depuis" valeur={compteId} changer={setCompte} options={payeurs.map((c) => ({ valeur: c.id, libelle: c.nom }))} />
+      ) : (
+        comptes && (
+          <p className="attention-texte">Aucun compte pour payer les salaires : créez le coffre ou un compte bancaire (Administration → Moyens de paiement).</p>
+        )
+      )}
+      <p className="aide">Les salaires ne sortent jamais de la caisse : la clôture de caisse n'en dépend pas.</p>
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
         <button
           className="principal"
-          disabled={montant <= 0 || montant > b.reste_a_payer}
+          disabled={montant <= 0 || montant > b.reste_a_payer || !compteId}
           onClick={() =>
-            agir((pin) => post("/paie/payer", { employe_id: b.employe_id, bulletin_id: b.id, montant }, pin), "Paiement enregistré").then(
+            agir((pin) => post("/paie/payer", { employe_id: b.employe_id, bulletin_id: b.id, montant, compte_id: compteId }, pin), "Paiement enregistré").then(
               (r) => r !== undefined && (fait(), fermer()),
             )
           }
