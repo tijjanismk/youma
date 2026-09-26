@@ -43,7 +43,8 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   SMS Orange Mali ou simulation). `crates/youma-licence` : licences hors ligne.
 - `docs/guides/` : installation sur la caisse (`installation-caisse.md`), formation du personnel (`formation-personnel.md` ; version illustrée
   `formation/formation-personnel.pdf`, refaite par `cd ui && node outils/formation.mjs` après un changement d'écran), mise en ligne du relais
-  (`relais-en-ligne.md` : Railway avec `railway.toml` et `deploiement/railway/Dockerfile`, ou VPS avec `deploiement/relais/`).
+  (`relais-en-ligne.md` : Railway avec `railway.toml` et `deploiement/railway/Dockerfile`, Oracle Cloud gratuit ou VPS avec
+  `deploiement/relais/`).
 - `apps/desktop` : coquille Tauri (hors workspace, construite à part) ; elle construit `youma_server::Config`
   elle aussi : tout nouveau champ de `Config` s'y ajoute.
 - `ui/` : React 19 + TypeScript (Vite 8, React Router 7 : importer depuis `react-router`, fiche 0025). `src/pages` (écrans du personnel), `src/public` (menu client, suivi,
