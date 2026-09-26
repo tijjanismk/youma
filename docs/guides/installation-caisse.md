@@ -13,7 +13,10 @@ connectent par le Wi-Fi du restaurant. **Internet n'est pas nécessaire pour ven
 
 ## 1. Vérifier la caisse
 
-- **Windows 10 ou 11, 64 bits** : Paramètres → Système → Informations système. Windows 7 ou 8 ne conviennent pas.
+- **Windows 10, 64 bits** (les caisses du pack ; Windows 11 convient aussi) : Paramètres → Système → Informations
+  système → « Type du système » doit indiquer **64 bits**. Windows 7 ou 8, ou un Windows 32 bits, ne conviennent pas.
+- Windows 10 à jour du composant **WebView2** (présent sur les Windows 10 récents ; sinon l'installateur le
+  demande, avec Internet une seule fois).
 - L'heure et la date de Windows sont justes (Youma bloque les ventes si l'horloge recule).
 - La caisse est branchée sur un onduleur si possible : une coupure brutale pendant une vente est sans danger pour
   la base, mais la caisse doit redémarrer seule.
@@ -45,22 +48,33 @@ Administration (mot de passe d'administration demandé) :
 - **Produits** : catégories, plats, prix, photos (prises avec un téléphone, facultatives).
 - **Salle et tables**, **Utilisateurs** (un PIN par employé), **Moyens de paiement** (Orange Money, Moov, Wave…).
 
-## 5. Imprimantes thermiques
+## 5. Imprimantes Xprinter
 
-Youma parle directement aux imprimantes ESC/POS (les imprimantes thermiques chinoises courantes, 58 ou 80 mm).
+Les imprimantes du pack sont des **Xprinter** (thermiques ESC/POS, 58 ou 80 mm). Youma leur parle directement :
+il coupe le « mode chinois » d'origine et passe en page de caractères PC858 pour les accents, coupe le papier et
+ouvre le tiroir-caisse branché sur l'imprimante.
 
-**Imprimante intégrée à la caisse ou branchée en USB**
+**Page d'autotest** (avant tout) : imprimante éteinte, garder le bouton **FEED** appuyé, allumer, relâcher après
+le bip. La page indique la largeur du papier, l'interface (USB, Ethernet) et, pour un modèle réseau, son
+**adresse IP**. La garder avec le dossier du restaurant.
 
-1. L'installer dans Windows avec le pilote du fabricant (CD ou fichier fourni), ou à défaut le pilote
-   **« Generic / Text Only »**.
-2. Noter son nom exact : Paramètres → Bluetooth et appareils → Imprimantes et scanners.
-3. Dans Youma, destination : `windows:NOM EXACT` (par exemple `windows:POS-80C`).
+**Xprinter en USB (caisse ou cuisine près de la caisse)**
 
-**Imprimante réseau (câble Ethernet)**
+1. Brancher, allumer, installer le **pilote Xprinter** (CD livré, ou fichier fourni par le fournisseur du pack).
+   À défaut : pilote **« Generic / Text Only »** de Windows.
+2. Noter son nom exact : Paramètres → Périphériques → Imprimantes et scanners (par exemple `XP-80C`).
+3. Dans Youma, destination : `windows:NOM EXACT` (par exemple `windows:XP-80C`), majuscules et espaces compris.
 
-1. Lui donner une adresse fixe (bouton d'autotest pour lire son adresse, puis outil du fabricant ou réservation dans
-   la box).
-2. Destination : `tcp:ADRESSE:9100` (par exemple `tcp:192.168.1.50:9100`).
+**Xprinter réseau (câble Ethernet, cuisine ou bar éloignés)**
+
+1. Brancher le câble sur la box, allumer, lire l'adresse sur la page d'autotest.
+2. Si cette adresse n'est pas dans le réseau de la box (par exemple l'imprimante dit `192.168.123.100` et la caisse
+   est en `192.168.1.x`), la changer avec l'outil de réglage Xprinter fourni avec le pilote (onglet réseau) :
+   choisir une adresse fixe hors de la plage distribuée par la box, par exemple `192.168.1.50`.
+3. Destination : `tcp:ADRESSE:9100` (par exemple `tcp:192.168.1.50:9100`).
+
+**Largeur du papier** (Administration → Restaurant et règles) : 58 mm → **32** caractères ; 80 mm → **48**
+(ou **42** si les lignes débordent).
 
 **Où la déclarer**
 
@@ -76,11 +90,11 @@ s'ouvre. Annuler ensuite les lignes de cette commande d'essai (non encaissée : 
 ## 6. Téléphones des serveurs (mode réseau)
 
 1. **Adresse fixe de la caisse sur le Wi-Fi** : indispensable, les téléphones la retiennent. Soit une réservation
-   dans la box (adresse liée à la caisse), soit une adresse fixe dans Windows : Paramètres → Réseau et Internet →
-   la connexion → Attribution d'IP → Manuelle (par exemple `192.168.1.10`, masque `255.255.255.0`, passerelle et
+   dans la box (adresse liée à la caisse), soit une adresse fixe dans Windows 10 : Paramètres → Réseau et Internet →
+   Wi-Fi (ou Ethernet) → le nom du réseau → Paramètres IP → Modifier → Manuel → IPv4 activé (par exemple `192.168.1.10`, masque `255.255.255.0`, passerelle et
    DNS = adresse de la box). Choisir une adresse hors de la plage que la box distribue.
-2. **Réseau « privé »** dans Windows (Paramètres → Réseau et Internet → la connexion → Type de profil réseau →
-   Privé), sinon le pare-feu bloque les téléphones.
+2. **Réseau « privé »** dans Windows (Windows 10 : Paramètres → Réseau et Internet → Wi-Fi (ou Ethernet) → le nom
+   du réseau → Profil réseau → Privé), sinon le pare-feu bloque les téléphones.
 3. **Activer le mode réseau** : Administration → **Téléphones et tablettes** → cocher « Mode réseau » (mot de
    passe d'administration demandé), puis fermer et rouvrir Youma, ou redémarrer la caisse.
 4. Administration → **Téléphones et tablettes** → « Générer un code » : le téléphone, connecté au Wi-Fi du
@@ -111,7 +125,9 @@ Avec le propriétaire et le caissier, une fois :
 |---|---|
 | Les téléphones ne trouvent pas la caisse | Même Wi-Fi ; « Mode réseau » coché et Youma redémarré ; réseau Windows « Privé » ; adresse de la caisse inchangée. |
 | « Poste central injoignable » sur un téléphone | La caisse est éteinte ou a changé d'adresse : fixer l'adresse (étape 6) puis refaire le QR code. |
-| Accents en idéogrammes ou en « ? » | Signaler le modèle d'imprimante au fournisseur (page de code à ajuster). |
+| Accents en idéogrammes ou en « ? » | Refaire la page d'autotest et envoyer la photo au fournisseur avec le modèle exact (page de code à ajuster). |
+| Xprinter réseau introuvable | Adresse de l'autotest dans le même réseau que la caisse (`192.168.1.x`) ; câble branché sur la box. |
+| Le tiroir ne s'ouvre pas | Tiroir branché sur la prise RJ11 de l'imprimante de caisse (pas sur la caisse) ; case « Ouvrir le tiroir-caisse » cochée. |
 | Traits coupés sur deux lignes | Largeur du papier trop grande : passer à 32 (58 mm) ou 42. |
 | Rien ne s'imprime | Le ticket est gardé et réessayé ; vérifier papier, câble, nom exact `windows:…` ou adresse `tcp:…`. |
 | « L'horloge du PC est antérieure… » | Corriger la date et l'heure de Windows. |

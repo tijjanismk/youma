@@ -22,6 +22,7 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
   avances depuis le tiroir ou hors caisse, au choix.
 - **WhatsApp par liens wa.me** (ticket, suivi, résumé au propriétaire) et **ticket seul à l'impression navigateur** (fiche 0028).
+- **Photos des plats entières** : import sans recadrage (480 px max, proportions gardées), affichage sans rognure (fiche 0029).
 - **Paiement par carte** sur un TPE non relié (fiche 0026) : numéro d'autorisation obligatoire, une fois par jour.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
 - **Photos au menu client, listes de villes et quartiers** (fiche 0021) : le menu n'est renvoyé au relais que
@@ -62,7 +63,9 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 
 ## Réponses reçues (26/09/2026, fiche 0023)
 
-- Imprimantes : **thermiques chinoises** (ESC/POS, 58 ou 80 mm).
+- Imprimantes : **Xprinter** (thermiques ESC/POS, 58 ou 80 mm) ; caisses POS sous **Windows 10**.
+- Hébergement du relais sur Vercel : impossible (fonctions sans disque ni processus permanent) ; VPS ou plateforme
+  à conteneurs avec disque (Railway, Render, Fly.io) à choisir.
 - Poste central : le plus souvent une **caisse POS sous Windows**, sans IP publique (inutile : le poste appelle le relais).
 - Certificat sur les téléphones : **refusé** → téléphones en HTTP sur le Wi-Fi du restaurant.
 - Quartiers : la liste convient, puisqu'on la modifie (quartiers de livraison dans Administration, « Autre… »
@@ -71,8 +74,8 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 ## Questions ouvertes (réponses du porteur de projet attendues)
 
 
-- Modèles précis des imprimantes et des caisses POS du pack (pour les essais).
-- Version de Windows des caisses POS (Windows confirmé ; **[HYPOTHÈSE]** 10 ou 11, 64 bits : Windows 7 et 8 ne conviennent pas).
+- Modèles Xprinter précis (XP-58, XP-80…) et modèle des caisses POS du pack (pour les essais).
+- **[HYPOTHÈSE]** Windows 10 des caisses en **64 bits** (à vérifier sur la première caisse).
 - Restaurant pilote et date de démarrage.
 - **[HYPOTHÈSE]** l'adresse locale de la caisse est fixée (réglage sur la caisse ou dans la box).
 - Plusieurs restaurants d'un même propriétaire : aujourd'hui regroupés dans l'espace propriétaire (fiche 0018) et

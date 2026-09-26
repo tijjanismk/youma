@@ -584,3 +584,26 @@ test("ticket : Ctrl+P n'imprime que le ticket, envoi par WhatsApp (fiche 0028)",
   await page.emulateMedia({ media: "screen" });
   await expect(page.locator(".zone-ticket")).toBeHidden();
 });
+
+test("photo d'un plat : importée entière, sans recadrage (fiche 0029)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  // Photo en largeur (3 pour 1), dessinée par le navigateur.
+  const base64 = await page.evaluate(() => {
+    const toile = document.createElement("canvas");
+    toile.width = 900;
+    toile.height = 300;
+    toile.getContext("2d")!.fillRect(0, 0, 900, 300);
+    return toile.toDataURL("image/png").split(",")[1];
+  });
+  await page.getByRole("row").filter({ hasText: "Poulet braisé" }).getByRole("button", { name: "Modifier" }).click();
+  const fiche = page.getByRole("dialog");
+  await fiche.getByLabel("Photo du plat").setInputFiles({ name: "large.png", mimeType: "image/png", buffer: Buffer.from(base64, "base64") });
+  const apercu = fiche.locator(".choix-photo img");
+  await expect(apercu).toHaveCSS("object-fit", "contain");
+  // Réduite à 480 px de large, proportions gardées.
+  await expect.poll(() => apercu.evaluate((i: HTMLImageElement) => `${i.naturalWidth}x${i.naturalHeight}`)).toBe("480x160");
+  // Rien n'est enregistré : la base de démonstration reste telle quelle.
+  await page.keyboard.press("Escape");
+  await expect(fiche).toBeHidden();
+});
