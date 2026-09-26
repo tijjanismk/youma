@@ -1,5 +1,19 @@
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Banknote, HandCoins, Info, PackageX, Receipt, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
+import {
+  AlertTriangle,
+  Banknote,
+  HandCoins,
+  Info,
+  MessageCircle,
+  PackageX,
+  Receipt,
+  ShieldCheck,
+  ShoppingBag,
+  TrendingDown,
+  TrendingUp,
+  Users,
+  Wallet,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { get } from "../api";
@@ -8,6 +22,7 @@ import { useDonnees } from "../contexte";
 import { dateFr, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import type { Indicateur, Journee } from "../types";
+import { lienWhatsApp } from "../whatsapp";
 
 type Tdb = {
   journee: Journee | null;
@@ -53,14 +68,22 @@ function Bloc({ titre, Icone, children }: { titre: string; Icone: LucideIcon; ch
 /** Un propriétaire comprend sa journée en 10 secondes : peu de chiffres, formules à portée de main. */
 export default function TableauDeBord() {
   const { donnees: d } = useDonnees(() => get<Tdb>("/tableau-de-bord"), ["paiement", "commande", "caisse", "stock", "journee"]);
+  const { donnees: resume } = useDonnees(() => get<{ texte: string | null; telephone: string }>("/journee/resume"), ["paiement", "caisse", "journee"]);
   if (!d) return <p className="aide">Chargement…</p>;
   if (!d.journee) return <Vide>Aucune journée enregistrée pour l'instant.</Vide>;
   const v = (cle: string) => d.indicateurs.find((i) => i.cle === cle);
   return (
     <div>
-      <h1>
-        Journée du {dateFr(d.journee.date_exploitation)} {d.journee.statut === "cloturee" && <small>(clôturée)</small>}
-      </h1>
+      <div className="titre-ligne">
+        <h1>
+          Journée du {dateFr(d.journee.date_exploitation)} {d.journee.statut === "cloturee" && <small>(clôturée)</small>}
+        </h1>
+        {resume?.texte && (
+          <a className="bouton" href={lienWhatsApp(resume.texte, resume.telephone)} target="_blank" rel="noreferrer">
+            <MessageCircle size={20} aria-hidden /> Résumé par WhatsApp
+          </a>
+        )}
+      </div>
       <div className="indicateurs">
         {["ca", "nb_commandes", "depenses", "benefice", "credit"].map((c) => {
           const i = v(c);

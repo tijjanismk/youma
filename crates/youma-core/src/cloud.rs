@@ -159,6 +159,15 @@ pub fn texte_sms(restaurant: &str, r: &ResumeJournee) -> String {
     t
 }
 
+/// Résumé de la dernière journée d'exploitation (ouverte ou clôturée), à envoyer au propriétaire par SMS ou WhatsApp.
+pub fn texte_derniere_journee(conn: &Connection, maintenant: i64) -> Resultat<Option<String>> {
+    let date: Option<String> =
+        conn.query_row("SELECT date_exploitation FROM journees ORDER BY date_exploitation DESC LIMIT 1", [], |r| r.get(0)).optional()?;
+    let Some(date) = date else { return Ok(None) };
+    let restaurant = crate::parametres::restaurant(conn)?.nom;
+    Ok(resume_journee(conn, &date, maintenant)?.map(|r| texte_sms(&restaurant, &r)))
+}
+
 fn libelle_moyen(m: &str) -> &str {
     match m {
         "especes" => "espèces",

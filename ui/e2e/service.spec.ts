@@ -556,3 +556,31 @@ test("avance sur salaire : tiroir de la caisse ou compte hors caisse", async ({ 
   await avance.getByRole("button", { name: "Donner l'avance" }).click();
   await expect(page.getByText("Avance enregistrée")).toBeVisible();
 });
+
+test("ticket : Ctrl+P n'imprime que le ticket, envoi par WhatsApp (fiche 0028)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/caisse");
+  const ouvrir = page.getByRole("button", { name: "Ouvrir la caisse" });
+  const session = page.getByText("Session de Kadi (caisse)");
+  await expect(ouvrir.or(session)).toBeVisible();
+  if (await ouvrir.isVisible()) await ouvrir.click();
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Encaisser/ }).click();
+  await page.getByRole("button", { name: /Espèces$/ }).first().click();
+  await page.getByRole("button", { name: "Valider le paiement" }).click();
+  await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
+  const whatsapp = page.getByRole("link", { name: "Envoyer par WhatsApp" });
+  await expect(whatsapp).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=%60%60%60/);
+  // À l'impression navigateur : le vrai ticket (bon de sortie), sans l'écran autour.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".zone-ticket")).toBeVisible();
+  await expect(page.locator(".zone-ticket")).toContainText("Maquis Le Baobab");
+  await expect(page.locator(".zone-ticket")).toContainText("BON DE SORTIE");
+  await expect(page.getByText(/Reçu n°\d+/)).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+  await expect(page.locator(".zone-ticket")).toBeHidden();
+});

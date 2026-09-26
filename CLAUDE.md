@@ -10,7 +10,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0027.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0028.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
@@ -58,7 +58,8 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
 - Icônes `lucide-react`, police Poppins embarquée (`@fontsource/poppins`). Pas de CDN.
 - PC : menu latéral repliable. Téléphone : barre du bas, prise de commande avec la commande en tiroir
   (« Voir la commande (n) »). Écrans secondaires : chiffres clés `composants/Chiffres.tsx` ; `TableauDonnees`
-  devient des cartes sur téléphone (`data-label`). Photos des plats en URL `data:` compressées côté navigateur (`composants/Plat.tsx`).
+  devient des cartes sur téléphone (`data-label`). Ticket à imprimer par le navigateur : `composants/Ticket.tsx` (`.zone-ticket`,
+  seule imprimée) ; WhatsApp par liens wa.me : `src/whatsapp.ts` (fiche 0028). Photos des plats en URL `data:` compressées côté navigateur (`composants/Plat.tsx`).
 - Les tests e2e ciblent les rôles et `aria-label` (« Menu », « Autres écrans », « Changer d'utilisateur »,
   « Ajouter un X »…) : ne pas les renommer sans mettre à jour `ui/e2e/`.
 - PWA : `ui/public/manifest*.webmanifest`, icônes produites par `cd ui && node outils/icones.mjs`, service worker

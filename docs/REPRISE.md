@@ -21,6 +21,7 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Interface à jour** (fiche 0025) : React 19, React Router 7, Vite 8 ; Tauri 2.11 (dernière stable).
 - **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
   avances depuis le tiroir ou hors caisse, au choix.
+- **WhatsApp par liens wa.me** (ticket, suivi, résumé au propriétaire) et **ticket seul à l'impression navigateur** (fiche 0028).
 - **Paiement par carte** sur un TPE non relié (fiche 0026) : numéro d'autorisation obligatoire, une fois par jour.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
 - **Photos au menu client, listes de villes et quartiers** (fiche 0021) : le menu n'est renvoyé au relais que

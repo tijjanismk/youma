@@ -266,3 +266,16 @@ describe("thème (Mali vivant)", () => {
     localStorage.clear();
   });
 });
+
+describe("WhatsApp par lien wa.me (fiche 0028)", () => {
+  it("numéro malien au format international, message encodé", async () => {
+    const { lienWhatsApp, messageTicket, numeroWhatsApp } = await import("./whatsapp");
+    expect(numeroWhatsApp("76 00 00 01")).toBe("22376000001");
+    expect(numeroWhatsApp("+223 76 00 00 01")).toBe("22376000001");
+    expect(numeroWhatsApp("0022376000001")).toBe("22376000001");
+    expect(numeroWhatsApp("")).toBe("");
+    expect(lienWhatsApp("Merci !", "76000001")).toBe("https://wa.me/22376000001?text=Merci%20!");
+    expect(lienWhatsApp("Bonjour")).toBe("https://wa.me/?text=Bonjour");
+    expect(messageTicket("TOTAL 3 500\n")).toBe("```\nTOTAL 3 500\n```");
+  });
+});

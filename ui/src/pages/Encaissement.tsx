@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Modal, Montant } from "../composants/Base";
+import { TicketImprimable, TicketWhatsApp } from "../composants/Ticket";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
 import { t } from "../i18n";
@@ -26,6 +27,8 @@ export default function Encaissement() {
   const [resultat, setResultat] = useState<Resultat | null>(null);
   const [nbParts, setNbParts] = useState(0);
   const [envoi, setEnvoi] = useState(false);
+  // Ticket de caisse (bon de sortie) pour Ctrl+P et WhatsApp, chargé après le paiement.
+  const [ticket, setTicket] = useState("");
 
   useEffect(() => {
     if (cmd) setAPayer(cmd.totaux.reste);
@@ -63,6 +66,9 @@ export default function Encaissement() {
     setEnvoi(false);
     if (r) {
       setResultat(r);
+      get<string>(`/commandes/${id}/ticket`)
+        .then(setTicket)
+        .catch(() => setTicket(""));
       setParts([]);
       setRecues(0);
       recharger();
@@ -94,8 +100,11 @@ export default function Encaissement() {
             Bon de sortie n°<strong>{resultat.bon_sortie[0]}</strong> — code <strong>{resultat.bon_sortie[1]}</strong>
           </p>
         )}
+        {ticket && <TicketImprimable texte={ticket} />}
         <div className="actions">
           <button onClick={() => agir(() => post(`/commandes/${id}/imprimer`), "Ticket envoyé à l'imprimante")}>Imprimer le ticket (bon de sortie)</button>
+          {ticket && <button onClick={() => window.print()}>Imprimer (navigateur)</button>}
+          {ticket && <TicketWhatsApp texte={ticket} telephone={cmd.livraison_telephone ?? client?.telephone} />}
           {!resultat.commande_payee && <button onClick={() => setResultat(null)}>Encaisser le reste</button>}
           <button className="principal grand" onClick={() => nav(cmd.table_id || resultat.commande_payee ? "/salle" : `/commande/${id}`)}>
             Terminé
