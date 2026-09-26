@@ -88,6 +88,11 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CMD-11** Ordre de paiement : `apres` (table) ou `avant` (comptoir) ; en mode `avant`, l'envoi en préparation n'est possible qu'après paiement complet.
 * **RG-CMD-12** Division d'addition : parts égales ou montants libres ; les parts sont arrondies au multiple configuré, l'écart d'arrondi va sur la dernière part.
 
+### Salle (SAL) — fiche 0032
+* **RG-SAL-01** « Libérer » une table en un geste : l'addition ouverte est abandonnée seulement si rien n'a été envoyé
+  ni payé ; sinon refus (RG-CMD-04) : encaisser, ou annuler les articles avec motif. Retire aussi « réservée » et
+  « à nettoyer ». Une addition payée libère sa table d'elle-même.
+
 ### Caisse et trésorerie (CAI)
 * **RG-CAI-01** Encaisser exige une session de caisse ouverte par l'utilisateur sur le poste.
 * **RG-CAI-02** Somme des parts = montant du paiement ; le paiement ne dépasse pas le reste dû (le rendu monnaie ne concerne que les espèces).

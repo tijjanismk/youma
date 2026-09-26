@@ -8,7 +8,18 @@ import { VisuelPlat } from "../composants/Plat";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
 import { t } from "../i18n";
-import { ajouter, ArticlePanier, changerQuantite, chargerPanier, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "../panier";
+import {
+  ajouter,
+  ArticlePanier,
+  changerQuantite,
+  chargerPanier,
+  definirQuantite,
+  optionsValides,
+  prixZone,
+  sauverPanier,
+  totalPanier,
+  versLignes,
+} from "../panier";
 import type { Catalogue, Client, Commande, Employe, Ligne, PrixDuMoment, Produit, TablePlan } from "../types";
 
 export default function PriseCommande() {
@@ -222,7 +233,7 @@ export default function PriseCommande() {
                     <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, -1))} aria-label={`Retirer un ${a.libelle}`}>
                       −
                     </button>
-                    <strong className="qte">{a.quantite}×</strong>
+                    <QuantiteSaisie a={a} changer={(v) => setPanier((x) => definirQuantite(x, a.cle, v))} />
                     <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, 1))} aria-label={`Ajouter un ${a.libelle}`}>
                       +
                     </button>
@@ -671,5 +682,29 @@ function HistoriquePaiements({ commandeId }: { commandeId: string }) {
         </div>
       ))}
     </details>
+  );
+}
+
+/** Quantité d'un article pas encore envoyé : on la touche et on tape le nombre (ex. 24). */
+function QuantiteSaisie({ a, changer }: { a: ArticlePanier; changer: (v: string) => void }) {
+  const [texte, setTexte] = useState<string | null>(null);
+  const valider = () => {
+    if (texte !== null) changer(texte);
+    setTexte(null);
+  };
+  return (
+    <label className="qte-saisie">
+      <input
+        inputMode="numeric"
+        maxLength={3}
+        value={texte ?? String(a.quantite)}
+        aria-label={`Quantité ${a.libelle}`}
+        onFocus={(e) => (setTexte(String(a.quantite)), e.target.select())}
+        onChange={(e) => setTexte(e.target.value.replace(/\D/g, ""))}
+        onBlur={valider}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      />
+      <span aria-hidden>×</span>
+    </label>
   );
 }

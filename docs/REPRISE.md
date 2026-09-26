@@ -22,6 +22,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
   avances depuis le tiroir ou hors caisse, au choix.
 - **WhatsApp par liens wa.me** (ticket, suivi, résumé au propriétaire) et **ticket seul à l'impression navigateur** (fiche 0028).
+- **Salle et commande** (fiche 0032) : bouton « Libérer » sur les tables (refusé si des plats ont été envoyés sans être
+  payés, RG-SAL-01) ; quantité tapée au clavier dans la commande.
 - **Mot de passe d'administration oublié** (RG-AUT-07, fiche 0031) : code de secours donné à l'installation, ou
   réponse signée du fournisseur (`youma-licence secours`).
 - **Photos des plats entières** : import sans recadrage (480 px max, proportions gardées), affichage sans rognure (fiche 0029).

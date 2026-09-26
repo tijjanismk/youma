@@ -964,7 +964,12 @@ pub fn fusionner(db: &mut Db, acteur: &Acteur, source_id: &str, cible_id: &str) 
 
 /// Abandon d'une addition vide (aucun article envoyé, aucun paiement).
 pub fn abandonner(db: &mut Db, acteur: &Acteur, commande_id: &str) -> Resultat<()> {
-    db.executer(acteur, |op| {
+    db.executer(acteur, |op| abandonner_op(op, commande_id))
+}
+
+/// RG-CMD-04 : une addition avec des articles envoyés ou un paiement ne s'abandonne pas (annulation motivée, ou encaissement).
+pub(crate) fn abandonner_op(op: &mut Op, commande_id: &str) -> Resultat<()> {
+    {
         let e = etat(op, commande_id)?;
         exiger_ouverte(&e)?;
         exiger_proprietaire(op, &e)?;
@@ -989,7 +994,7 @@ pub fn abandonner(db: &mut Db, acteur: &Acteur, commande_id: &str) -> Resultat<(
         op.audit("commande.abandonner", "commande", Some(commande_id), None, None, None, None)?;
         op.evenement("table", None);
         toucher(op, commande_id)
-    })
+    }
 }
 
 // ───────────── Cuisine ─────────────

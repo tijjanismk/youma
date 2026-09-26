@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { dateFr, fcfa, finDuMois, lireMontant, nombre } from "./format";
 import { t } from "./i18n";
-import { ajouter, changerQuantite, chargerPanier, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
+import { ajouter, changerQuantite, chargerPanier, definirQuantite, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
 import { billetsProposes, rendu, sommeParts, verifierPaiement } from "./paiement";
 import type { Produit } from "./types";
 
@@ -85,6 +85,15 @@ describe("panier local (scénario 13 : rien n'est perdu)", () => {
     let p = ajouter([], produit({}), null);
     p = changerQuantite(p, p[0].cle, -1);
     expect(p).toHaveLength(0);
+  });
+
+  it("prend la quantité tapée au clavier, de 1 à 999 ; 0 retire l'article", () => {
+    const p = ajouter([], produit({}), null);
+    expect(definirQuantite(p, p[0].cle, " 24 ")[0].quantite).toBe(24);
+    expect(definirQuantite(p, p[0].cle, "1000")).toEqual(p);
+    expect(definirQuantite(p, p[0].cle, "2,5")).toEqual(p);
+    expect(definirQuantite(p, p[0].cle, "")).toEqual(p);
+    expect(definirQuantite(p, p[0].cle, "0")).toHaveLength(0);
   });
 
   it("survit à un rechargement de la page", () => {

@@ -128,7 +128,7 @@ test("poste central injoignable : la saisie en cours est conservée", async ({ p
   // Même après rechargement de la page, le panier est toujours là.
   await page.unroute("**/api/**");
   await page.reload();
-  await expect(page.locator(".ligne.panier")).toContainText("2×");
+  await expect(page.getByLabel("Quantité Coca-Cola")).toHaveValue("2");
   await page.getByRole("button", { name: /^Envoyer \(2\)/ }).click();
   await expect(page.locator(".ligne.envoyee")).toHaveCount(1);
   await expect(page.locator(".ligne.panier")).toHaveCount(0);
@@ -636,4 +636,23 @@ test("mot de passe d'administration oublié : réponse du fournisseur, nouveau c
   await page.getByRole("button", { name: "Créer un nouveau code de secours" }).click();
   await expect(page.getByRole("dialog", { name: "Nouveau code de secours" }).getByLabel("Code de secours")).toBeVisible();
   await page.getByRole("button", { name: "J'ai noté le code" }).click();
+});
+
+test("quantité tapée au clavier, puis table libérée d'un geste (RG-SAL-01)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/salle");
+  await page.getByRole("button", { name: /^Table T6 Libre/ }).click();
+  await page.getByRole("tab", { name: /Grillades/ }).click();
+  await page.getByRole("button", { name: /^Brochettes \(3\)/ }).click();
+  const quantite = page.getByLabel("Quantité Brochettes (3)");
+  await quantite.fill("12");
+  await quantite.press("Enter");
+  await expect(page.getByRole("button", { name: "Envoyer (12)" })).toBeVisible();
+  await expect(page.locator(".total")).toContainText("18 000");
+  // Rien d'envoyé : la table se libère depuis la salle, l'addition vide est abandonnée.
+  await page.goto("/salle");
+  await expect(page.getByRole("button", { name: /^Table T6 Occupée/ })).toBeVisible();
+  await page.getByRole("button", { name: "Libérer la table T6" }).click();
+  await expect(page.getByRole("button", { name: /^Table T6 Libre/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Libérer la table T6" })).toHaveCount(0);
 });

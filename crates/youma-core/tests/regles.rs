@@ -721,3 +721,35 @@ fn migration_v1_vers_derniere_version() {
     let db = Db::ouvrir(&chemin, h).unwrap();
     assert_eq!(caisse::lister_comptes(db.conn()).unwrap().iter().filter(|c| c.nom == "Wave").count(), 1);
 }
+
+#[test]
+fn rg_sal_01_liberer_une_table_vide_ou_marquee_mais_pas_une_addition_envoyee() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let serveur = b.serveur();
+    let libres = |b: &Banc| youma_core::salle::plan(b.db.conn()).unwrap().into_iter().filter(|t| t.statut == "libre").count();
+    let avant = libres(&b);
+
+    // Addition ouverte sans rien d'envoyé (brouillon seulement) : libérée, addition abandonnée.
+    let t1 = b.table("1");
+    let vide = commandes::ouvrir(&mut b.db, &serveur, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t1.clone()), client_id: None, employe_id: None, couverts: 2, note: String::new(), livraison: None, canal: None }).unwrap();
+    let l = b.ligne("Brochettes (3)", 1);
+    commandes::ajouter_lignes(&mut b.db, &serveur, &vide, &[l]).unwrap();
+    assert_eq!(libres(&b), avant - 1);
+    youma_core::salle::liberer_table(&mut b.db, &serveur, &t1).unwrap();
+    assert_eq!(libres(&b), avant);
+    assert_eq!(commandes::detail(b.db.conn(), &vide).unwrap().statut, "annulee");
+
+    // Articles envoyés, non payés : refus (RG-CMD-04), la table reste occupée.
+    let envoyee = b.commande_table("2", &[("Brochettes (3)", 1)]);
+    let t2 = b.table("2");
+    let e = youma_core::salle::liberer_table(&mut b.db, &serveur, &t2).unwrap_err();
+    assert!(matches!(e, youma_core::Erreur::Regle { regle: "RG-CMD-04", .. }), "{e}");
+    assert_eq!(commandes::detail(b.db.conn(), &envoyee).unwrap().statut, "ouverte");
+
+    // Table marquée « à nettoyer » : libérée.
+    let t3 = b.table("3");
+    youma_core::salle::marquer_table(&mut b.db, &serveur, &t3, Some(true), Some(true)).unwrap();
+    youma_core::salle::liberer_table(&mut b.db, &serveur, &t3).unwrap();
+    assert!(youma_core::salle::plan(b.db.conn()).unwrap().iter().any(|t| t.id == t3 && t.statut == "libre"));
+}

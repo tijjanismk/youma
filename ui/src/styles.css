@@ -616,6 +616,15 @@ code {
   border-width: 3px;
   position: relative;
 }
+.case-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.case-table .liberer {
+  min-height: 36px;
+}
 .table-salle strong {
   font-size: 1.5rem;
 }
@@ -1823,6 +1832,27 @@ a:focus-visible {
   min-width: 34px;
   border-radius: 50%;
   font-size: 1.1rem;
+}
+.qte-saisie {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+}
+.qte-saisie input {
+  width: 3.2ch;
+  min-height: 34px;
+  padding: 0 2px;
+  text-align: center;
+  font: inherit;
+  font-weight: 800;
+  border: 1px dashed var(--bord-fort);
+  border-radius: 8px;
+  background: var(--carte);
+  color: var(--texte);
+}
+.qte-saisie input:focus {
+  border-style: solid;
+  border-color: var(--accent);
 }
 .boutons-qte strong {
   min-width: 18px;

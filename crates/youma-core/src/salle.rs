@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -165,6 +165,37 @@ pub fn marquer_table(db: &mut Db, acteur: &Acteur, table_id: &str, reservee: Opt
         if let Some(n) = a_nettoyer {
             op.execute("UPDATE tables_salle SET a_nettoyer = ?1, modifie_le = ?2 WHERE id = ?3", params![n, op.maintenant, table_id])?;
         }
+        op.evenement("table", Some(table_id));
+        Ok(())
+    })
+}
+
+/// RG-SAL-01 : libère une table d'un geste (fiche 0032). Addition ouverte : abandonnée seulement si elle est vide
+/// (articles non envoyés, aucun paiement) ; sinon refus (RG-CMD-04) : encaisser, ou annuler les articles avec motif.
+/// Retire aussi les marques « réservée » et « à nettoyer ».
+pub fn liberer_table(db: &mut Db, acteur: &Acteur, table_id: &str) -> Resultat<()> {
+    db.executer(acteur, |op| {
+        op.exiger(perm::COMMANDE_CREER)?;
+        let ouverte: Option<String> = op
+            .query_row("SELECT id FROM commandes WHERE table_id = ?1 AND statut = 'ouverte'", params![table_id], |r| r.get(0))
+            .optional()?;
+        if let Some(id) = ouverte {
+            crate::commandes::abandonner_op(op, &id).map_err(|e| match e {
+                Erreur::Regle { regle: "RG-CMD-04", .. } => Erreur::regle(
+                    "RG-CMD-04",
+                    "Table non libérée : des articles ont été envoyés. Encaissez l'addition, ou annulez les articles (motif et responsable).",
+                ),
+                autre => autre,
+            })?;
+        }
+        let n = op.execute(
+            "UPDATE tables_salle SET reservee = 0, a_nettoyer = 0, modifie_le = ?1 WHERE id = ?2 AND actif = 1",
+            params![op.maintenant, table_id],
+        )?;
+        if n == 0 {
+            return Err(Erreur::NonTrouve("Table".into()));
+        }
+        op.audit("table.liberer", "table", Some(table_id), None, None, None, None)?;
         op.evenement("table", Some(table_id));
         Ok(())
     })
