@@ -199,13 +199,12 @@ test("contrôle de sortie : le ticket payé est un bon de sortie, une seule fois
   await expect(page.getByText("DÉJÀ PRÉSENTÉ")).toBeVisible();
 });
 
-test("tableau de bord : chiffres de la journée avec leurs formules", async ({ page }) => {
+test("tableau de bord : chiffres de la journée, sans formule (elles sont dans les rapports)", async ({ page }) => {
   await connexion(page, /Adama/, "2222");
   await page.goto("/tableau-de-bord");
   const ca = page.locator(".indicateur").filter({ hasText: "Chiffre d'affaires" });
   await expect(ca).toContainText("6 000 FCFA");
-  await ca.locator("summary").click();
-  await expect(ca.locator(".formule")).toContainText("CA =");
+  await expect(page.getByText("Comment est-ce calculé ?")).toHaveCount(0);
   await expect(page.getByText(/paiement\(s\) Mobile Money à vérifier/)).toBeVisible();
 });
 

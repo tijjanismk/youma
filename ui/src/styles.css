@@ -1011,16 +1011,18 @@ code {
   padding: 12px;
 }
 .indicateur summary {
-  list-style: none;
   cursor: pointer;
+}
+.indicateur :is(summary, .resume) {
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.indicateur summary strong {
+.indicateur :is(summary, .resume) strong {
   font-size: 1.5rem;
 }
-.indicateur summary small {
+.indicateur :is(summary, .resume) small {
   color: var(--bleu);
 }
 .indicateur.benefice {
@@ -1854,10 +1856,10 @@ a:focus-visible {
 .indicateur {
   padding: 16px;
 }
-.indicateur summary strong {
+.indicateur :is(summary, .resume) strong {
   font-size: 1.6rem;
 }
-.indicateur summary small {
+.indicateur :is(summary, .resume) small {
   color: var(--accent-fonce);
 }
 .indicateur.benefice {
@@ -2156,17 +2158,17 @@ label.bouton {
   box-shadow: var(--ombre);
   border-radius: var(--rayon-carte);
 }
-.indicateur summary {
+.indicateur :is(summary, .resume) {
   gap: 2px;
 }
-.indicateur summary .chiffre-icone {
+.indicateur :is(summary, .resume) .chiffre-icone {
   margin-bottom: 8px;
 }
-.indicateur summary > span:not(.chiffre-icone) {
+.indicateur :is(summary, .resume) > span:not(.chiffre-icone) {
   color: var(--doux);
   font-size: 0.9rem;
 }
-.indicateur summary small {
+.indicateur :is(summary, .resume) small {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2328,7 +2330,7 @@ label.bouton {
     padding: 12px;
   }
   .chiffre strong,
-  .indicateur summary strong {
+  .indicateur :is(summary, .resume) strong {
     font-size: 1.1rem;
   }
   .chiffre-icone {
@@ -2428,14 +2430,6 @@ label.bouton {
 
 .texte-court {
   display: none;
-}
-@media (max-width: 900px) {
-  .indicateur .texte-long {
-    display: none;
-  }
-  .indicateur .texte-court {
-    display: inline;
-  }
 }
 
 /* ═════════════ Couche « Mali vivant » ═════════════ */
