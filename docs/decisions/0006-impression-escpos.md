@@ -16,4 +16,5 @@ Impression via le dialogue du navigateur (lent, marges, pas de coupe) ; pilotes 
 
 ## Conséquences
 * **[HYPOTHÈSE]** Les imprimantes du pilote acceptent PC858 : à vérifier sur le matériel réel.
+* Fiche 0023 : imprimantes chinoises (mode chinois annulé par `FS .`), largeur du papier réglable (32, 42 ou 48).
 * L'impression Windows brute n'a pas été testée sur matériel (code conditionnel `cfg(windows)`).

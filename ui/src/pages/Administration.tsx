@@ -749,6 +749,20 @@ function RestaurantAdmin() {
         <button className="lien" onClick={() => setParams({ ...params, quartiers: [...params.quartiers, { nom: "", frais: 500 }] })}>
           + Quartier
         </button>
+        <h3>Impression</h3>
+        <Choix
+          libelle="Largeur du papier des tickets"
+          valeur={String(params.largeur_ticket)}
+          changer={(v) => setParams({ ...params, largeur_ticket: Number(v) })}
+          options={[
+            { valeur: "32", libelle: "58 mm (32 caractères)" },
+            { valeur: "42", libelle: "80 mm (42 caractères)" },
+            { valeur: "48", libelle: "80 mm (48 caractères)" },
+            ...([32, 42, 48].includes(params.largeur_ticket)
+              ? []
+              : [{ valeur: String(params.largeur_ticket), libelle: `${params.largeur_ticket} caractères` }]),
+          ]}
+        />
         <h3>Sauvegardes</h3>
         <Champ
           libelle="Second emplacement (clé USB, autre disque) — ex. E:\Youma"
@@ -953,29 +967,18 @@ type Appareil = { id: string; nom: string; type: string; actif: boolean; cree_le
 
 function AppareilsAdmin() {
   const { agir } = useApp();
-  const { donnees: reseau } = useDonnees(
-    () => get<{ actif: boolean; port: number; adresses: string[]; adresses_https?: string[]; certificat?: string | null }>("/reseau"),
-    [],
-  );
+  const { donnees: reseau } = useDonnees(() => get<{ actif: boolean; port: number; adresses: string[] }>("/reseau"), []);
   const { donnees: appareils, recharger } = useDonnees(() => get<Appareil[]>("/appareils"), []);
   const [code, setCode] = useState<{ code: string; expire_le: number } | null>(null);
   const [qr, setQr] = useState("");
-  const [qrCertificat, setQrCertificat] = useState("");
-  // Fiche 0020 : l'adresse sécurisée permet d'installer l'application sur le téléphone.
-  const adresse = reseau?.adresses_https?.[0] ?? reseau?.adresses[0] ?? `${location.origin}/`;
-  const certificat = reseau?.certificat ?? null;
+  // Adresse HTTP du Wi-Fi du restaurant : aucun certificat à installer sur les téléphones (fiche 0023).
+  const adresse = reseau?.adresses[0] ?? `${location.origin}/`;
   useEffect(() => {
     if (code)
       QRCode.toDataURL(`${adresse}?appairage=${code.code}`, { width: 260, margin: 1 })
         .then(setQr)
         .catch(() => setQr(""));
   }, [code, adresse]);
-  useEffect(() => {
-    if (certificat)
-      QRCode.toDataURL(certificat, { width: 200, margin: 1 })
-        .then(setQrCertificat)
-        .catch(() => setQrCertificat(""));
-  }, [certificat]);
   return (
     <div className="grille-2">
       <div className="carte">
@@ -984,21 +987,8 @@ function AppareilsAdmin() {
           <p className="attention-texte">Le poste central est en mode mono-poste. Démarrez-le en mode réseau pour connecter des téléphones.</p>
         )}
         <p>1. Le téléphone se connecte au Wi-Fi du restaurant.</p>
-        {certificat && (
-          <details className="certificat">
-            <summary>2. Première fois sur ce téléphone : installer le certificat du restaurant</summary>
-            <p className="aide">
-              Il permet l'adresse sécurisée, nécessaire pour installer Youma comme une application. Scanner, puis : Android → Paramètres → Sécurité → Installer
-              un certificat → Certificat CA ; iPhone → Réglages → Profil téléchargé → Installer, puis Général → Informations → Réglages des certificats →
-              activer « Youma ».
-            </p>
-            {qrCertificat && <img src={qrCertificat} alt="QR du certificat du restaurant" />}
-            <p className="aide">{certificat}</p>
-          </details>
-        )}
-        <p>
-          {certificat ? "3" : "2"}. Il scanne ce QR code (ou ouvre {adresse} et saisit le code), puis touche « Installer l'application » sur l'accueil.
-        </p>
+        <p>2. Il scanne ce QR code (ou ouvre {adresse} et saisit le code).</p>
+        <p>3. Pour le retrouver vite : menu du navigateur → « Ajouter à l'écran d'accueil ».</p>
         <button
           className="principal grand"
           onClick={() => agir((pin) => post<{ code: string; expire_le: number }>("/appareils/code", {}, pin)).then((c) => c && setCode(c))}

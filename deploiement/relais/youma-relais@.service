@@ -1,0 +1,24 @@
+# Relais Youma (commandes en ligne + cloud), une instance par fichier /etc/youma-relais/<nom>.env
+#   sudo systemctl enable --now youma-relais@principal
+# Guide : docs/guides/relais-en-ligne.md
+[Unit]
+Description=Relais Youma (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=youma
+Group=youma
+EnvironmentFile=/etc/youma-relais/%i.env
+StateDirectory=youma-relais/%i
+ExecStart=/opt/youma/youma-relais --donnees /var/lib/youma-relais/%i --port ${YOUMA_PORT} --ui /opt/youma/ui --derriere-proxy
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/youma-relais
+
+[Install]
+WantedBy=multi-user.target

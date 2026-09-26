@@ -1,5 +1,8 @@
 # 0020 — Application installable (PWA) et HTTPS du réseau local
 
+> Mise à jour par la fiche 0023 : le certificat n'est plus proposé aux téléphones du personnel (HTTP sur le Wi-Fi
+> du restaurant, raccourci « Ajouter à l'écran d'accueil »). L'installation reste possible sur le relais (HTTPS).
+
 ## Contexte
 Le propriétaire veut Youma comme une application sur les téléphones : icône sur l'écran d'accueil, plein
 écran, ouverture rapide même quand le Wi-Fi est faible. Les navigateurs (Chrome Android, Safari iOS)

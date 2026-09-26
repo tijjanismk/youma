@@ -1,0 +1,14 @@
+# /etc/caddy/Caddyfile — Caddy obtient et renouvelle seul les certificats HTTPS (Let's Encrypt).
+# Remplacer les noms de domaine ; chaque nom doit pointer (enregistrement DNS A) vers l'IP du serveur.
+
+# Instance « principal » : cloud de tous les restaurants + commandes en ligne du premier restaurant.
+commande.exemple.ml {
+	encode gzip
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Un autre restaurant avec commandes en ligne : une instance de plus (YOUMA_PORT=8081).
+#baobab.exemple.ml {
+#	encode gzip
+#	reverse_proxy 127.0.0.1:8081
+#}
