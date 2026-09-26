@@ -4,6 +4,7 @@ import { useParams } from "react-router";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
+import { comptesHorsCaisse } from "../paiement";
 import { dateFr, fcfa } from "../format";
 import { t } from "../i18n";
 import type { Bulletin, Compte, Employe } from "../types";
@@ -117,7 +118,7 @@ function AvanceModal({ employe, fermer, fait }: { employe: Employe; fermer: () =
   const [montant, setMontant] = useState(0);
   const [motif, setMotif] = useState("");
   // Deux possibilités (fiche 0027) : le tiroir de sa caisse (compte dans la clôture), ou un compte hors caisse.
-  const horsCaisse = (caisse?.comptes ?? []).filter((c) => c.actif && ["coffre", "banque", "mobile_money"].includes(c.type));
+  const horsCaisse = comptesHorsCaisse(caisse?.comptes ?? []);
   const [choix, setCompte] = useState<string | null>(null);
   const compte = choix ?? (caisse?.session ? "" : (horsCaisse[0]?.id ?? ""));
   return (

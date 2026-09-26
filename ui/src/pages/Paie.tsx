@@ -7,6 +7,7 @@ import { useApp, useDonnees } from "../contexte";
 import { dateFr, fcfa, finDuMois, premierDuMois } from "../format";
 import { t } from "../i18n";
 import type { Bulletin, Compte, Employe } from "../types";
+import { comptesHorsCaisse } from "../paiement";
 
 /** Bulletin simple, imprimable (A4 ou ticket). */
 export function BulletinImprimable({ b }: { b: Bulletin }) {
@@ -214,7 +215,7 @@ function PaiementSalaire({ b, fermer, fait }: { b: Bulletin; fermer: () => void;
   const [montant, setMontant] = useState(b.reste_a_payer);
   // RG-PAI-09 : la paie est indépendante des caisses (coffre, banque ou Mobile Money, jamais le tiroir).
   const { donnees: comptes } = useDonnees(() => get<Compte[]>("/comptes"), []);
-  const payeurs = (comptes ?? []).filter((c) => c.actif && ["coffre", "banque", "mobile_money"].includes(c.type));
+  const payeurs = comptesHorsCaisse(comptes ?? []);
   const [compte, setCompte] = useState("");
   const compteId = compte || payeurs[0]?.id || "";
   return (

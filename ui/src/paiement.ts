@@ -47,3 +47,9 @@ export function billetsProposes(montant: number): number[] {
   }
   return [...r].sort((a, b) => a - b).slice(0, 5);
 }
+
+/** Comptes hors caisse pour la paie (fiche 0027) : le coffre d'abord, puis la banque, puis le Mobile Money. */
+export function comptesHorsCaisse<C extends { type: string; actif: boolean }>(comptes: C[]): C[] {
+  const ordre = ["coffre", "banque", "mobile_money"];
+  return comptes.filter((c) => c.actif && ordre.includes(c.type)).sort((a, b) => ordre.indexOf(a.type) - ordre.indexOf(b.type));
+}
