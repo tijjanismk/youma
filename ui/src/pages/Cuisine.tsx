@@ -92,7 +92,7 @@ export default function Cuisine() {
                 )}
                 {e.statut !== "pret" && (
                   <button className="principal grand" onClick={() => changer(e.id, "pret")}>
-                    Prêt ✓
+                    Prêt
                   </button>
                 )}
                 {e.statut === "pret" && (

@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post } from "../api";
 import { PinPad } from "../composants/Base";
@@ -52,7 +53,7 @@ export default function Connexion() {
           </p>
           <PinPad valider={valider} libelle="Entrer" />
           <button className="lien" onClick={() => setChoisi(null)}>
-            ← Changer de personne
+            <ArrowLeft size={16} aria-hidden /> Changer de personne
           </button>
         </div>
       )}

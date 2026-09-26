@@ -32,6 +32,8 @@ connectent par le Wi-Fi du restaurant. **Internet n'est pas nécessaire pour ven
 3. Youma s'ouvre sur **« Bienvenue dans Youma »** : saisir le nom du restaurant, le nom du propriétaire, son **code
    PIN** (4 à 6 chiffres) et un **mot de passe d'administration** (6 caractères au moins). Les noter pour le
    propriétaire, sur papier, rangé à part.
+4. Youma affiche ensuite le **code de secours** (`XXXX-XXXX-XXXX-XXXX`), **une seule fois** : le recopier sur le
+   même papier. Il permet au propriétaire de choisir un nouveau mot de passe s'il l'oublie.
 
 ## 3. Licence
 
@@ -131,3 +133,4 @@ Avec le propriétaire et le caissier, une fois :
 | Traits coupés sur deux lignes | Largeur du papier trop grande : passer à 32 (58 mm) ou 42. |
 | Rien ne s'imprime | Le ticket est gardé et réessayé ; vérifier papier, câble, nom exact `windows:…` ou adresse `tcp:…`. |
 | « L'horloge du PC est antérieure… » | Corriger la date et l'heure de Windows. |
+| Mot de passe d'administration oublié | Propriétaire : se connecter avec son PIN, « Mot de passe oublié ? » dans la fenêtre du mot de passe, puis le code de secours ; sans lui, « Code perdu : appeler le fournisseur » (le fournisseur signe le code de demande : `youma-licence secours`). Gérant ou autre : le propriétaire lui redéfinit son mot de passe (Administration → Utilisateurs). |

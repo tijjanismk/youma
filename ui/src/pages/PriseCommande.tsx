@@ -1,4 +1,4 @@
-import { Bike, Receipt } from "lucide-react";
+import { ArrowLeft, Bike, Receipt, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ErreurApi, get, post } from "../api";
@@ -8,8 +8,20 @@ import { VisuelPlat } from "../composants/Plat";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
 import { t } from "../i18n";
-import { ajouter, ArticlePanier, changerQuantite, chargerPanier, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "../panier";
+import {
+  ajouter,
+  ArticlePanier,
+  changerQuantite,
+  chargerPanier,
+  definirQuantite,
+  optionsValides,
+  prixZone,
+  sauverPanier,
+  totalPanier,
+  versLignes,
+} from "../panier";
 import type { Catalogue, Client, Commande, Employe, Ligne, PrixDuMoment, Produit, TablePlan } from "../types";
+import { IconeCategorie } from "../composants/IconeCategorie";
 
 export default function PriseCommande() {
   const { id = "" } = useParams();
@@ -113,7 +125,7 @@ export default function PriseCommande() {
                   setRecherche("");
                 }}
               >
-                <span aria-hidden>{c.icone}</span> {c.nom}
+                <IconeCategorie icone={c.icone} /> {c.nom}
               </button>
             ))}
         </div>
@@ -165,7 +177,7 @@ export default function PriseCommande() {
           </div>
           <span className={`statut ${cmd.statut}`}>{t(cmd.statut)}</span>
           <button className="fermer-ticket" onClick={() => setTicketOuvert(false)} aria-label="Fermer la commande">
-            ✕
+            <X size={20} aria-hidden />
           </button>
         </div>
         <div className="types-commande" aria-label="Type de commande">
@@ -222,7 +234,7 @@ export default function PriseCommande() {
                     <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, -1))} aria-label={`Retirer un ${a.libelle}`}>
                       −
                     </button>
-                    <strong className="qte">{a.quantite}×</strong>
+                    <QuantiteSaisie a={a} changer={(v) => setPanier((x) => definirQuantite(x, a.cle, v))} />
                     <button onClick={() => setPanier((x) => changerQuantite(x, a.cle, 1))} aria-label={`Ajouter un ${a.libelle}`}>
                       +
                     </button>
@@ -276,7 +288,9 @@ export default function PriseCommande() {
             </button>
           )}
           <button onClick={() => setPlus(true)}>Plus…</button>
-          <button onClick={() => nav("/salle")}>← Salle</button>
+          <button onClick={() => nav("/salle")}>
+            <ArrowLeft size={18} aria-hidden /> Salle
+          </button>
         </div>
         {cmd.totaux.paye !== 0 && <HistoriquePaiements commandeId={id} />}
         {cmd.envois.length > 0 && (
@@ -671,5 +685,29 @@ function HistoriquePaiements({ commandeId }: { commandeId: string }) {
         </div>
       ))}
     </details>
+  );
+}
+
+/** Quantité d'un article pas encore envoyé : on la touche et on tape le nombre (ex. 24). */
+function QuantiteSaisie({ a, changer }: { a: ArticlePanier; changer: (v: string) => void }) {
+  const [texte, setTexte] = useState<string | null>(null);
+  const valider = () => {
+    if (texte !== null) changer(texte);
+    setTexte(null);
+  };
+  return (
+    <label className="qte-saisie">
+      <input
+        inputMode="numeric"
+        maxLength={3}
+        value={texte ?? String(a.quantite)}
+        aria-label={`Quantité ${a.libelle}`}
+        onFocus={(e) => (setTexte(String(a.quantite)), e.target.select())}
+        onChange={(e) => setTexte(e.target.value.replace(/\D/g, ""))}
+        onBlur={valider}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      />
+      <span aria-hidden>×</span>
+    </label>
   );
 }

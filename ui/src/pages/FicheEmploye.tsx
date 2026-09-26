@@ -47,7 +47,7 @@ export default function FicheEmploye() {
           <div className="ligne-valeur">
             <span>INPS / AMO</span>
             <strong>
-              {e.declare_inps ? "INPS ✓" : "INPS —"} / {e.affilie_amo ? "AMO ✓" : "AMO —"}
+              INPS : {e.declare_inps ? "oui" : "non"} / AMO : {e.affilie_amo ? "oui" : "non"}
             </strong>
           </div>
           {e.date_embauche && (
@@ -81,7 +81,7 @@ export default function FicheEmploye() {
                 {dateFr(b.debut)} → {dateFr(b.fin)}
               </span>
               <span>
-                Net {fcfa(b.net_a_payer)} {b.reste_a_payer > 0 ? `(reste ${fcfa(b.reste_a_payer)})` : "✓"}
+                Net {fcfa(b.net_a_payer)} {b.reste_a_payer > 0 ? `(reste ${fcfa(b.reste_a_payer)})` : "(payé)"}
               </span>
             </button>
           ))}

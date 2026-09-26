@@ -22,6 +22,17 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
   avances depuis le tiroir ou hors caisse, au choix.
 - **WhatsApp par liens wa.me** (ticket, suivi, résumé au propriétaire) et **ticket seul à l'impression navigateur** (fiche 0028).
+- **Plus d'émojis** (fiche 0035) : icônes dessinées partout, icône de catégorie choisie dans une liste.
+- **Formation du personnel** : `docs/guides/formation-personnel.md` et version illustrée à imprimer
+  `docs/guides/formation/formation-personnel.pdf` (captures refaites par `ui/outils/formation.mjs`).
+- **Stock saisi par des listes** (fiche 0034) : unité, famille, conditionnement (contenance déduite), motifs de
+  sortie, emballages consignés ; « Autre… » toujours possible.
+- **Plus de formules affichées** (fiche 0033, contraire au cahier des charges § 18, décision du porteur de projet) :
+  écrans et export CSV sans formule ; les formules restent écrites dans `rapports.rs`.
+- **Salle et commande** (fiche 0032) : bouton « Libérer » sur les tables (refusé si des plats ont été envoyés sans être
+  payés, RG-SAL-01) ; quantité tapée au clavier dans la commande.
+- **Mot de passe d'administration oublié** (RG-AUT-07, fiche 0031) : code de secours donné à l'installation, ou
+  réponse signée du fournisseur (`youma-licence secours`).
 - **Photos des plats entières** : import sans recadrage (480 px max, proportions gardées), affichage sans rognure (fiche 0029).
 - **Paiement par carte** sur un TPE non relié (fiche 0026) : numéro d'autorisation obligatoire, une fois par jour.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
@@ -36,7 +47,8 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
    l'onglet Actions). Reste : ajouter le secret `YOUMA_CLE_PUBLIQUE` (clé de production des licences), puis
    installer sur une vraie caisse POS et vérifier démarrage, pare-feu et impression.
 2. **Guide d'installation sur la caisse** : écrit, `docs/guides/installation-caisse.md`. Reste : captures d'écran
-   lors de la première installation réelle, et un guide de formation du personnel (ouverture/clôture, service).
+   lors de la première installation réelle. Formation du personnel : `docs/guides/formation-personnel.md` (par poste,
+   exercice de fin de formation).
    Le mode réseau s'active dans Administration → Téléphones et tablettes (fiche 0024).
 3. **Essais sur vrais appareils** :
    - téléphones Android et iPhone sur le Wi-Fi du restaurant, en service ;

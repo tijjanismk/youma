@@ -189,7 +189,7 @@ fn inserer_utilisateur(op: &Op, u: &NouvelUtilisateur) -> Resultat<String> {
 }
 
 /// RG-AUT-06 : 6 caractères au moins.
-fn valider_mot_de_passe(m: &str) -> Resultat<()> {
+pub(crate) fn valider_mot_de_passe(m: &str) -> Resultat<()> {
     if m.chars().count() < 6 {
         return Err(Erreur::regle("RG-AUT-06", "Le mot de passe doit contenir au moins 6 caractères"));
     }
@@ -197,8 +197,9 @@ fn valider_mot_de_passe(m: &str) -> Resultat<()> {
 }
 
 /// Première configuration : crée le propriétaire (uniquement si aucun utilisateur).
-/// Le mot de passe protège l'administration (RG-AUT-06).
-pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, mot_de_passe: &str, nom_restaurant: &str) -> Resultat<String> {
+/// Le mot de passe protège l'administration (RG-AUT-06). Renvoie l'identifiant du propriétaire et le premier
+/// code de secours (RG-AUT-07), à afficher une seule fois.
+pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, mot_de_passe: &str, nom_restaurant: &str) -> Resultat<(String, String)> {
     valider_mot_de_passe(mot_de_passe)?;
     db.executer(&Acteur::systeme(), |op| {
         if nombre_utilisateurs(op)? > 0 {
@@ -210,7 +211,7 @@ pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, mot_de_passe: &
                 params![nom_restaurant.trim(), op.maintenant],
             )?;
         }
-        inserer_utilisateur(
+        let id = inserer_utilisateur(
             op,
             &NouvelUtilisateur {
                 nom: nom.into(),
@@ -219,7 +220,8 @@ pub fn installer_proprietaire(db: &mut Db, nom: &str, pin: &str, mot_de_passe: &
                 mot_de_passe: Some(mot_de_passe.into()),
                 employe_id: None,
             },
-        )
+        )?;
+        Ok((id, crate::secours::code_initial(op)?))
     })
 }
 

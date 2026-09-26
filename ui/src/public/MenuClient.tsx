@@ -72,7 +72,7 @@ export default function MenuClient() {
           {refus}
         </p>
       )}
-      <Onglets onglets={cats.map((c) => ({ cle: c.id, libelle: `${c.icone} ${c.nom}` }))} actif={categorie} changer={setCategorie} />
+      <Onglets onglets={cats.map((c) => ({ cle: c.id, libelle: c.nom }))} actif={categorie} changer={setCategorie} />
       <div className="produits-client">
         {menu.produits
           .filter((p) => p.categorie_id === categorie)

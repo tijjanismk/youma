@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Banknote,
   HandCoins,
-  Info,
   MessageCircle,
   PackageX,
   Receipt,
@@ -65,7 +64,7 @@ function Bloc({ titre, Icone, children }: { titre: string; Icone: LucideIcon; ch
   );
 }
 
-/** Un propriétaire comprend sa journée en 10 secondes : peu de chiffres, formules à portée de main. */
+/** Un propriétaire comprend sa journée en 10 secondes : peu de chiffres, sans formule (fiche 0033). */
 export default function TableauDeBord() {
   const { donnees: d } = useDonnees(() => get<Tdb>("/tableau-de-bord"), ["paiement", "commande", "caisse", "stock", "journee"]);
   const { donnees: resume } = useDonnees(() => get<{ texte: string | null; telephone: string }>("/journee/resume"), ["paiement", "caisse", "journee"]);
@@ -90,20 +89,15 @@ export default function TableauDeBord() {
           if (!i) return null;
           const [Icone, ton] = ICONES[c];
           return (
-            <details key={c} className={`indicateur ton-${ton} ${c === "benefice" ? "benefice" : ""}`}>
-              <summary>
+            <div key={c} className={`indicateur ton-${ton} ${c === "benefice" ? "benefice" : ""}`}>
+              <div className="resume">
                 <span className="chiffre-icone" aria-hidden>
                   <Icone size={22} strokeWidth={1.9} />
                 </span>
                 <span>{i.libelle}</span>
                 <strong>{c === "nb_commandes" ? nombre(i.valeur) : fcfa(i.valeur)}</strong>
-                <small>
-                  <Info size={14} aria-hidden /> <span className="texte-long">Comment est-ce calculé ?</span>
-                  <span className="texte-court">Formule</span>
-                </small>
-              </summary>
-              <p className="formule">{i.formule}</p>
-            </details>
+              </div>
+            </div>
           );
         })}
       </div>

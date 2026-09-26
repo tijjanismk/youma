@@ -193,7 +193,8 @@ async fn parcours_complet_service() {
     let r = s.client.get(format!("{}/rapports/periode?format=csv", s.url)).bearer_auth(&gerant).send().await.unwrap();
     assert!(r.headers()["content-type"].to_str().unwrap().starts_with("text/csv"));
     let csv = r.text().await.unwrap();
-    assert!(csv.contains("Chiffre d'affaires;9000;"));
+    assert!(csv.contains("Chiffre d'affaires;9000\n"));
+    assert!(!csv.contains("CA ="), "pas de formule dans l'export (fiche 0033)");
     assert!(csv.contains("Produits les plus vendus"));
 
     // Clôture de caisse avec rapport Z.

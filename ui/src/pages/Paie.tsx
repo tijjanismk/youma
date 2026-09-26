@@ -124,13 +124,6 @@ export default function Paie() {
       <div className="carte filtres periode">
         <Champ libelle="Du" type="date" valeur={debut} changer={setDebut} />
         <Champ libelle="Au" type="date" valeur={fin} changer={setFin} />
-        <details className="explication">
-          <summary>Comment la paie est-elle calculée ?</summary>
-          <p className="aide">
-            Mensuels : salaire fixe (absences déduites si activé). Journaliers : jours pointés présents × taux. À la tâche : tâches saisies. Les avances,
-            retenues et consommations sont déduites ; un net négatif est reporté.
-          </p>
-        </details>
       </div>
       <Chiffres>
         <Chiffre libelle="Employés" valeur={actifs.length} Icone={Users} ton="bleu" />

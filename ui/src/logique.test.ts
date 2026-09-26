@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { dateFr, fcfa, finDuMois, lireMontant, nombre } from "./format";
 import { t } from "./i18n";
-import { ajouter, changerQuantite, chargerPanier, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
+import { cleIcone } from "./composants/IconeCategorie";
+import { contenanceSuggeree } from "./listesStock";
+import { ajouter, changerQuantite, chargerPanier, definirQuantite, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
 import { billetsProposes, rendu, sommeParts, verifierPaiement } from "./paiement";
 import type { Produit } from "./types";
 
@@ -85,6 +87,15 @@ describe("panier local (scénario 13 : rien n'est perdu)", () => {
     let p = ajouter([], produit({}), null);
     p = changerQuantite(p, p[0].cle, -1);
     expect(p).toHaveLength(0);
+  });
+
+  it("prend la quantité tapée au clavier, de 1 à 999 ; 0 retire l'article", () => {
+    const p = ajouter([], produit({}), null);
+    expect(definirQuantite(p, p[0].cle, " 24 ")[0].quantite).toBe(24);
+    expect(definirQuantite(p, p[0].cle, "1000")).toEqual(p);
+    expect(definirQuantite(p, p[0].cle, "2,5")).toEqual(p);
+    expect(definirQuantite(p, p[0].cle, "")).toEqual(p);
+    expect(definirQuantite(p, p[0].cle, "0")).toHaveLength(0);
   });
 
   it("survit à un rechargement de la page", () => {
@@ -286,5 +297,26 @@ describe("comptes hors caisse (fiche 0027)", () => {
     const c = (nom: string, type: string, actif = true) => ({ nom, type, actif });
     const liste = comptesHorsCaisse([c("Banque", "banque"), c("Caisse", "especes"), c("OM", "mobile_money"), c("Coffre", "coffre"), c("Vieux", "coffre", false)]);
     expect(liste.map((x) => x.nom)).toEqual(["Coffre", "Banque", "OM"]);
+  });
+});
+
+describe("listes du stock (fiche 0034)", () => {
+  it("déduit la contenance du conditionnement choisi, dans l'unité de base", () => {
+    expect(contenanceSuggeree("Casier de 24", "bouteille")).toBe(24);
+    expect(contenanceSuggeree("Sac de 25 kg", "g")).toBe(25000);
+    expect(contenanceSuggeree("Sac de 25 kg", "kg")).toBe(25);
+    expect(contenanceSuggeree("Bidon de 20 litres", "ml")).toBe(20000);
+    expect(contenanceSuggeree("Sac de 25 kg", "bouteille")).toBeNull();
+    expect(contenanceSuggeree("Grand sac", "g")).toBeNull();
+  });
+});
+
+describe("icônes des catégories (fiche 0035)", () => {
+  it("reconnaît la clé choisie et les anciens émojis, sinon les couverts", () => {
+    expect(cleIcone("bieres")).toBe("bieres");
+    expect(cleIcone("🍺")).toBe("bieres");
+    expect(cleIcone("🍽️")).toBe("autre");
+    expect(cleIcone("")).toBe("autre");
+    expect(cleIcone("n'importe quoi")).toBe("autre");
   });
 });

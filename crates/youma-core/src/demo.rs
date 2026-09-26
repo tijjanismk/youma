@@ -78,7 +78,7 @@ fn employe(nom: &str, fonction: &str, remuneration: &str, montant: i64, contrat:
 /// Remplit une base vide. PIN : propriétaire 1234, gérant 2222, caissier 3333, serveuse 4444, cuisinier 5555.
 /// Mots de passe d'administration (RG-AUT-06) : propriétaire « baobab123 », gérant « adama123 ».
 pub fn remplir(db: &mut Db) -> Resultat<Demo> {
-    let proprietaire = auth::installer_proprietaire(db, "Mariam (propriétaire)", "1234", "baobab123", "Maquis Le Baobab")?;
+    let (proprietaire, _) = auth::installer_proprietaire(db, "Mariam (propriétaire)", "1234", "baobab123", "Maquis Le Baobab")?;
     let sys = Acteur::systeme();
     db.conn().execute("INSERT OR REPLACE INTO systeme(cle, valeur) VALUES ('demo', '1')", [])?;
     db.conn().execute(
@@ -137,11 +137,11 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
     let cat = |db: &mut Db, nom: &str, couleur: &str, icone: &str, ordre: i64| {
         catalogue::enregistrer_categorie(db, &sys, &Categorie { id: String::new(), nom: nom.into(), couleur: couleur.into(), icone: icone.into(), ordre, actif: true })
     };
-    let c_boissons = cat(db, "Boissons", "#1565c0", "🥤", 0)?;
-    let c_bieres = cat(db, "Bières", "#f9a825", "🍺", 1)?;
-    let c_grill = cat(db, "Grillades", "#c62828", "🍗", 2)?;
-    let c_plats = cat(db, "Plats", "#2e7d32", "🍛", 3)?;
-    let c_acc = cat(db, "Accompagnements", "#6d4c41", "🍟", 4)?;
+    let c_boissons = cat(db, "Boissons", "#1565c0", "boissons", 0)?;
+    let c_bieres = cat(db, "Bières", "#f9a825", "bieres", 1)?;
+    let c_grill = cat(db, "Grillades", "#c62828", "grillades", 2)?;
+    let c_plats = cat(db, "Plats", "#2e7d32", "plats", 3)?;
+    let c_acc = cat(db, "Accompagnements", "#6d4c41", "accompagnements", 4)?;
 
     let article = |db: &mut Db, nom: &str, cond: &str, contenance: i64, seuil: i64| {
         stock::enregistrer_article(

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, Onglets, TableauDonnees } from "../composants/Base";
@@ -97,7 +98,7 @@ function Reception() {
               = +{base} {a?.unite} {base > 0 && l.prix_total > 0 && `(${fcfa(Math.round(l.prix_total / base))} l'unité)`}
             </span>
             <button className="petit" onClick={() => setLignes(lignes.filter((_, j) => j !== i))} aria-label="Retirer la ligne">
-              ✕
+              <X size={16} aria-hidden />
             </button>
           </div>
         );
@@ -135,7 +136,6 @@ function Reception() {
               </label>
             </div>
           ))}
-          <p className="formule">Consigne = Σ (reçus − rendus) × consigne de l'emballage ; ajoutée au total.</p>
         </details>
       )}
       <Champ libelle="Note" valeur={note} changer={setNote} />

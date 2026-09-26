@@ -1,4 +1,5 @@
 import { expect, Page, test } from "@playwright/test";
+import { createPrivateKey, sign } from "node:crypto";
 
 // Tests d'interface de bout en bout : vrai poste central (base de démonstration), vrai navigateur.
 // Les tests s'enchaînent sur la même journée, comme un vrai service.
@@ -89,7 +90,7 @@ test("écran cuisine : les envois arrivent par poste et passent à « prêt »",
   const carte = page.locator(".carte-cuisine").filter({ hasText: "TABLE 4" });
   await expect(carte.getByText("Brochettes (3)")).toBeVisible();
   await expect(carte).not.toContainText("Bière");
-  await carte.getByRole("button", { name: "Prêt ✓" }).click();
+  await carte.getByRole("button", { name: "Prêt", exact: true }).click();
   await expect(carte.getByRole("button", { name: "Servi" })).toBeVisible();
 });
 
@@ -127,7 +128,7 @@ test("poste central injoignable : la saisie en cours est conservée", async ({ p
   // Même après rechargement de la page, le panier est toujours là.
   await page.unroute("**/api/**");
   await page.reload();
-  await expect(page.locator(".ligne.panier")).toContainText("2×");
+  await expect(page.getByLabel("Quantité Coca-Cola")).toHaveValue("2");
   await page.getByRole("button", { name: /^Envoyer \(2\)/ }).click();
   await expect(page.locator(".ligne.envoyee")).toHaveCount(1);
   await expect(page.locator(".ligne.panier")).toHaveCount(0);
@@ -198,13 +199,12 @@ test("contrôle de sortie : le ticket payé est un bon de sortie, une seule fois
   await expect(page.getByText("DÉJÀ PRÉSENTÉ")).toBeVisible();
 });
 
-test("tableau de bord : chiffres de la journée avec leurs formules", async ({ page }) => {
+test("tableau de bord : chiffres de la journée, sans formule (fiche 0033)", async ({ page }) => {
   await connexion(page, /Adama/, "2222");
   await page.goto("/tableau-de-bord");
   const ca = page.locator(".indicateur").filter({ hasText: "Chiffre d'affaires" });
   await expect(ca).toContainText("6 000 FCFA");
-  await ca.locator("summary").click();
-  await expect(ca.locator(".formule")).toContainText("CA =");
+  await expect(page.getByText("Comment est-ce calculé ?")).toHaveCount(0);
   await expect(page.getByText(/paiement\(s\) Mobile Money à vérifier/)).toBeVisible();
 });
 
@@ -606,4 +606,77 @@ test("photo d'un plat : importée entière, sans recadrage (fiche 0029)", async 
   // Rien n'est enregistré : la base de démonstration reste telle quelle.
   await page.keyboard.press("Escape");
   await expect(fiche).toBeHidden();
+});
+
+test("mot de passe d'administration oublié : réponse du fournisseur, nouveau code de secours (RG-AUT-07)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Téléphones et tablettes" }).click();
+  await page.getByRole("button", { name: "Saisir mon mot de passe" }).click();
+  await page.getByRole("button", { name: "Mot de passe oublié ?" }).click();
+  const fenetre = page.getByRole("dialog", { name: "Mot de passe oublié" });
+  await fenetre.getByRole("button", { name: "Code perdu : appeler le fournisseur" }).click();
+  const demande = (await fenetre.getByLabel("Code de demande").textContent())!.trim();
+  expect(demande).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  // Le fournisseur signe la demande avec la clé des licences (ici celle de développement, outils/cle-dev.txt).
+  const graine = Buffer.from("ep4IEaSAer69JPfsTV2u+yY6LNbW3YRPzTkBlbHpask=", "base64");
+  const cle = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), graine]), format: "der", type: "pkcs8" });
+  const reponse = sign(null, Buffer.from(`youma-secours:${demande.replace(/-/g, "")}`), cle).toString("base64url");
+  await fenetre.getByLabel("Réponse du fournisseur").fill(reponse);
+  // Même mot de passe qu'avant : la base de démonstration reste utilisable par les autres tests.
+  await fenetre.getByLabel("Nouveau mot de passe (6 caractères au moins)").fill("baobab123");
+  await fenetre.getByLabel("Confirmez le nouveau mot de passe").fill("baobab123");
+  await fenetre.getByRole("button", { name: "Changer le mot de passe" }).click();
+  await expect(page.getByLabel("Code de secours")).toHaveText(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
+  await page.getByRole("button", { name: "J'ai noté le code" }).click();
+  // Administration ouverte sans redemander le mot de passe.
+  await expect(page.getByRole("checkbox", { name: /Mode réseau/ })).toBeVisible();
+  // Nouveau code depuis l'onglet Utilisateurs.
+  await page.getByRole("tab", { name: "Utilisateurs" }).click();
+  await page.getByRole("button", { name: "Créer un nouveau code de secours" }).click();
+  await expect(page.getByRole("dialog", { name: "Nouveau code de secours" }).getByLabel("Code de secours")).toBeVisible();
+  await page.getByRole("button", { name: "J'ai noté le code" }).click();
+});
+
+test("quantité tapée au clavier, puis table libérée d'un geste (RG-SAL-01)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/salle");
+  await page.getByRole("button", { name: /^Table T6 Libre/ }).click();
+  await page.getByRole("tab", { name: /Grillades/ }).click();
+  await page.getByRole("button", { name: /^Brochettes \(3\)/ }).click();
+  const quantite = page.getByLabel("Quantité Brochettes (3)");
+  await quantite.fill("12");
+  await quantite.press("Enter");
+  await expect(page.getByRole("button", { name: "Envoyer (12)" })).toBeVisible();
+  await expect(page.locator(".total")).toContainText("18 000");
+  // Rien d'envoyé : la table se libère depuis la salle, l'addition vide est abandonnée.
+  await page.goto("/salle");
+  await expect(page.getByRole("button", { name: /^Table T6 Occupée/ })).toBeVisible();
+  await page.getByRole("button", { name: "Libérer la table T6" }).click();
+  await expect(page.getByRole("button", { name: /^Table T6 Libre/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Libérer la table T6" })).toHaveCount(0);
+});
+
+test("stock : article et sortie saisis par des listes, sans texte libre (fiche 0034)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/stock");
+  await page.getByRole("button", { name: "+ Article" }).click();
+  const fiche = page.getByRole("dialog", { name: "Nouvel article de stock" });
+  await fiche.getByLabel("Nom").fill("Riz parfumé");
+  await fiche.getByLabel("Unité de base").selectOption("g");
+  await fiche.getByLabel("Famille").selectOption("Céréales et féculents");
+  await fiche.getByRole("button", { name: "+ Conditionnement" }).click();
+  await fiche.getByLabel("Conditionnement").selectOption("Sac de 25 kg");
+  await expect(fiche.getByLabel("Contient (g)")).toHaveValue("25000");
+  await fiche.getByRole("button", { name: "Enregistrer" }).click();
+  const ligne = page.getByRole("row", { name: /Riz parfumé/ });
+  await expect(ligne).toBeVisible();
+
+  await ligne.getByRole("button", { name: "Perte / sortie" }).click();
+  const sortie = page.getByRole("dialog", { name: "Sortie de stock — Riz parfumé" });
+  await sortie.getByLabel("Type").selectOption("regularisation");
+  await sortie.getByLabel("Motif").selectOption("Correction après comptage");
+  await sortie.getByRole("spinbutton").fill("500");
+  await sortie.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(ligne).toContainText("500 g");
 });

@@ -73,6 +73,14 @@ export function changerQuantite(panier: ArticlePanier[], cle: string, delta: num
   return panier.map((a) => (a.cle === cle ? { ...a, quantite: a.quantite + delta } : a)).filter((a) => a.quantite > 0);
 }
 
+/** Quantité tapée au clavier : entier de 1 à 999 (limite du poste central) ; 0 retire l'article ; sinon inchangée. */
+export function definirQuantite(panier: ArticlePanier[], cle: string, saisie: string): ArticlePanier[] {
+  const texte = saisie.trim();
+  if (!/^\d{1,3}$/.test(texte)) return panier;
+  const quantite = Number(texte);
+  return panier.map((a) => (a.cle === cle ? { ...a, quantite } : a)).filter((a) => a.quantite > 0);
+}
+
 export function totalPanier(panier: ArticlePanier[]): number {
   return panier.reduce((s, a) => s + a.quantite * (a.prix + a.options.reduce((x, o) => x + o.supplement, 0)), 0);
 }

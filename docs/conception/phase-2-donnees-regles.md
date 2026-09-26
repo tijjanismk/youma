@@ -53,6 +53,10 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   `sauvegarde.gerer`, `appareil.gerer`) exigent une session confirmée par le **mot de passe personnel**
   (6 caractères au moins) en plus du PIN. Pas d'autorisation ponctuelle par PIN pour elles. Les échecs de
   mot de passe comptent pour le verrouillage (RG-AUT-02). Le propriétaire choisit son mot de passe à l'installation.
+* **RG-AUT-07** Mot de passe d'administration oublié (fiche 0031) : le **propriétaire**, connecté par son PIN, en choisit
+  un nouveau en donnant le **code de secours** (remis à l'installation, renouvelable dans l'administration) ou la
+  **réponse du fournisseur** (code de demande signé avec la clé des licences). Chaque code sert une fois ; les échecs
+  comptent pour le verrouillage (RG-AUT-02). Les autres utilisateurs font redéfinir leur mot de passe par le propriétaire.
 
 ### Journée (JOU)
 * **RG-JOU-01** Vente, dépense, session de caisse exigent une journée ouverte.
@@ -83,6 +87,11 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CMD-10** Total = Σ lignes non annulées (quantité effective × (prix + options)) − remises, hors lignes offertes.
 * **RG-CMD-11** Ordre de paiement : `apres` (table) ou `avant` (comptoir) ; en mode `avant`, l'envoi en préparation n'est possible qu'après paiement complet.
 * **RG-CMD-12** Division d'addition : parts égales ou montants libres ; les parts sont arrondies au multiple configuré, l'écart d'arrondi va sur la dernière part.
+
+### Salle (SAL) — fiche 0032
+* **RG-SAL-01** « Libérer » une table en un geste : l'addition ouverte est abandonnée seulement si rien n'a été envoyé
+  ni payé ; sinon refus (RG-CMD-04) : encaisser, ou annuler les articles avec motif. Retire aussi « réservée » et
+  « à nettoyer ». Une addition payée libère sa table d'elle-même.
 
 ### Caisse et trésorerie (CAI)
 * **RG-CAI-01** Encaisser exige une session de caisse ouverte par l'utilisateur sur le poste.
@@ -249,7 +258,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   signalée « déjà présenté » avec l'heure et le contrôleur, et journalisée.
 
 ### Rapports (RAP)
-* **RG-RAP-01** Chaque indicateur est accompagné de sa formule écrite.
+* **RG-RAP-01** Chaque indicateur a sa formule écrite, tenue dans le code ; elle n'est **pas affichée** dans l'application
+  ni dans les exports (fiche 0033, décision du porteur de projet, contraire au cahier des charges § 18).
 * **RG-RAP-02** CA = Σ totaux des commandes payées de la période (hors consommations employés, hors offerts).
 * **RG-STA-01** Panier moyen = CA ÷ nombre de commandes payées ; dépense par couvert = ventes brutes des tables avec
   couverts ÷ Σ couverts. Divisions entières (FCFA).

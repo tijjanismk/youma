@@ -44,17 +44,25 @@ export default function Salle() {
       />
       <div className="plan-salle">
         {tables.map((tb) => (
-          <button key={tb.id} className={`table-salle ${tb.statut}`} onClick={() => ouvrirTable(tb)} aria-label={`Table ${tb.nom} ${t(tb.statut)}`}>
-            <strong>{tb.nom}</strong>
-            <small>{t(tb.statut)}</small>
-            {tb.commande_id && (
-              <small>
-                {tb.serveur ?? ""} · {tb.ouverte_le ? `${minutesDepuis(tb.ouverte_le)} min` : ""}
-              </small>
+          <div key={tb.id} className="case-table">
+            <button className={`table-salle ${tb.statut}`} onClick={() => ouvrirTable(tb)} aria-label={`Table ${tb.nom} ${t(tb.statut)}`}>
+              <strong>{tb.nom}</strong>
+              <small>{t(tb.statut)}</small>
+              {tb.commande_id && (
+                <small>
+                  {tb.serveur ?? ""} · {tb.ouverte_le ? `${minutesDepuis(tb.ouverte_le)} min` : ""}
+                </small>
+              )}
+              {tb.pretes > 0 && <span className="pastille pret">Prêt</span>}
+              {tb.a_envoyer > 0 && <span className="pastille attente">À envoyer</span>}
+            </button>
+            {tb.statut !== "libre" && (
+              // RG-SAL-01 : refusé par le poste central si des articles ont été envoyés sans être payés.
+              <button className="petit liberer" aria-label={`Libérer la table ${tb.nom}`} onClick={() => agir((pin) => post(`/tables/${tb.id}/liberer`, {}, pin), `Table ${tb.nom} libérée`)}>
+                Libérer
+              </button>
             )}
-            {tb.pretes > 0 && <span className="pastille pret">Prêt</span>}
-            {tb.a_envoyer > 0 && <span className="pastille attente">À envoyer</span>}
-          </button>
+          </div>
         ))}
       </div>
       {horsTable.length > 0 && (

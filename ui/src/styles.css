@@ -616,6 +616,15 @@ code {
   border-width: 3px;
   position: relative;
 }
+.case-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.case-table .liberer {
+  min-height: 36px;
+}
 .table-salle strong {
   font-size: 1.5rem;
 }
@@ -1011,27 +1020,22 @@ code {
   padding: 12px;
 }
 .indicateur summary {
-  list-style: none;
   cursor: pointer;
+}
+.indicateur :is(summary, .resume) {
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.indicateur summary strong {
+.indicateur :is(summary, .resume) strong {
   font-size: 1.5rem;
 }
-.indicateur summary small {
+.indicateur :is(summary, .resume) small {
   color: var(--bleu);
 }
 .indicateur.benefice {
   border-color: var(--vert);
-}
-.formule {
-  font-size: 0.9rem;
-  color: var(--doux);
-  background: var(--carte-2);
-  padding: 8px;
-  border-radius: 8px;
 }
 .ligne-valeur {
   display: flex;
@@ -1077,6 +1081,39 @@ code {
   font-size: 2rem;
   letter-spacing: 6px;
   font-weight: 800;
+}
+
+/* Aperçu de l'icône choisie pour une catégorie (fiche 0035). */
+.apercu-icone {
+  margin: 4px 0 12px;
+}
+
+/* ───── Code de secours (RG-AUT-07, fiche 0031) ───── */
+.code-secours-valeur {
+  display: block;
+  margin: 12px 0;
+  padding: 12px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--rayon-tuile);
+  background: var(--carte-2);
+  font-family: "Courier New", monospace;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.choix-moyen {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.choix-moyen button.actif {
+  border-color: var(--accent);
+  background: var(--accent-doux);
+  font-weight: 700;
 }
 
 /* ───── Contrôle de sortie ───── */
@@ -1794,6 +1831,27 @@ a:focus-visible {
   border-radius: 50%;
   font-size: 1.1rem;
 }
+.qte-saisie {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+}
+.qte-saisie input {
+  width: 3.2ch;
+  min-height: 34px;
+  padding: 0 2px;
+  text-align: center;
+  font: inherit;
+  font-weight: 800;
+  border: 1px dashed var(--bord-fort);
+  border-radius: 8px;
+  background: var(--carte);
+  color: var(--texte);
+}
+.qte-saisie input:focus {
+  border-style: solid;
+  border-color: var(--accent);
+}
 .boutons-qte strong {
   min-width: 18px;
   text-align: center;
@@ -1826,10 +1884,10 @@ a:focus-visible {
 .indicateur {
   padding: 16px;
 }
-.indicateur summary strong {
+.indicateur :is(summary, .resume) strong {
   font-size: 1.6rem;
 }
-.indicateur summary small {
+.indicateur :is(summary, .resume) small {
   color: var(--accent-fonce);
 }
 .indicateur.benefice {
@@ -2128,17 +2186,17 @@ label.bouton {
   box-shadow: var(--ombre);
   border-radius: var(--rayon-carte);
 }
-.indicateur summary {
+.indicateur :is(summary, .resume) {
   gap: 2px;
 }
-.indicateur summary .chiffre-icone {
+.indicateur :is(summary, .resume) .chiffre-icone {
   margin-bottom: 8px;
 }
-.indicateur summary > span:not(.chiffre-icone) {
+.indicateur :is(summary, .resume) > span:not(.chiffre-icone) {
   color: var(--doux);
   font-size: 0.9rem;
 }
-.indicateur summary small {
+.indicateur :is(summary, .resume) small {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2274,14 +2332,6 @@ label.bouton {
 .filtres.periode .champ {
   flex: 0 1 200px;
 }
-.explication {
-  flex: 1 1 100%;
-}
-.explication summary {
-  cursor: pointer;
-  color: var(--accent-fonce);
-  font-weight: 600;
-}
 .formulaire-etroit {
   max-width: 560px;
 }
@@ -2300,7 +2350,7 @@ label.bouton {
     padding: 12px;
   }
   .chiffre strong,
-  .indicateur summary strong {
+  .indicateur :is(summary, .resume) strong {
     font-size: 1.1rem;
   }
   .chiffre-icone {
@@ -2400,14 +2450,6 @@ label.bouton {
 
 .texte-court {
   display: none;
-}
-@media (max-width: 900px) {
-  .indicateur .texte-long {
-    display: none;
-  }
-  .indicateur .texte-court {
-    display: inline;
-  }
 }
 
 /* ═════════════ Couche « Mali vivant » ═════════════ */

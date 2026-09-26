@@ -32,6 +32,7 @@ pub mod recettes;
 pub mod releves_mm;
 pub mod salle;
 pub mod sauvegarde;
+pub mod secours;
 pub mod sortie;
 pub mod stock;
 pub mod zones_risque;

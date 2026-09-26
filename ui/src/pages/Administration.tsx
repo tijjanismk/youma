@@ -1,4 +1,4 @@
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle, Check, Lock, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { appel, get, post } from "../api";
@@ -7,12 +7,14 @@ import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import { ChoixPhoto } from "../composants/Plat";
+import { CodeSecours } from "../composants/Secours";
 import { quartiersDeLaVille, VILLES } from "../quartiers";
 import CloudAdmin from "./CloudAdmin";
 import CommandesDistance from "./CommandesDistance";
 import Promotions from "./Promotions";
 import EditeurRecette from "./Recette";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
+import { cleIcone, IconeCategorie, ICONES_CATEGORIE } from "../composants/IconeCategorie";
 
 type Onglet =
   | "cloud"
@@ -187,14 +189,16 @@ function CatalogueAdmin() {
         <button className="principal" onClick={() => setProduit({ ...PRODUIT_VIDE, categorie_id: cat.categories[0]?.id ?? "" })}>
           + Produit
         </button>
-        <button onClick={() => setCategorie({ id: "", nom: "", couleur: "#2e7d32", icone: "", ordre: cat.categories.length, actif: true })}>+ Catégorie</button>
+        <button onClick={() => setCategorie({ id: "", nom: "", couleur: "#2e7d32", icone: "autre", ordre: cat.categories.length, actif: true })}>
+          + Catégorie
+        </button>
         <button onClick={() => setCsv("categorie;nom;prix;poste\n")}>Importer (Excel → CSV)</button>
       </div>
       {cat.categories.map((c) => (
         <section key={c.id} className="carte">
           <div className="titre-ligne">
             <h3 style={{ color: c.couleur }}>
-              {c.icone} {c.nom} {!c.actif && "(masquée)"}
+              <IconeCategorie icone={c.icone} taille={20} /> {c.nom} {!c.actif && "(masquée)"}
             </h3>
             <button className="petit" onClick={() => setCategorie(c)}>
               Modifier
@@ -233,7 +237,15 @@ function CatalogueAdmin() {
       {categorie && (
         <Modal titre="Catégorie" fermer={() => setCategorie(null)}>
           <Champ libelle="Nom" valeur={categorie.nom} changer={(v) => setCategorie({ ...categorie, nom: v })} obligatoire />
-          <Champ libelle="Icône (emoji)" valeur={categorie.icone} changer={(v) => setCategorie({ ...categorie, icone: v })} />
+          <Choix
+            libelle="Icône"
+            valeur={cleIcone(categorie.icone)}
+            changer={(v) => setCategorie({ ...categorie, icone: v })}
+            options={ICONES_CATEGORIE.map((i) => ({ valeur: i.cle, libelle: i.libelle }))}
+          />
+          <p className="apercu-icone" style={{ color: categorie.couleur }}>
+            <IconeCategorie icone={categorie.icone} taille={32} />
+          </p>
           <Champ libelle="Couleur" type="color" valeur={categorie.couleur} changer={(v) => setCategorie({ ...categorie, couleur: v })} />
           <Case libelle="Visible" valeur={categorie.actif} changer={(v) => setCategorie({ ...categorie, actif: v })} />
           <button
@@ -788,6 +800,38 @@ function RestaurantAdmin() {
 type Utilisateur = { id: string; nom: string; role_code: string; role_nom: string; actif: boolean; employe_id: string | null };
 type Role = { id: string; code: string; nom: string; plafond_remise_pct: number; permissions: string[] };
 
+/** RG-AUT-07 : nouveau code de secours du propriétaire (l'ancien ne sert plus). */
+function CodeSecoursAdmin() {
+  const { agir } = useApp();
+  const { donnees, recharger } = useDonnees(() => get<{ code_existe: boolean }>("/secours"), []);
+  const [code, setCode] = useState("");
+  const renouveler = async () => {
+    const r = await agir(() => post<{ code_secours: string }>("/secours/code", {}));
+    if (r) setCode(r.code_secours);
+    recharger();
+  };
+  return (
+    <div className="carte">
+      <h2>Code de secours</h2>
+      <p className="aide">
+        En cas d'oubli du mot de passe d'administration du propriétaire.{" "}
+        {donnees?.code_existe ? "Un code existe." : "Aucun code : en créer un et le noter sur papier."}
+      </p>
+      <button onClick={renouveler}>{donnees?.code_existe ? "Créer un nouveau code de secours" : "Créer le code de secours"}</button>
+      {code && (
+        <Modal titre="Nouveau code de secours" fermer={() => setCode("")}>
+          <CodeSecours code={code} />
+          <div className="actions">
+            <button className="principal" onClick={() => setCode("")}>
+              J'ai noté le code
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 function UtilisateursAdmin() {
   const { agir } = useApp();
   const { donnees, recharger } = useDonnees(() => get<Utilisateur[]>("/utilisateurs"), []);
@@ -796,6 +840,7 @@ function UtilisateursAdmin() {
   return (
     <div>
       <p className="aide">Un employé n'est pas forcément un utilisateur : le plongeur n'a pas besoin de compte.</p>
+      <CodeSecoursAdmin />
       <button className="principal" onClick={() => setNouveau({ nom: "", role_code: "serveur", pin: "", mot_de_passe: "" })}>
         + Utilisateur
       </button>
@@ -887,8 +932,8 @@ function RolesAdmin() {
                 <th key={r.id}>
                   {r.nom}
                   {r.code !== "proprietaire" && (
-                    <button className="petit" onClick={() => setEdition(r)}>
-                      ✎
+                    <button className="petit" onClick={() => setEdition(r)} aria-label={`Modifier le rôle ${r.nom}`}>
+                      <Pencil size={16} aria-hidden />
                     </button>
                   )}
                 </th>
@@ -901,7 +946,7 @@ function RolesAdmin() {
                 <td>{p}</td>
                 {donnees.roles.map((r) => (
                   <td key={r.id} className="centre">
-                    {r.permissions.includes(p) ? "✓" : ""}
+                    {r.permissions.includes(p) ? <Check size={18} aria-label="Oui" /> : ""}
                   </td>
                 ))}
               </tr>

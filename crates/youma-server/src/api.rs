@@ -17,7 +17,7 @@ use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
     achats, appareils, auth, caisse, catalogue, clients, cloud, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
-    licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, stock, zones_risque, Db,
+    licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, secours, stock, zones_risque, Db,
 };
 
 use crate::erreurs::{ApiErreur, Rep};
@@ -84,6 +84,9 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/session", get(session))
         .route("/session/elever", post(session_elever))
         .route("/moi/mot-de-passe", post(mon_mot_de_passe))
+        .route("/secours", get(secours_etat))
+        .route("/secours/reinitialiser", post(secours_reinitialiser))
+        .route("/secours/code", post(secours_code))
         .route("/sortie/controle", post(sortie_controle))
         .route("/horloge/accepter", post(horloge_accepter))
         .route("/ws", get(crate::ws::ws))
@@ -110,6 +113,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/tables", post(table_enregistrer))
         .route("/tables/serie", post(tables_serie))
         .route("/tables/{id}/marquer", post(table_marquer))
+        .route("/tables/{id}/liberer", post(table_liberer))
         // Commandes
         .route("/commandes", get(commandes_lister).post(commande_ouvrir))
         .route("/commandes/{id}", get(commande_detail))
@@ -281,8 +285,8 @@ struct Installation {
 }
 
 async fn installation(State(e): State<Etat>, Json(i): Json<Installation>) -> Rep<Value> {
-    let id = e.avec_db(move |db| auth::installer_proprietaire(db, &i.nom, &i.pin, &i.mot_de_passe, &i.restaurant)).await?;
-    Ok(Json(json!({ "id": id })))
+    let (id, code) = e.avec_db(move |db| auth::installer_proprietaire(db, &i.nom, &i.pin, &i.mot_de_passe, &i.restaurant)).await?;
+    Ok(Json(json!({ "id": id, "code_secours": code })))
 }
 
 async fn utilisateurs_connexion(State(e): State<Etat>, _p: Poste) -> Rep<Value> {
@@ -337,6 +341,40 @@ async fn mon_mot_de_passe(State(e): State<Etat>, a: Auth, Json(c): Json<Changeme
 
 async fn utilisateur_mot_de_passe(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(c): Json<ChangementMotDePasse>) -> Rep<()> {
     ecrire!(e, a, |db| auth::definir_mot_de_passe(db, &a, &id, c.ancien.as_deref(), &c.nouveau))
+}
+
+/// RG-AUT-07 : code de secours existant, code de demande à dicter au fournisseur.
+async fn secours_etat(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    lire!(e, a, AUCUNE, |db| Ok(json!({ "code_existe": secours::code_existe(db.conn())?, "demande": secours::code_demande(db.conn())? })))
+}
+
+#[derive(Deserialize)]
+struct Reinitialisation {
+    #[serde(default)]
+    code_secours: Option<String>,
+    #[serde(default)]
+    reponse: Option<String>,
+    nouveau: String,
+}
+
+async fn secours_reinitialiser(State(e): State<Etat>, a: Auth, Json(r): Json<Reinitialisation>) -> Rep<Value> {
+    let j = a.jeton.clone();
+    let v = e
+        .avec_db(move |db| {
+            let preuve = match (&r.code_secours, &r.reponse) {
+                (Some(c), _) if !c.trim().is_empty() => secours::Preuve::CodeSecours(c),
+                (_, Some(rep)) if !rep.trim().is_empty() => secours::Preuve::ReponseFournisseur(rep),
+                _ => return Err(Erreur::validation("Saisissez le code de secours ou la réponse du fournisseur")),
+            };
+            let code = secours::reinitialiser(db, &j, preuve, &r.nouveau)?;
+            Ok(json!({ "code_secours": code, "session": auth::session_courante(db, &j)? }))
+        })
+        .await?;
+    Ok(Json(v))
+}
+
+async fn secours_code(State(e): State<Etat>, a: Auth) -> Rep<Value> {
+    ecrire!(e, a, |db| secours::renouveler_code(db, &a).map(|c| json!({ "code_secours": c })))
 }
 
 #[derive(Deserialize)]
@@ -449,6 +487,10 @@ async fn tables_serie(State(e): State<Etat>, a: Auth, Json(s): Json<Serie>) -> R
 struct Marque {
     reservee: Option<bool>,
     a_nettoyer: Option<bool>,
+}
+
+async fn table_liberer(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<()> {
+    ecrire!(e, a, |db| salle::liberer_table(db, &a, &id))
 }
 
 async fn table_marquer(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(m): Json<Marque>) -> Rep<()> {
