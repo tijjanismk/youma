@@ -1,0 +1,11 @@
+# Relais Youma sur Railway (facultatif) : guide docs/guides/relais-en-ligne.md, fiche 0030.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "deploiement/railway/Dockerfile"
+# Ne reconstruire que si le relais ou ses pages changent (pas pour la caisse ou la documentation).
+watchPatterns = ["crates/**", "ui/**", "Cargo.toml", "Cargo.lock", "deploiement/railway/**", "railway.toml"]
+
+[deploy]
+healthcheckPath = "/api/etat"
+healthcheckTimeout = 60
+restartPolicyType = "ALWAYS"
