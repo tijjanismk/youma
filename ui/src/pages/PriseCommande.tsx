@@ -1,6 +1,6 @@
 import { Bike, Receipt } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { ErreurApi, get, post } from "../api";
 import { Champ, ChampMontant, DemandeMotif, Modal, Montant } from "../composants/Base";
 import { VisuelPlat } from "../composants/Plat";

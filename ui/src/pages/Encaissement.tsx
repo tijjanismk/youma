@@ -1,6 +1,6 @@
 import { AlertTriangle, Banknote, Bike, HandCoins, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Modal, Montant } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";

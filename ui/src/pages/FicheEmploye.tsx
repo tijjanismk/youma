@@ -1,6 +1,6 @@
 import { Phone } from "lucide-react";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";

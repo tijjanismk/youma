@@ -1,6 +1,6 @@
 import { ArrowLeftRight, House, Menu as MenuIcone, Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { definirJetonAppareil, get, post } from "./api";
 import { BandeauMiseAJour } from "./composants/Installation";
 import { Fournisseur, useApp } from "./contexte";
@@ -64,7 +64,7 @@ export default function App() {
   if (estPagePublique(location.pathname)) return <PagePublique />;
   return (
     <Fournisseur>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <Coquille />
       </BrowserRouter>
     </Fournisseur>

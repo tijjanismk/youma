@@ -18,7 +18,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { CarteInstallation } from "../composants/Installation";
 import { post } from "../api";
 import { useApp } from "../contexte";

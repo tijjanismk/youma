@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { get, post } from "../api";
 import { ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";

@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Banknote, HandCoins, Info, PackageX, Receipt, ShieldCheck, ShoppingBag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { get } from "../api";
 import { Montant, Vide } from "../composants/Base";
 import { useDonnees } from "../contexte";
