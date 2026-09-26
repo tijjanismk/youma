@@ -11,14 +11,61 @@ Le poste du restaurant n'a pas besoin d'adresse publique : **c'est lui qui appel
 pour les commandes, toutes les 5 min pour le cloud). Si Internet coupe au restaurant, le relais affiche
 « restaurant fermé » aux clients et garde les commandes déjà passées. Voir les fiches 0013 et 0018.
 
-## Ce qu'il faut
+Deux façons de l'héberger :
+
+- **Railway** (plus simple, aucun serveur à administrer) : section « Héberger sur Railway » ci-dessous ;
+- **un VPS** (moins cher, plus de travail) : sections 1 à 4.
+
+**Pas Vercel ni Netlify** : leurs fonctions s'arrêtent entre deux appels et n'ont pas de disque, alors que le
+relais tourne en permanence et garde les commandes et les sauvegardes sur disque.
+
+## Héberger sur Railway
+
+Railway construit l'image du relais depuis le dépôt (`railway.toml` et `deploiement/railway/Dockerfile`), fournit
+le HTTPS et un disque (volume). Compter environ 5 $ par mois (offre Hobby) pour un relais peu chargé.
+
+1. **Projet** : sur https://railway.com, « New Project » → « Deploy from GitHub repo » → le dépôt Youma.
+   Railway lit `railway.toml` : construction par le Dockerfile, contrôle de santé sur `/api/etat`.
+2. **Variables** (onglet « Variables » du service) :
+   - `YOUMA_RELAIS_CLE` = une clé tirée au hasard (`openssl rand -hex 24`, 16 caractères au moins) ;
+   - facultatif, vrais SMS : `YOUMA_ORANGE_CLIENT_ID`, `YOUMA_ORANGE_CLIENT_SECRET`, `YOUMA_ORANGE_EXPEDITEUR`
+     (+223…), `YOUMA_ORANGE_NOM_EXPEDITEUR`. Sans elles : simulation.
+   Ne pas définir `PORT` : Railway le fournit.
+3. **Disque** : clic droit sur le service (ou Ctrl+K) → « Add Volume » → chemin de montage **`/donnees`**.
+   Sans volume, les commandes en attente et les sauvegardes disparaissent à chaque redéploiement.
+4. **Adresse** : onglet « Settings » → « Networking » → « Generate Domain » (adresse en `….up.railway.app`),
+   ou « Custom Domain » pour `commande.exemple.ml` (enregistrement DNS **CNAME** indiqué par Railway ; le
+   certificat HTTPS est fourni tout seul).
+5. **Vérifier** : `https://ADRESSE/api/etat` répond `{"relais":true,"sms":"simulation"}`.
+6. Relier le poste du restaurant : section 4 ci-dessous, avec cette adresse.
+
+**Inscrire un restaurant pour le cloud** : installer l'outil Railway (`npm i -g @railway/cli`), puis
+`railway login`, `railway link` (choisir le projet), et :
+
+```sh
+railway ssh -- youma-relais --ajouter-restaurant "Maquis Le Baobab" --donnees /donnees
+```
+
+**Mises à jour** : Railway reconstruit et redémarre le relais à chaque fusion sur `main` qui touche le relais ou
+ses pages (`watchPatterns` de `railway.toml`). Pendant le redémarrage (quelques secondes), le menu en ligne est
+indisponible ; les commandes en attente sont sur le volume et le poste renvoie son menu tout seul.
+
+**Plusieurs restaurants avec commandes en ligne** : dans le même projet, « New » → « GitHub Repo » (même dépôt)
+pour un second service, avec **sa propre clé**, **son propre volume** `/donnees` et sa propre adresse. Le cloud
+reste sur le premier service.
+
+**Journal** : onglet « Deployments » → « View Logs ».
+
+## Héberger sur un VPS
+
+### Ce qu'il faut
 
 - Un **petit serveur Linux** (VPS) allumé en permanence : 1 processeur, 1 Go de mémoire, 10 Go de disque
   suffisent pour plusieurs restaurants (Debian 12 ou Ubuntu 24.04). Environ 4 à 6 € par mois.
 - Un **nom de domaine**, par exemple `commande.exemple.ml`, avec un enregistrement DNS **A** vers l'IP du serveur.
 - **Caddy** (serveur web) : il fournit le HTTPS tout seul, obligatoire pour la position du livreur.
 
-## 1. Construire le relais
+### 1. Construire le relais
 
 Sur un PC Linux (ou dans la CI), depuis le dépôt :
 
@@ -31,7 +78,7 @@ On obtient `target/release/youma-relais` (un seul fichier) et `ui/dist` (les pag
 propriétaire). Construire sur le serveur lui-même est possible, mais un VPS de 1 Go manque de mémoire pour
 compiler : ajouter 2 Go d'espace d'échange (swap) ou construire ailleurs.
 
-## 2. Installer sur le serveur
+### 2. Installer sur le serveur
 
 Copier sur le serveur `target/release/youma-relais`, le dossier `ui/dist` et le dossier `deploiement/relais`
 du dépôt, puis, dans le dossier où ils sont :
@@ -61,7 +108,7 @@ sudo systemctl status youma-relais@principal     # doit indiquer « active (runn
 
 Les données (commandes en attente, sauvegardes chiffrées) sont dans `/var/lib/youma-relais/principal`.
 
-## 3. HTTPS avec Caddy
+### 3. HTTPS avec Caddy
 
 Installer Caddy (paquet officiel : https://caddyserver.com/docs/install), copier
 `deploiement/relais/Caddyfile` dans `/etc/caddy/Caddyfile`, remplacer le nom de domaine, puis :
@@ -80,7 +127,7 @@ sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw en
 Vérifier depuis n'importe quel navigateur : `https://commande.exemple.ml/api/etat` doit répondre
 `{"relais":true,"sms":"simulation"}` (ou `orange_mali` si les identifiants Orange sont renseignés).
 
-## 4. Relier le poste du restaurant
+## 4. Relier le poste du restaurant (Railway ou VPS)
 
 Sur le poste central du restaurant :
 
@@ -111,7 +158,7 @@ illisibles, pour tout le monde.
 
 ## Mettre à jour
 
-Reconstruire (étape 1), copier le nouveau `youma-relais` et `ui/dist` dans `/opt/youma`, puis
+Reconstruire (VPS : étape 1), copier le nouveau `youma-relais` et `ui/dist` dans `/opt/youma`, puis
 `sudo systemctl restart 'youma-relais@*'`. Les commandes en attente sont conservées ; le poste renvoie son menu
 tout seul.
 

@@ -46,8 +46,9 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
    Noter les retours, corriger.
 5. **Valider avec des données réelles** : relevés Orange Money, Moov, Wave (formats d'import) ;
    identifiants Orange Developer pour les vrais SMS (aujourd'hui : simulation).
-6. **Mettre le relais/cloud en ligne** (facultatif) : guide prêt, `docs/guides/relais-en-ligne.md`
-   (VPS, Caddy, service `deploiement/relais/`). Reste : louer le serveur, le nom de domaine, et le faire.
+6. **Mettre le relais/cloud en ligne** (facultatif) : prêt pour **Railway** (`railway.toml`, image
+   `deploiement/railway/Dockerfile`, fiche 0030) ou un VPS, guide `docs/guides/relais-en-ligne.md`. Reste : créer le
+   projet Railway (variable `YOUMA_RELAIS_CLE`, volume `/donnees`, domaine) et relier un poste.
 7. ~~Finir la refonte des écrans secondaires~~ : fait (tableau de bord, caisse, stock, paie ; tableaux en
    cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
    des tableaux en cartes et du thème).
@@ -64,8 +65,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 ## Réponses reçues (26/09/2026, fiche 0023)
 
 - Imprimantes : **Xprinter** (thermiques ESC/POS, 58 ou 80 mm) ; caisses POS sous **Windows 10**.
-- Hébergement du relais sur Vercel : impossible (fonctions sans disque ni processus permanent) ; VPS ou plateforme
-  à conteneurs avec disque (Railway, Render, Fly.io) à choisir.
+- Hébergement du relais : **Railway** (Vercel impossible : fonctions sans disque ni processus permanent ; fiche 0030).
 - Poste central : le plus souvent une **caisse POS sous Windows**, sans IP publique (inutile : le poste appelle le relais).
 - Certificat sur les téléphones : **refusé** → téléphones en HTTP sur le Wi-Fi du restaurant.
 - Quartiers : la liste convient, puisqu'on la modifie (quartiers de livraison dans Administration, « Autre… »

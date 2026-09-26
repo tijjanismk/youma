@@ -1,0 +1,11 @@
+# Contexte des images Docker (relais pour Railway) : le code seulement.
+target
+**/target
+**/node_modules
+ui/dist
+ui/test-results
+ui/playwright-report
+apps
+docs
+donnees
+.git
