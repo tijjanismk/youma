@@ -1083,6 +1083,11 @@ code {
   font-weight: 800;
 }
 
+/* Aperçu de l'icône choisie pour une catégorie (fiche 0035). */
+.apercu-icone {
+  margin: 4px 0 12px;
+}
+
 /* ───── Code de secours (RG-AUT-07, fiche 0031) ───── */
 .code-secours-valeur {
   display: block;

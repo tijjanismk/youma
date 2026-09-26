@@ -1,4 +1,4 @@
-import { Bike, Receipt } from "lucide-react";
+import { ArrowLeft, Bike, Receipt, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ErreurApi, get, post } from "../api";
@@ -21,6 +21,7 @@ import {
   versLignes,
 } from "../panier";
 import type { Catalogue, Client, Commande, Employe, Ligne, PrixDuMoment, Produit, TablePlan } from "../types";
+import { IconeCategorie } from "../composants/IconeCategorie";
 
 export default function PriseCommande() {
   const { id = "" } = useParams();
@@ -124,7 +125,7 @@ export default function PriseCommande() {
                   setRecherche("");
                 }}
               >
-                <span aria-hidden>{c.icone}</span> {c.nom}
+                <IconeCategorie icone={c.icone} /> {c.nom}
               </button>
             ))}
         </div>
@@ -176,7 +177,7 @@ export default function PriseCommande() {
           </div>
           <span className={`statut ${cmd.statut}`}>{t(cmd.statut)}</span>
           <button className="fermer-ticket" onClick={() => setTicketOuvert(false)} aria-label="Fermer la commande">
-            ✕
+            <X size={20} aria-hidden />
           </button>
         </div>
         <div className="types-commande" aria-label="Type de commande">
@@ -287,7 +288,9 @@ export default function PriseCommande() {
             </button>
           )}
           <button onClick={() => setPlus(true)}>Plus…</button>
-          <button onClick={() => nav("/salle")}>← Salle</button>
+          <button onClick={() => nav("/salle")}>
+            <ArrowLeft size={18} aria-hidden /> Salle
+          </button>
         </div>
         {cmd.totaux.paye !== 0 && <HistoriquePaiements commandeId={id} />}
         {cmd.envois.length > 0 && (

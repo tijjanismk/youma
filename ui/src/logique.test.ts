@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { dateFr, fcfa, finDuMois, lireMontant, nombre } from "./format";
 import { t } from "./i18n";
+import { cleIcone } from "./composants/IconeCategorie";
 import { contenanceSuggeree } from "./listesStock";
 import { ajouter, changerQuantite, chargerPanier, definirQuantite, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
 import { billetsProposes, rendu, sommeParts, verifierPaiement } from "./paiement";
@@ -307,5 +308,15 @@ describe("listes du stock (fiche 0034)", () => {
     expect(contenanceSuggeree("Bidon de 20 litres", "ml")).toBe(20000);
     expect(contenanceSuggeree("Sac de 25 kg", "bouteille")).toBeNull();
     expect(contenanceSuggeree("Grand sac", "g")).toBeNull();
+  });
+});
+
+describe("icônes des catégories (fiche 0035)", () => {
+  it("reconnaît la clé choisie et les anciens émojis, sinon les couverts", () => {
+    expect(cleIcone("bieres")).toBe("bieres");
+    expect(cleIcone("🍺")).toBe("bieres");
+    expect(cleIcone("🍽️")).toBe("autre");
+    expect(cleIcone("")).toBe("autre");
+    expect(cleIcone("n'importe quoi")).toBe("autre");
   });
 });

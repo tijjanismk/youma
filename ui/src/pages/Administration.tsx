@@ -1,4 +1,4 @@
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle, Check, Lock, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { appel, get, post } from "../api";
@@ -14,6 +14,7 @@ import CommandesDistance from "./CommandesDistance";
 import Promotions from "./Promotions";
 import EditeurRecette from "./Recette";
 import type { Catalogue, Categorie, NiveauStock, Parametres, Poste, Produit, Zone } from "../types";
+import { cleIcone, IconeCategorie, ICONES_CATEGORIE } from "../composants/IconeCategorie";
 
 type Onglet =
   | "cloud"
@@ -188,14 +189,16 @@ function CatalogueAdmin() {
         <button className="principal" onClick={() => setProduit({ ...PRODUIT_VIDE, categorie_id: cat.categories[0]?.id ?? "" })}>
           + Produit
         </button>
-        <button onClick={() => setCategorie({ id: "", nom: "", couleur: "#2e7d32", icone: "", ordre: cat.categories.length, actif: true })}>+ Catégorie</button>
+        <button onClick={() => setCategorie({ id: "", nom: "", couleur: "#2e7d32", icone: "autre", ordre: cat.categories.length, actif: true })}>
+          + Catégorie
+        </button>
         <button onClick={() => setCsv("categorie;nom;prix;poste\n")}>Importer (Excel → CSV)</button>
       </div>
       {cat.categories.map((c) => (
         <section key={c.id} className="carte">
           <div className="titre-ligne">
             <h3 style={{ color: c.couleur }}>
-              {c.icone} {c.nom} {!c.actif && "(masquée)"}
+              <IconeCategorie icone={c.icone} taille={20} /> {c.nom} {!c.actif && "(masquée)"}
             </h3>
             <button className="petit" onClick={() => setCategorie(c)}>
               Modifier
@@ -234,7 +237,15 @@ function CatalogueAdmin() {
       {categorie && (
         <Modal titre="Catégorie" fermer={() => setCategorie(null)}>
           <Champ libelle="Nom" valeur={categorie.nom} changer={(v) => setCategorie({ ...categorie, nom: v })} obligatoire />
-          <Champ libelle="Icône (emoji)" valeur={categorie.icone} changer={(v) => setCategorie({ ...categorie, icone: v })} />
+          <Choix
+            libelle="Icône"
+            valeur={cleIcone(categorie.icone)}
+            changer={(v) => setCategorie({ ...categorie, icone: v })}
+            options={ICONES_CATEGORIE.map((i) => ({ valeur: i.cle, libelle: i.libelle }))}
+          />
+          <p className="apercu-icone" style={{ color: categorie.couleur }}>
+            <IconeCategorie icone={categorie.icone} taille={32} />
+          </p>
           <Champ libelle="Couleur" type="color" valeur={categorie.couleur} changer={(v) => setCategorie({ ...categorie, couleur: v })} />
           <Case libelle="Visible" valeur={categorie.actif} changer={(v) => setCategorie({ ...categorie, actif: v })} />
           <button
@@ -921,8 +932,8 @@ function RolesAdmin() {
                 <th key={r.id}>
                   {r.nom}
                   {r.code !== "proprietaire" && (
-                    <button className="petit" onClick={() => setEdition(r)}>
-                      ✎
+                    <button className="petit" onClick={() => setEdition(r)} aria-label={`Modifier le rôle ${r.nom}`}>
+                      <Pencil size={16} aria-hidden />
                     </button>
                   )}
                 </th>
@@ -935,7 +946,7 @@ function RolesAdmin() {
                 <td>{p}</td>
                 {donnees.roles.map((r) => (
                   <td key={r.id} className="centre">
-                    {r.permissions.includes(p) ? "✓" : ""}
+                    {r.permissions.includes(p) ? <Check size={18} aria-label="Oui" /> : ""}
                   </td>
                 ))}
               </tr>

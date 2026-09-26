@@ -1,5 +1,6 @@
 import { useApp } from "../contexte";
 import type { Categorie } from "../types";
+import { IconeCategorie } from "./IconeCategorie";
 
 /** Teinte douce d'une couleur de catégorie (#rrggbb → fond du cercle). */
 export function teinte(couleur: string, alpha = 0.16): string {
@@ -11,14 +12,14 @@ export function teinte(couleur: string, alpha = 0.16): string {
 
 /**
  * Visuel du plat : la photo entière (jamais rognée, quelle que soit sa forme) dans un cadre arrondi ;
- * sans photo, l'icône de sa catégorie sur un cercle teinté (lisible hors ligne).
+ * sans photo, l'icône dessinée de sa catégorie sur un cercle teinté (lisible hors ligne).
  */
 export function VisuelPlat({ photo, categorie, petit }: { photo?: string | null; categorie?: Pick<Categorie, "icone" | "couleur">; petit?: boolean }) {
   const classe = `visuel-plat ${petit ? "petit" : ""}`;
   if (photo) return <img className={`${classe} photo`} src={photo} alt="" loading="lazy" />;
   return (
     <span className={classe} style={{ background: teinte(categorie?.couleur ?? "") }} aria-hidden>
-      {categorie?.icone || "🍽️"}
+      <IconeCategorie icone={categorie?.icone} taille="0.85em" />
     </span>
   );
 }

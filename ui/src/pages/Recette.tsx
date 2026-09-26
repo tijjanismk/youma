@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post } from "../api";
 import { Modal } from "../composants/Base";
@@ -107,7 +108,7 @@ function Lignes({
           />
           <span>{unite(l.article_id)}</span>
           <button className="petit" aria-label={`${section} : retirer ${nom(l, i)}`} onClick={() => changer(lignes.filter((_, j) => j !== i))}>
-            ✕
+            <X size={16} aria-hidden />
           </button>
         </div>
       ))}

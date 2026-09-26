@@ -66,7 +66,7 @@ export default function MobileMoney() {
               p.statut === "a_verifier" && (
                 <span className="boutons-ligne">
                   <button className="petit principal" onClick={() => verifier(p.part_id, "verifie")}>
-                    Reçu ✓
+                    Reçu
                   </button>
                   <button className="petit attention" onClick={() => verifier(p.part_id, "rejete")}>
                     Introuvable

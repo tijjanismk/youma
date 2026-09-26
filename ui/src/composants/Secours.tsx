@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post } from "../api";
 import type { Session } from "../types";
@@ -91,7 +92,9 @@ export function ReinitialisationMotDePasse({ fermer, retour }: { fermer: (s: Ses
       <Champ libelle="Confirmez le nouveau mot de passe" type="password" valeur={mdp2} changer={setMdp2} />
       {erreur && <p className="erreur-texte">{erreur}</p>}
       <div className="actions">
-        <button onClick={retour}>← Retour</button>
+        <button onClick={retour}>
+          <ArrowLeft size={18} aria-hidden /> Retour
+        </button>
         <button className="principal" disabled={!preuve.trim() || mdp.length < 6} onClick={valider}>
           Changer le mot de passe
         </button>

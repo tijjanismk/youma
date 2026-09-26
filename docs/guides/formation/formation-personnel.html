@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formation du personnel — Youma</title>
+<!-- Version à imprimer de docs/guides/formation-personnel.md. Captures et PDF : cd ui && node outils/formation.mjs -->
+<style>
+  :root {
+    --texte: #1c2150;
+    --doux: #595e80;
+    --bord: #dde0ec;
+    --carte-2: #eceef6;
+    --accent: #c45200;
+    --accent-doux: #ffe8d4;
+    --vert: #0d7244;
+    --vert-doux: #d9f2e5;
+    --rouge: #b3123f;
+    --rouge-doux: #fde0e7;
+    --indigo: #1c2150;
+  }
+  @page { size: A4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Poppins", "Segoe UI", Arial, sans-serif; color: var(--texte); background: #fff; font-size: 11pt; line-height: 1.45; }
+  main { max-width: 182mm; margin: 0 auto; padding: 8mm 0; }
+  h1 { font-size: 24pt; margin: 0 0 2mm; }
+  h2 { font-size: 16pt; margin: 0 0 3mm; padding: 2mm 4mm; background: var(--indigo); color: #fff; border-radius: 3mm; }
+  h3 { font-size: 12pt; margin: 5mm 0 2mm; color: var(--accent); }
+  p { margin: 1.5mm 0; }
+  ol, ul { margin: 1.5mm 0; padding-left: 6mm; }
+  li { margin: 1mm 0; }
+  .page { break-before: page; }
+  .sous-titre { color: var(--doux); font-size: 12pt; }
+  .poste { display: inline-block; margin: 0 1.5mm 1.5mm 0; padding: 0.8mm 3mm; border-radius: 10mm; background: var(--accent-doux); color: var(--accent); font-weight: 700; font-size: 9.5pt; }
+  .retenir { border: 0.6mm solid var(--accent); background: var(--accent-doux); border-radius: 3mm; padding: 3mm 4mm; margin: 4mm 0; }
+  .retenir strong:first-child { display: block; margin-bottom: 1mm; }
+  .attention { border-left: 1.5mm solid var(--rouge); background: var(--rouge-doux); padding: 2mm 4mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0; }
+  .ok { border-left: 1.5mm solid var(--vert); background: var(--vert-doux); padding: 2mm 4mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0; }
+  figure { margin: 3mm 0; break-inside: avoid; }
+  figure img { display: block; width: auto; max-width: 100%; max-height: 92mm; margin: 0 auto; border: 0.3mm solid var(--bord); border-radius: 2mm; }
+  figure.moyen img { max-height: 70mm; }
+  figcaption { font-size: 9pt; color: var(--doux); text-align: center; margin-top: 1mm; }
+  .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; align-items: start; }
+  .deux figure img { max-height: 70mm; }
+  .deux.telephone figure img { max-height: 105mm; }
+  .bouton { display: inline-block; padding: 0 2mm; border: 0.3mm solid var(--doux); border-radius: 1.5mm; font-weight: 600; white-space: nowrap; }
+  .couverture { text-align: center; padding-top: 30mm; }
+  .couverture h1 { font-size: 34pt; }
+  .couverture .marque { font-size: 14pt; color: var(--accent); font-weight: 700; letter-spacing: 1mm; }
+  .sommaire { text-align: left; max-width: 120mm; margin: 14mm auto 0; font-size: 12pt; }
+  .sommaire li { margin: 2mm 0; }
+  table.coche { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+  table.coche td { border: 0.3mm solid var(--bord); padding: 2mm 3mm; vertical-align: top; }
+  table.coche td.case { width: 10mm; }
+  table.coche td.case span { display: inline-block; width: 5mm; height: 5mm; border: 0.4mm solid var(--texte); border-radius: 1mm; }
+  .signature { margin-top: 8mm; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
+  .signature div { border-top: 0.3mm solid var(--texte); padding-top: 1.5mm; font-size: 9.5pt; color: var(--doux); }
+</style>
+</head>
+<body>
+<main>
+
+<section class="couverture">
+  <p class="marque">YOUMA</p>
+  <h1>Formation du personnel</h1>
+  <p class="sous-titre">Prendre les commandes, préparer, encaisser, contrôler la sortie, suivre la journée.</p>
+  <ol class="sommaire">
+    <li>Tout le monde : se connecter</li>
+    <li>Serveur ou serveuse : prendre une commande</li>
+    <li>Cuisine, grill, bar : préparer</li>
+    <li>Caisse : ouvrir, encaisser, clôturer</li>
+    <li>Contrôle de sortie</li>
+    <li>Gérant et propriétaire</li>
+    <li>Exercice de fin de formation</li>
+  </ol>
+  <div class="retenir" style="text-align:left; max-width:140mm; margin:14mm auto 0;">
+    <strong>À retenir pour tout le monde</strong>
+    <ul>
+      <li>Chacun a <b>son propre code PIN</b> (4 à 6 chiffres). On ne le prête jamais : tout est enregistré à votre nom.</li>
+      <li>On travaille <b>sans Internet</b> : si Internet coupe, on continue de vendre.</li>
+      <li>5 codes faux de suite bloquent la personne 5 minutes.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="page">
+  <h2>1. Tout le monde : se connecter</h2>
+  <span class="poste">Tous les postes</span>
+  <ol>
+    <li>Toucher <b>son nom</b>.</li>
+    <li>Taper <b>son code PIN</b>, puis <span class="bouton">Entrer</span>.</li>
+    <li>En quittant le poste (pause, fin de service) : <span class="bouton">Changer d'utilisateur</span>, en haut à droite.</li>
+  </ol>
+  <div class="deux">
+    <figure><img src="captures/01-connexion.png" alt="Écran de connexion : la liste des noms"><figcaption>Toucher son nom</figcaption></figure>
+    <figure><img src="captures/02-pin.png" alt="Pavé du code PIN"><figcaption>Taper son code PIN</figcaption></figure>
+  </div>
+  <div class="attention">Sur un téléphone, <b>« Poste central injoignable »</b> : continuer la saisie, elle est gardée et partira toute seule quand la caisse ou le Wi-Fi reviendra. Prévenir le gérant si ça dure.</div>
+</section>
+
+<section class="page">
+  <h2>2. Serveur ou serveuse : prendre une commande</h2>
+  <span class="poste">Serveurs</span>
+  <h3>À table</h3>
+  <ol>
+    <li>Menu <b>Salle</b> : toucher la table (vert = libre, orange = occupée).</li>
+    <li>Choisir la catégorie (Boissons, Grillades…), puis toucher les plats. Toucher deux fois = 2 articles.</li>
+    <li>Grande quantité : toucher le nombre à côté du plat et <b>taper la quantité</b> (ex. 24).</li>
+    <li>Toucher le nom d'un plat pour une <b>option</b> ou une <b>note</b> (« sans piment »).</li>
+    <li><span class="bouton">Envoyer</span> : les bons partent en cuisine et au bar.</li>
+  </ol>
+  <figure><img src="captures/05-commande.png" alt="Prise de commande : produits à gauche, commande à droite"><figcaption>La commande en cours, à droite : quantité tapée au clavier, puis « Envoyer »</figcaption></figure>
+  <p>Tournée suivante : revenir sur la même table, ajouter, <span class="bouton">Envoyer</span>. Quand la cuisine a fini, la table affiche <b>Prêt</b>.</p>
+  <p><b>Emporter ou livraison</b> : Salle → <span class="bouton">+ Emporter / livraison</span>. En livraison : quartier et téléphone du client.</p>
+</section>
+
+<section class="page">
+  <h3 style="margin-top:0">Sur le téléphone</h3>
+  <p>Même écran, en plus serré : la commande s'ouvre en bas avec <span class="bouton">Voir la commande (n)</span>.</p>
+  <div class="deux telephone">
+    <figure><img src="captures/15-telephone-carte.png" alt="Téléphone : la carte des produits"><figcaption>Toucher les produits</figcaption></figure>
+    <figure><img src="captures/16-telephone-commande.png" alt="Téléphone : la commande ouverte"><figcaption>Voir la commande, puis Envoyer</figcaption></figure>
+  </div>
+  <h3>Erreurs fréquentes</h3>
+  <ul>
+    <li>Article <b>pas encore envoyé</b> : le retirer avec <span class="bouton">−</span> ou taper 0.</li>
+    <li>Article <b>déjà envoyé</b> : le toucher → <span class="bouton">Annuler</span>, choisir le <b>motif</b> ; le <b>PIN du gérant</b> est demandé.</li>
+    <li>Table ouverte par erreur (rien d'envoyé) : dans la Salle, <span class="bouton">Libérer</span> sous la table. Si des plats ont été envoyés, Youma refuse : encaisser, ou faire annuler par le gérant.</li>
+  </ul>
+  <figure class="moyen"><img src="captures/11-annulation.png" alt="Annulation d'un article envoyé : choix du motif"><figcaption>Annuler un article envoyé : motif obligatoire</figcaption></figure>
+</section>
+
+<section class="page">
+  <h2>3. Cuisine, grill, bar : préparer</h2>
+  <span class="poste">Cuisine</span> <span class="poste">Grill</span> <span class="poste">Bar</span>
+  <ol>
+    <li>Menu <b>Cuisine / Bar</b> : les bons arrivent tout seuls, les plus anciens en premier.</li>
+    <li><span class="bouton">En préparation</span> quand on commence, <span class="bouton">Prêt</span> quand c'est fini : le serveur voit « Prêt » sur sa table.</li>
+    <li><span class="bouton">Servi</span> quand le plat est parti.</li>
+    <li>Produit manquant (« plus de poulet ») : <span class="bouton">Problème</span>, puis écrire ce qui manque : le serveur est prévenu.</li>
+  </ol>
+  <figure><img src="captures/06-cuisine.png" alt="Écran de la cuisine avec les bons"><figcaption>Les bons de la cuisine, du grill et du bar</figcaption></figure>
+  <p>Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.</p>
+</section>
+
+<section class="page">
+  <h2>4. Caisse : ouvrir, encaisser, clôturer</h2>
+  <span class="poste">Caissier</span>
+  <h3>En début de service</h3>
+  <p>Menu <b>Caisse</b> : compter l'argent du tiroir, taper le <b>fond de caisse compté</b>, puis ouvrir la session. S'il y a une différence avec le fond prévu, donner le motif.</p>
+  <figure class="moyen"><img src="captures/04-ouvrir-caisse.png" alt="Ouverture de la session de caisse"><figcaption>Ouvrir sa session de caisse</figcaption></figure>
+  <h3>Encaisser une addition</h3>
+  <ol>
+    <li>Ouvrir la commande → <span class="bouton">Encaisser …</span>.</li>
+    <li>Toucher le moyen de paiement :
+      <ul>
+        <li><b>Espèces</b> : taper le billet reçu dans « Espèces reçues du client » : la <b>monnaie à rendre</b> s'affiche.</li>
+        <li><b>Orange Money / Moov / Wave</b> : taper la <b>référence de la transaction</b> lue sur le téléphone du client.</li>
+        <li><b>Carte (TPE)</b> : taper le <b>numéro d'autorisation</b> imprimé par le TPE.</li>
+        <li><b>Crédit</b> : seulement pour un client connu, autorisé par le gérant.</li>
+      </ul>
+    </li>
+    <li>Plusieurs moyens : toucher un second moyen et répartir. Puis <span class="bouton">Valider le paiement</span>.</li>
+  </ol>
+</section>
+
+<section class="page">
+  <figure><img src="captures/08-encaisser.png" alt="Encaissement : espèces et Orange Money"><figcaption>Espèces et Orange Money sur la même addition : référence obligatoire, monnaie calculée</figcaption></figure>
+  <p><span class="bouton">Imprimer le ticket (bon de sortie)</span> : le client garde ce ticket et le montre à la sortie.</p>
+  <figure class="moyen"><img src="captures/09-bon-de-sortie.png" alt="Reçu avec numéro et code du bon de sortie"><figcaption>Le reçu : numéro et code de contrôle du bon de sortie</figcaption></figure>
+  <div class="attention">Tout argent sorti du tiroir (charbon, glace, taxi…) s'enregistre : Caisse → <span class="bouton">Nouvelle dépense</span>, avec le bénéficiaire.</div>
+</section>
+
+<section class="page">
+  <h3 style="margin-top:0">En fin de service</h3>
+  <ol>
+    <li>Caisse → <span class="bouton">Clôturer ma caisse</span>.</li>
+    <li>Compter <b>billet par billet</b> (le plus sûr) ou taper le total.</li>
+    <li>Écart : le <b>motif est obligatoire</b>.</li>
+    <li>Imprimer le <b>rapport de clôture (Z)</b> et le remettre au gérant avec l'argent.</li>
+  </ol>
+  <figure><img src="captures/14-cloture-caisse.png" alt="Clôture de caisse avec billetage"><figcaption>Clôture : on compte billet par billet, Youma calcule l'écart</figcaption></figure>
+</section>
+
+<section class="page">
+  <h2>5. Contrôle de sortie</h2>
+  <span class="poste">Vigile</span> <span class="poste">Caissier</span>
+  <ol>
+    <li>Menu <b>Contrôle de sortie</b> : taper le <b>N° du bon de sortie</b> et le <b>code de contrôle</b> du ticket.</li>
+    <li>Lire la réponse :</li>
+  </ol>
+  <div class="ok"><b>PAYÉ — peut sortir</b> : laisser passer.</div>
+  <div class="attention"><b>NON PAYÉ</b> : renvoyer à la caisse. <b>DÉJÀ PRÉSENTÉ</b> : ce ticket a déjà servi, prévenir le gérant.</div>
+  <figure><img src="captures/10-sortie.png" alt="Contrôle de sortie : ticket payé"><figcaption>Ticket payé : le détail de la commande s'affiche</figcaption></figure>
+</section>
+
+<section class="page">
+  <h2>6. Gérant et propriétaire</h2>
+  <span class="poste">Gérant</span> <span class="poste">Propriétaire</span>
+  <h3>Ouvrir et clôturer la journée</h3>
+  <ul>
+    <li>Le matin : Accueil → <span class="bouton">Ouvrir la journée</span>. Sans journée ouverte, personne ne peut vendre.</li>
+    <li>Le soir, toutes les caisses clôturées : Accueil → <span class="bouton">Clôturer la journée</span> (Youma fait une sauvegarde).</li>
+  </ul>
+  <figure class="moyen"><img src="captures/03-ouvrir-journee.png" alt="Accueil : ouvrir la journée"><figcaption>Accueil, avant l'ouverture de la journée</figcaption></figure>
+  <h3>Le PIN du gérant</h3>
+  <p>Demandé pour annuler un article envoyé, une remise au-delà du plafond, certains retraits. Le gérant tape son PIN <b>lui-même</b> : ne jamais le donner.</p>
+  <h3>Libérer une table</h3>
+  <figure class="moyen"><img src="captures/07-salle.png" alt="Salle : table occupée et bouton Libérer"><figcaption>« Libérer » sous une table ouverte par erreur</figcaption></figure>
+</section>
+
+<section class="page">
+  <h3 style="margin-top:0">Chaque jour</h3>
+  <ul>
+    <li><b>Ma journée</b> : chiffre d'affaires, dépenses, bénéfice estimé, annulations, remises, stock critique ; <span class="bouton">Résumé par WhatsApp</span> pour le propriétaire.</li>
+    <li><b>Mobile Money</b> : vérifier les paiements « à vérifier » avec le relevé de l'opérateur.</li>
+    <li><b>Stock</b> → <span class="bouton">Perte / sortie</span> : casse, périmé, repas du personnel (motif choisi dans la liste).</li>
+  </ul>
+  <figure><img src="captures/13-ma-journee.png" alt="Ma journée : chiffres clés"><figcaption>Ma journée : les chiffres clés</figcaption></figure>
+  <figure class="moyen"><img src="captures/12-stock-sortie.png" alt="Stock : perte ou sortie"><figcaption>Une casse : type et motif choisis dans des listes</figcaption></figure>
+  <p><b>Administration</b> (mot de passe personnel en plus du PIN) : produits et prix, tables, utilisateurs et PIN, paiements, imprimantes, sauvegardes, licence. Mot de passe oublié : <span class="bouton">Mot de passe oublié ?</span> puis le <b>code de secours</b> noté à l'installation.</p>
+</section>
+
+<section class="page">
+  <h2>7. Exercice de fin de formation</h2>
+  <p>Chacun, sur la vraie caisse, <b>avant l'ouverture au public</b> (15 minutes). Les ventes d'essai restent dans l'historique : le noter au gérant.</p>
+  <table class="coche">
+    <tr><td class="case"><span></span></td><td>Se connecter avec son PIN, puis « Changer d'utilisateur ».</td></tr>
+    <tr><td class="case"><span></span></td><td><b>Serveur</b> : une table, 2 boissons et 1 plat, Envoyer ; ajouter une tournée ; annuler un article avec le gérant.</td></tr>
+    <tr><td class="case"><span></span></td><td><b>Cuisine</b> : passer le bon en « Prêt », puis « Servi ».</td></tr>
+    <tr><td class="case"><span></span></td><td><b>Caisse</b> : encaisser une partie en espèces (vérifier la monnaie) et le reste en Mobile Money ; imprimer le bon de sortie.</td></tr>
+    <tr><td class="case"><span></span></td><td><b>Sortie</b> : contrôler ce bon (PAYÉ), puis une seconde fois (DÉJÀ PRÉSENTÉ).</td></tr>
+    <tr><td class="case"><span></span></td><td><b>Gérant</b> : clôturer la caisse d'essai et lire le rapport Z.</td></tr>
+  </table>
+  <div class="signature">
+    <div>Nom de la personne formée</div>
+    <div>Date et signature du formateur</div>
+  </div>
+</section>
+
+</main>
+</body>
+</html>

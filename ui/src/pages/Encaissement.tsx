@@ -1,4 +1,4 @@
-import { AlertTriangle, Banknote, Bike, CreditCard, HandCoins, Smartphone } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Banknote, Bike, CreditCard, HandCoins, Smartphone, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { get, post } from "../api";
@@ -121,7 +121,9 @@ export default function Encaissement() {
         <h1>
           Encaisser — {cmd.table_nom ? `table ${cmd.table_nom}` : `${t(cmd.type)} n°${cmd.numero}`}
         </h1>
-        <button onClick={() => nav(`/commande/${id}`)}>← Addition</button>
+        <button onClick={() => nav(`/commande/${id}`)}>
+          <ArrowLeft size={18} aria-hidden /> Addition
+        </button>
       </div>
       <div className="grille-2">
         <div className="carte">
@@ -198,7 +200,7 @@ export default function Encaissement() {
                   {p.par_livreur && " (livreur)"}
                 </strong>
                 <button className="petit" onClick={() => setParts((x) => x.filter((_, j) => j !== i))} aria-label="Retirer ce paiement">
-                  ✕
+                  <X size={16} aria-hidden />
                 </button>
               </div>
               <ChampMontant libelle="Montant" valeur={p.montant} changer={(v) => modifierPart(i, { montant: v })} />

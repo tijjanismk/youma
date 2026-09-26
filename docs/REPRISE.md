@@ -22,6 +22,9 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
   avances depuis le tiroir ou hors caisse, au choix.
 - **WhatsApp par liens wa.me** (ticket, suivi, résumé au propriétaire) et **ticket seul à l'impression navigateur** (fiche 0028).
+- **Plus d'émojis** (fiche 0035) : icônes dessinées partout, icône de catégorie choisie dans une liste.
+- **Formation du personnel** : `docs/guides/formation-personnel.md` et version illustrée à imprimer
+  `docs/guides/formation/formation-personnel.pdf` (captures refaites par `ui/outils/formation.mjs`).
 - **Stock saisi par des listes** (fiche 0034) : unité, famille, conditionnement (contenance déduite), motifs de
   sortie, emballages consignés ; « Autre… » toujours possible.
 - **Plus de formules affichées** (fiche 0033, contraire au cahier des charges § 18, décision du porteur de projet) :

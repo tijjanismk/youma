@@ -1,7 +1,8 @@
 # Formation du personnel — Youma
 
 Pour former l'équipe le jour de la mise en route (environ 1 h, sur la vraie caisse, avec la base du restaurant).
-Chaque partie tient sur une page : l'imprimer et la laisser au poste concerné.
+Chaque partie tient sur une page : l'imprimer et la laisser au poste concerné. Version illustrée à imprimer :
+`formation/formation-personnel.pdf` (captures d'écran, produite par `cd ui && node outils/formation.mjs`).
 
 > **À retenir pour tout le monde**
 > - Chacun a **son propre code PIN** (4 à 6 chiffres). On ne le prête jamais : tout ce qui est fait avec votre PIN
@@ -84,9 +85,9 @@ bénéficiaire. Jamais d'argent sorti du tiroir sans l'enregistrer.
 ## 4. Cuisine, grill, bar : l'écran de préparation
 
 1. Menu **Cuisine / Bar** : les bons arrivent tout seuls, les plus anciens en premier.
-2. **En préparation** quand on commence, **Prêt ✓** quand c'est fini : le serveur voit « Prêt » sur sa table.
+2. **En préparation** quand on commence, **Prêt** quand c'est fini : le serveur voit « Prêt » sur sa table.
 3. **Servi** quand le plat est parti.
-4. Un produit manque (« plus de poulet ») : le signaler dans **Problème à signaler au serveur**.
+4. Un produit manque (« plus de poulet ») : bouton **Problème**, puis écrire ce qui manque : le serveur est prévenu.
 
 Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.
 
@@ -132,7 +133,7 @@ moyens de paiement, imprimantes, sauvegardes, licence.
 1. Se connecter avec son PIN, puis **Changer d'utilisateur**.
 2. Serveur : une table, 2 boissons et 1 plat, **Envoyer** ; ajouter une tournée ; annuler un article (avec le
    gérant).
-3. Cuisine : passer le bon en **Prêt ✓** puis **Servi**.
+3. Cuisine : passer le bon en **Prêt** puis **Servi**.
 4. Caisse : encaisser une partie en espèces (vérifier la monnaie), le reste en Mobile Money (référence d'essai) ;
    imprimer le bon de sortie.
 5. Sortie : contrôler ce bon (**PAYÉ**), puis le contrôler une seconde fois (**DÉJÀ PRÉSENTÉ**).

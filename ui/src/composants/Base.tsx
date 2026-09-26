@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { fcfa, lireMontant, nombre } from "../format";
 
@@ -13,7 +14,7 @@ export function Modal({ titre, fermer, children, large }: { titre: string; ferme
         <div className="modal-entete">
           <h2>{titre}</h2>
           <button className="fermer" onClick={fermer} aria-label="Fermer">
-            ✕
+            <X size={20} aria-hidden />
           </button>
         </div>
         <div className="modal-corps">{children}</div>

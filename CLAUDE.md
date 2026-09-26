@@ -10,7 +10,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0034.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0035.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
@@ -41,7 +41,8 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   privées, port HTTP + 1, `--port-https 0` pour couper). `relais.rs`/`cloud.rs` : tâches de fond facultatives.
 - `crates/youma-relais` : serveur Internet facultatif (relais des commandes en ligne + cloud multi-restaurants,
   SMS Orange Mali ou simulation). `crates/youma-licence` : licences hors ligne.
-- `docs/guides/` : installation sur la caisse (`installation-caisse.md`), formation du personnel (`formation-personnel.md`), mise en ligne du relais
+- `docs/guides/` : installation sur la caisse (`installation-caisse.md`), formation du personnel (`formation-personnel.md` ; version illustrée
+  `formation/formation-personnel.pdf`, refaite par `cd ui && node outils/formation.mjs` après un changement d'écran), mise en ligne du relais
   (`relais-en-ligne.md` : Railway avec `railway.toml` et `deploiement/railway/Dockerfile`, ou VPS avec `deploiement/relais/`).
 - `apps/desktop` : coquille Tauri (hors workspace, construite à part) ; elle construit `youma_server::Config`
   elle aussi : tout nouveau champ de `Config` s'y ajoute.
@@ -55,7 +56,8 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   `[data-theme="sombre"]` (choix par poste, `src/theme.ts`). **Jamais de couleur en dur** : `--accent`, `--carte`, `--sur-etat`… ; le bloc
   « Téléphone » (`@media (max-width: 900px)`) vient juste avant la couche « Mali vivant » (fin de fichier) : y reporter toute grille
   modifiée (utiliser `minmax(0, 1fr)` pour ne pas faire déborder l'écran).
-- Icônes `lucide-react`, police Poppins embarquée (`@fontsource/poppins`). Pas de CDN.
+- Icônes `lucide-react`, police Poppins embarquée (`@fontsource/poppins`). Pas de CDN. **Ni émoji ni symbole décoratif**
+  (✓, ✕, ✎…) : icônes lucide ; catégories par clé via `composants/IconeCategorie.tsx` (anciens émojis reconnus, fiche 0035).
 - PC : menu latéral repliable. Téléphone : barre du bas, prise de commande avec la commande en tiroir
   (« Voir la commande (n) »). Écrans secondaires : chiffres clés `composants/Chiffres.tsx` ; `TableauDonnees`
   devient des cartes sur téléphone (`data-label`). Ticket à imprimer par le navigateur : `composants/Ticket.tsx` (`.zone-ticket`,

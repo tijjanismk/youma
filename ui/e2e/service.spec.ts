@@ -90,7 +90,7 @@ test("écran cuisine : les envois arrivent par poste et passent à « prêt »",
   const carte = page.locator(".carte-cuisine").filter({ hasText: "TABLE 4" });
   await expect(carte.getByText("Brochettes (3)")).toBeVisible();
   await expect(carte).not.toContainText("Bière");
-  await carte.getByRole("button", { name: "Prêt ✓" }).click();
+  await carte.getByRole("button", { name: "Prêt", exact: true }).click();
   await expect(carte.getByRole("button", { name: "Servi" })).toBeVisible();
 });
 
