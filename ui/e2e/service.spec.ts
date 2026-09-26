@@ -543,3 +543,16 @@ test("paie indépendante des caisses : salaire payé depuis le coffre (RG-PAI-09
   await paiement.getByRole("button", { name: "Payer", exact: true }).click();
   await expect(page.getByText("Paiement enregistré")).toBeVisible();
 });
+
+test("avance sur salaire : tiroir de la caisse ou compte hors caisse", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/employes");
+  await page.getByRole("link", { name: /Bakary Diallo/ }).click();
+  await page.getByRole("button", { name: "Avance" }).click();
+  const avance = page.getByRole("dialog", { name: "Avance à Bakary Diallo" });
+  await avance.getByLabel("Montant").fill("1000");
+  await avance.getByLabel("Payée depuis").selectOption({ label: "Coffre / propriétaire" });
+  await expect(avance.getByText("Hors caisse : la clôture de caisse n'en dépend pas.")).toBeVisible();
+  await avance.getByRole("button", { name: "Donner l'avance" }).click();
+  await expect(page.getByText("Avance enregistrée")).toBeVisible();
+});

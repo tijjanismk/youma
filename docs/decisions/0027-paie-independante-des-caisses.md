@@ -24,5 +24,7 @@ paie, et un gros salaire pouvait vider le tiroir en plein service.
 ## Conséquences
 * Le solde du coffre peut devenir négatif si le propriétaire paie de sa poche sans l'avoir alimenté : c'est lisible
   dans Caisse → Comptes et transferts, et se régularise par un transfert.
-* **[HYPOTHÈSE]** Les **avances** sur salaire restent payables depuis le tiroir pendant le service (demande courante
-  d'un employé en cours de journée) : elles apparaissent dans la clôture de caisse. À confirmer avec le porteur de projet.
+* **Avances : les deux possibilités** (confirmé par le porteur de projet, 26/09/2026). Dans la fiche de l'employé,
+  « Payée depuis » propose le **tiroir de ma caisse** (si une session est ouverte : l'avance compte alors dans la
+  clôture de cette caisse) ou un **compte hors caisse** (coffre, banque, Mobile Money : la clôture n'en dépend pas).
+  L'écran dit l'effet du choix.

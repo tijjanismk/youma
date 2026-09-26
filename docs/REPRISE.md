@@ -19,7 +19,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Interface refaite** (fiche 0019) : thème, menu repliable sur PC, écrans téléphone, photos des plats.
 - **Application installable (PWA)** (fiche 0020) : icône sur le téléphone, HTTPS du réseau local.
 - **Interface à jour** (fiche 0025) : React 19, React Router 7, Vite 8 ; Tauri 2.11 (dernière stable).
-- **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money.
+- **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
+  avances depuis le tiroir ou hors caisse, au choix.
 - **Paiement par carte** sur un TPE non relié (fiche 0026) : numéro d'autorisation obligatoire, une fois par jour.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
 - **Photos au menu client, listes de villes et quartiers** (fiche 0021) : le menu n'est renvoyé au relais que
@@ -62,7 +63,6 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 
 ## Questions ouvertes (réponses du porteur de projet attendues)
 
-- **[HYPOTHÈSE]** les avances sur salaire restent payables depuis le tiroir pendant le service (fiche 0027).
 
 - Modèles précis des imprimantes et des caisses POS du pack (pour les essais).
 - Version de Windows des caisses POS (Windows confirmé ; **[HYPOTHÈSE]** 10 ou 11, 64 bits : Windows 7 et 8 ne conviennent pas).
