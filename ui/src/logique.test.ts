@@ -279,3 +279,12 @@ describe("WhatsApp par lien wa.me (fiche 0028)", () => {
     expect(messageTicket("TOTAL 3 500\n")).toBe("```\nTOTAL 3 500\n```");
   });
 });
+
+describe("comptes hors caisse (fiche 0027)", () => {
+  it("coffre proposé en premier, jamais le tiroir", async () => {
+    const { comptesHorsCaisse } = await import("./paiement");
+    const c = (nom: string, type: string, actif = true) => ({ nom, type, actif });
+    const liste = comptesHorsCaisse([c("Banque", "banque"), c("Caisse", "especes"), c("OM", "mobile_money"), c("Coffre", "coffre"), c("Vieux", "coffre", false)]);
+    expect(liste.map((x) => x.nom)).toEqual(["Coffre", "Banque", "OM"]);
+  });
+});

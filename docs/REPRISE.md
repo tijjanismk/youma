@@ -53,6 +53,12 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 8. **Plus tard** : relais partagé par plusieurs restaurants pour les commandes en ligne (base du SaaS) ;
    application Android si le raccourci du navigateur ne suffit pas (fiche 0023) ; interface en bambara
    (`ui/src/i18n.ts` est prêt pour la traduction).
+9. **PI-SPI** (paiement instantané interopérable de la BCEAO, QR ou numéro de téléphone) :
+   - sans code, dès qu'un restaurant a son QR marchand PI-SPI : moyen de paiement « PI-SPI » créé comme un compte
+     Mobile Money (référence saisie, unicité RG-CAI-05, rapprochement avec le relevé) ;
+   - plus tard, avec une banque ou un opérateur partenaire (seuls les participants accèdent au PI-SPI) : QR avec le
+     montant de l'addition et confirmation automatique reçue par le relais. **[HYPOTHÈSE]** Détails à vérifier
+     auprès de la BCEAO et du partenaire.
 
 ## Réponses reçues (26/09/2026, fiche 0023)
 
