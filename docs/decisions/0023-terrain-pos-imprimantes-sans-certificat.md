@@ -33,8 +33,9 @@ Réponses du porteur de projet (26/09/2026) aux questions ouvertes :
 * Sur les téléphones du personnel : pas de mise en cache de l'application (service worker inactif en HTTP) ; elle se
   recharge depuis la caisse, ce qui est rapide sur le Wi-Fi local. La position GPS du livreur n'est possible que
   par le relais (déjà le cas, fiche 0013).
-* **[HYPOTHÈSE]** Les caisses POS tournent sous **Windows 10/11 64 bits** (le poste central y est installé comme sur
-  un PC). Une caisse **Android** ne peut pas être le poste central : il faudrait alors un petit PC à côté.
+* **Confirmé (26/09/2026)** : les caisses POS sont sous **Windows** ; le poste central s'y installe comme sur un PC.
+  **[HYPOTHÈSE]** Windows 10 ou 11, 64 bits (la coquille Tauri s'appuie sur WebView2, qui n'est plus pris en charge sous Windows 7 et 8) : version à relever
+  sur les caisses du pack.
 * **[HYPOTHÈSE]** Imprimante intégrée à la caisse POS : pilote Windows du fabricant ou « Generic / Text Only »,
   destination `windows:NOM` (fiche 0006, jamais essayée sur matériel).
 * **[HYPOTHÈSE]** Les imprimantes chinoises du pack acceptent PC858 (`ESC t 19`) : à vérifier avec un ticket de

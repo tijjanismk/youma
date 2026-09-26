@@ -5,6 +5,7 @@ pub mod api;
 pub mod cloud;
 pub mod erreurs;
 pub mod imprimantes;
+pub mod poste;
 pub mod relais;
 pub mod taches;
 pub mod tls;

@@ -691,3 +691,26 @@ async fn https_local_avec_autorite_du_restaurant() {
     let etat2 = Etat::ouvrir(config()).unwrap();
     assert_eq!(etat2.autorite.unwrap().der().unwrap(), der);
 }
+
+/// Interrupteur « mode réseau » (fiche 0024) : mot de passe d'administration, config.json, journal d'audit.
+#[tokio::test]
+async fn interrupteur_mode_reseau() {
+    let s = serveur().await;
+    let proprio = s.connexion("Mariam", "1234").await;
+    let changer = |actif: bool| s.client.put(format!("{}/reseau", s.url)).bearer_auth(&proprio).json(&json!({ "actif": actif })).send();
+    let (_, r) = s.get(&proprio, "/reseau").await;
+    assert_eq!(r["actif"], false);
+    assert_eq!(r["au_redemarrage"], Value::Null);
+    // PIN seul : refusé (RG-AUT-06), rien n'est écrit.
+    assert_eq!(changer(true).await.unwrap().status().as_u16(), 403);
+    assert_eq!(youma_server::poste::reseau(s._dossier.path()), None);
+    s.elever(&proprio, "baobab123").await;
+    let r: Value = changer(true).await.unwrap().json().await.unwrap();
+    assert_eq!(r["au_redemarrage"], true);
+    assert_eq!(youma_server::poste::reseau(s._dossier.path()), Some(true));
+    // Appliqué au prochain démarrage seulement.
+    let (_, r) = s.get(&proprio, "/reseau").await;
+    assert_eq!((r["actif"].as_bool(), r["au_redemarrage"].as_bool()), (Some(false), Some(true)));
+    let (_, audit) = s.get(&proprio, "/audit").await;
+    assert!(audit.as_array().unwrap().iter().any(|l| l["entite"] == "mode_reseau"));
+}
