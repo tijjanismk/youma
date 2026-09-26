@@ -51,7 +51,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 ## Réponses reçues (26/09/2026, fiche 0023)
 
 - Imprimantes : **thermiques chinoises** (ESC/POS, 58 ou 80 mm).
-- Poste central : le plus souvent une **caisse POS**, sans IP publique (inutile : le poste appelle le relais).
+- Poste central : le plus souvent une **caisse POS sous Windows**, sans IP publique (inutile : le poste appelle le relais).
 - Certificat sur les téléphones : **refusé** → téléphones en HTTP sur le Wi-Fi du restaurant.
 - Quartiers : la liste convient, puisqu'on la modifie (quartiers de livraison dans Administration, « Autre… »
   partout ; suggestions dans `ui/src/quartiers.ts`).
@@ -59,7 +59,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 ## Questions ouvertes (réponses du porteur de projet attendues)
 
 - Modèles précis des imprimantes et des caisses POS du pack (pour les essais).
-- **[HYPOTHÈSE]** les caisses POS sont sous **Windows 10/11 64 bits** ; une caisse Android ne peut pas être le poste central.
+- Version de Windows des caisses POS (Windows confirmé ; **[HYPOTHÈSE]** 10 ou 11, 64 bits : Windows 7 et 8 ne conviennent pas).
 - Restaurant pilote et date de démarrage.
 - **[HYPOTHÈSE]** l'adresse locale de la caisse est fixée (réglage sur la caisse ou dans la box).
 - Plusieurs restaurants d'un même propriétaire : aujourd'hui regroupés dans l'espace propriétaire (fiche 0018) et
