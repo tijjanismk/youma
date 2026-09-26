@@ -53,6 +53,10 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   `sauvegarde.gerer`, `appareil.gerer`) exigent une session confirmée par le **mot de passe personnel**
   (6 caractères au moins) en plus du PIN. Pas d'autorisation ponctuelle par PIN pour elles. Les échecs de
   mot de passe comptent pour le verrouillage (RG-AUT-02). Le propriétaire choisit son mot de passe à l'installation.
+* **RG-AUT-07** Mot de passe d'administration oublié (fiche 0031) : le **propriétaire**, connecté par son PIN, en choisit
+  un nouveau en donnant le **code de secours** (remis à l'installation, renouvelable dans l'administration) ou la
+  **réponse du fournisseur** (code de demande signé avec la clé des licences). Chaque code sert une fois ; les échecs
+  comptent pour le verrouillage (RG-AUT-02). Les autres utilisateurs font redéfinir leur mot de passe par le propriétaire.
 
 ### Journée (JOU)
 * **RG-JOU-01** Vente, dépense, session de caisse exigent une journée ouverte.

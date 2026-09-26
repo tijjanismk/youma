@@ -550,7 +550,7 @@ fn base_neuve_initialisee_sans_utilisateur() {
     let mut db = Db::en_memoire(h).unwrap();
     assert_eq!(auth::nombre_utilisateurs(db.conn()).unwrap(), 0);
     assert_eq!(caisse::lister_comptes(db.conn()).unwrap().len(), 6);
-    let id = auth::installer_proprietaire(&mut db, "Moi", "1234", "motdepasse", "Chez Moi").unwrap();
+    let (id, _code_secours) = auth::installer_proprietaire(&mut db, "Moi", "1234", "motdepasse", "Chez Moi").unwrap();
     assert!(auth::installer_proprietaire(&mut db, "Autre", "9999", "motdepasse", "").is_err());
     let s = auth::connexion_pin(&mut db, &id, "1234", None).unwrap();
     assert!(s.permissions.len() > 30);

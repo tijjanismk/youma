@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Champ, Modal, PinPad } from "./composants/Base";
+import { ReinitialisationMotDePasse } from "./composants/Secours";
 import { definirJeton, ErreurApi, estEnLigne, get, jeton, post, surDeconnexion, surReseau } from "./api";
 import type { EtatGeneral, Session } from "./types";
 
@@ -273,6 +274,7 @@ function ConfirmationMotDePasse({ aUnMotDePasse, fermer }: { aUnMotDePasse: bool
   const [mdp, setMdp] = useState("");
   const [mdp2, setMdp2] = useState("");
   const [erreur, setErreur] = useState("");
+  const [oubli, setOubli] = useState(false);
   const valider = async () => {
     setErreur("");
     try {
@@ -287,6 +289,7 @@ function ConfirmationMotDePasse({ aUnMotDePasse, fermer }: { aUnMotDePasse: bool
       setErreur(m);
     }
   };
+  if (oubli) return <ReinitialisationMotDePasse fermer={fermer} retour={() => setOubli(false)} />;
   return (
     <Modal titre={creer ? "Créer votre mot de passe" : "Mot de passe d'administration"} fermer={() => fermer(null)}>
       <p className="aide">
@@ -297,6 +300,11 @@ function ConfirmationMotDePasse({ aUnMotDePasse, fermer }: { aUnMotDePasse: bool
       <Champ libelle="Mot de passe" type="password" valeur={mdp} changer={setMdp} autoFocus />
       {creer && <Champ libelle="Confirmez le mot de passe" type="password" valeur={mdp2} changer={setMdp2} />}
       {erreur && <p className="erreur-texte">{erreur}</p>}
+      {!creer && (
+        <button className="lien" onClick={() => setOubli(true)}>
+          Mot de passe oublié ?
+        </button>
+      )}
       <div className="actions">
         <button onClick={() => fermer(null)}>Annuler</button>
         <button className="principal" disabled={mdp.length < 6} onClick={valider}>

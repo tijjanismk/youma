@@ -10,7 +10,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0030.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0031.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`

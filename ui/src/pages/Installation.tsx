@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { post } from "../api";
 import { Champ } from "../composants/Base";
+import { CodeSecours } from "../composants/Secours";
 import { useApp } from "../contexte";
 
 /**
@@ -16,17 +17,36 @@ export default function Installation() {
   const [pin2, setPin2] = useState("");
   const [mdp, setMdp] = useState("");
   const [mdp2, setMdp2] = useState("");
+  const [codeSecours, setCodeSecours] = useState("");
   const ok = restaurant.trim() && nom.trim() && /^\d{4,6}$/.test(pin) && pin === pin2 && mdp.length >= 6 && mdp === mdp2;
 
   const installer = async () => {
     try {
-      await post("/installation", { restaurant, nom, pin, mot_de_passe: mdp });
-      notifier("Installation terminée. Connectez-vous.", "succes");
-      await rechargerEtat();
+      const r = await post<{ code_secours: string }>("/installation", { restaurant, nom, pin, mot_de_passe: mdp });
+      setCodeSecours(r.code_secours);
     } catch (e) {
       notifier(e instanceof Error ? e.message : String(e), "erreur");
     }
   };
+
+  const terminer = async () => {
+    notifier("Installation terminée. Connectez-vous.", "succes");
+    await rechargerEtat();
+  };
+
+  // Le code de secours n'est affiché qu'une fois (RG-AUT-07) : on attend qu'il soit noté.
+  if (codeSecours)
+    return (
+      <div className="plein-ecran">
+        <div className="carte etroite">
+          <h1>Notez votre code de secours</h1>
+          <CodeSecours code={codeSecours} />
+          <button className="principal grand" onClick={terminer}>
+            J'ai noté le code
+          </button>
+        </div>
+      </div>
+    );
 
   return (
     <div className="plein-ecran">

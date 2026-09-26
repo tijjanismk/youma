@@ -1079,6 +1079,34 @@ code {
   font-weight: 800;
 }
 
+/* ───── Code de secours (RG-AUT-07, fiche 0031) ───── */
+.code-secours-valeur {
+  display: block;
+  margin: 12px 0;
+  padding: 12px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--rayon-tuile);
+  background: var(--carte-2);
+  font-family: "Courier New", monospace;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.choix-moyen {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.choix-moyen button.actif {
+  border-color: var(--accent);
+  background: var(--accent-doux);
+  font-weight: 700;
+}
+
 /* ───── Contrôle de sortie ───── */
 .code-saisie {
   font-size: 2rem;

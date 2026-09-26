@@ -1,4 +1,5 @@
 import { expect, Page, test } from "@playwright/test";
+import { createPrivateKey, sign } from "node:crypto";
 
 // Tests d'interface de bout en bout : vrai poste central (base de démonstration), vrai navigateur.
 // Les tests s'enchaînent sur la même journée, comme un vrai service.
@@ -606,4 +607,34 @@ test("photo d'un plat : importée entière, sans recadrage (fiche 0029)", async 
   // Rien n'est enregistré : la base de démonstration reste telle quelle.
   await page.keyboard.press("Escape");
   await expect(fiche).toBeHidden();
+});
+
+test("mot de passe d'administration oublié : réponse du fournisseur, nouveau code de secours (RG-AUT-07)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Téléphones et tablettes" }).click();
+  await page.getByRole("button", { name: "Saisir mon mot de passe" }).click();
+  await page.getByRole("button", { name: "Mot de passe oublié ?" }).click();
+  const fenetre = page.getByRole("dialog", { name: "Mot de passe oublié" });
+  await fenetre.getByRole("button", { name: "Code perdu : appeler le fournisseur" }).click();
+  const demande = (await fenetre.getByLabel("Code de demande").textContent())!.trim();
+  expect(demande).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  // Le fournisseur signe la demande avec la clé des licences (ici celle de développement, outils/cle-dev.txt).
+  const graine = Buffer.from("ep4IEaSAer69JPfsTV2u+yY6LNbW3YRPzTkBlbHpask=", "base64");
+  const cle = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), graine]), format: "der", type: "pkcs8" });
+  const reponse = sign(null, Buffer.from(`youma-secours:${demande.replace(/-/g, "")}`), cle).toString("base64url");
+  await fenetre.getByLabel("Réponse du fournisseur").fill(reponse);
+  // Même mot de passe qu'avant : la base de démonstration reste utilisable par les autres tests.
+  await fenetre.getByLabel("Nouveau mot de passe (6 caractères au moins)").fill("baobab123");
+  await fenetre.getByLabel("Confirmez le nouveau mot de passe").fill("baobab123");
+  await fenetre.getByRole("button", { name: "Changer le mot de passe" }).click();
+  await expect(page.getByLabel("Code de secours")).toHaveText(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
+  await page.getByRole("button", { name: "J'ai noté le code" }).click();
+  // Administration ouverte sans redemander le mot de passe.
+  await expect(page.getByRole("checkbox", { name: /Mode réseau/ })).toBeVisible();
+  // Nouveau code depuis l'onglet Utilisateurs.
+  await page.getByRole("tab", { name: "Utilisateurs" }).click();
+  await page.getByRole("button", { name: "Créer un nouveau code de secours" }).click();
+  await expect(page.getByRole("dialog", { name: "Nouveau code de secours" }).getByLabel("Code de secours")).toBeVisible();
+  await page.getByRole("button", { name: "J'ai noté le code" }).click();
 });
