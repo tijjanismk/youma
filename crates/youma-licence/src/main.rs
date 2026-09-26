@@ -3,6 +3,8 @@
 //!   youma-licence generer-cles
 //!   youma-licence emettre --cle-privee <base64> --restaurant "Nom" --machine XXXX-XXXX-XXXX-XXXX
 //!                         [--modules reseau,livraison] [--maintenance AAAA-MM-JJ] [--numero L-0001]
+//!   youma-licence secours --cle-privee <base64> --demande XXXX-XXXX-XXXX
+//!       (mot de passe d'administration oublié, RG-AUT-07 : réponse à renvoyer au propriétaire)
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
@@ -25,10 +27,7 @@ fn main() {
             let Some(privee) = arg(&args, "--cle-privee") else { return erreur("--cle-privee manquant") };
             let Some(restaurant) = arg(&args, "--restaurant") else { return erreur("--restaurant manquant") };
             let Some(machine) = arg(&args, "--machine") else { return erreur("--machine manquant") };
-            let octets: [u8; 32] = match B64.decode(privee.trim()).ok().and_then(|v| v.try_into().ok()) {
-                Some(o) => o,
-                None => return erreur("clé privée invalide"),
-            };
+            let Some(cle) = cle_privee(&privee) else { return erreur("clé privée invalide") };
             let modules: Vec<String> = arg(&args, "--modules")
                 .map(|m| m.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
                 .unwrap_or_default();
@@ -43,16 +42,27 @@ fn main() {
                 emise_le: chrono_aujourdhui(),
                 maintenance_jusqua: arg(&args, "--maintenance"),
             };
-            match signer(&l, &SigningKey::from_bytes(&octets)) {
+            match signer(&l, &cle) {
                 Ok(texte) => println!("{texte}"),
                 Err(e) => erreur(&e.to_string()),
             }
         }
+        Some("secours") => {
+            let Some(privee) = arg(&args, "--cle-privee") else { return erreur("--cle-privee manquant") };
+            let Some(demande) = arg(&args, "--demande") else { return erreur("--demande manquant") };
+            let Some(cle) = cle_privee(&privee) else { return erreur("clé privée invalide") };
+            println!("{}", youma_core::secours::signer_reponse(&demande, &cle));
+        }
         _ => {
-            eprintln!("Usage : youma-licence generer-cles | emettre --cle-privee … --restaurant … --machine … [--modules …] [--maintenance AAAA-MM-JJ]");
+            eprintln!("Usage : youma-licence generer-cles | secours --cle-privee … --demande … | emettre --cle-privee … --restaurant … --machine … [--modules …] [--maintenance AAAA-MM-JJ]");
             std::process::exit(2);
         }
     }
+}
+
+fn cle_privee(b64: &str) -> Option<SigningKey> {
+    let octets: [u8; 32] = B64.decode(b64.trim()).ok()?.try_into().ok()?;
+    Some(SigningKey::from_bytes(&octets))
 }
 
 fn chrono_aujourdhui() -> String {

@@ -22,6 +22,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Paie indépendante des caisses** (fiche 0027) : salaires payés depuis le coffre, la banque ou le Mobile Money ;
   avances depuis le tiroir ou hors caisse, au choix.
 - **WhatsApp par liens wa.me** (ticket, suivi, résumé au propriétaire) et **ticket seul à l'impression navigateur** (fiche 0028).
+- **Mot de passe d'administration oublié** (RG-AUT-07, fiche 0031) : code de secours donné à l'installation, ou
+  réponse signée du fournisseur (`youma-licence secours`).
 - **Photos des plats entières** : import sans recadrage (480 px max, proportions gardées), affichage sans rognure (fiche 0029).
 - **Paiement par carte** sur un TPE non relié (fiche 0026) : numéro d'autorisation obligatoire, une fois par jour.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.

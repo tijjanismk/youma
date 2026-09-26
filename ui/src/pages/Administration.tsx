@@ -7,6 +7,7 @@ import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import { ChoixPhoto } from "../composants/Plat";
+import { CodeSecours } from "../composants/Secours";
 import { quartiersDeLaVille, VILLES } from "../quartiers";
 import CloudAdmin from "./CloudAdmin";
 import CommandesDistance from "./CommandesDistance";
@@ -788,6 +789,38 @@ function RestaurantAdmin() {
 type Utilisateur = { id: string; nom: string; role_code: string; role_nom: string; actif: boolean; employe_id: string | null };
 type Role = { id: string; code: string; nom: string; plafond_remise_pct: number; permissions: string[] };
 
+/** RG-AUT-07 : nouveau code de secours du propriétaire (l'ancien ne sert plus). */
+function CodeSecoursAdmin() {
+  const { agir } = useApp();
+  const { donnees, recharger } = useDonnees(() => get<{ code_existe: boolean }>("/secours"), []);
+  const [code, setCode] = useState("");
+  const renouveler = async () => {
+    const r = await agir(() => post<{ code_secours: string }>("/secours/code", {}));
+    if (r) setCode(r.code_secours);
+    recharger();
+  };
+  return (
+    <div className="carte">
+      <h2>Code de secours</h2>
+      <p className="aide">
+        En cas d'oubli du mot de passe d'administration du propriétaire.{" "}
+        {donnees?.code_existe ? "Un code existe." : "Aucun code : en créer un et le noter sur papier."}
+      </p>
+      <button onClick={renouveler}>{donnees?.code_existe ? "Créer un nouveau code de secours" : "Créer le code de secours"}</button>
+      {code && (
+        <Modal titre="Nouveau code de secours" fermer={() => setCode("")}>
+          <CodeSecours code={code} />
+          <div className="actions">
+            <button className="principal" onClick={() => setCode("")}>
+              J'ai noté le code
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 function UtilisateursAdmin() {
   const { agir } = useApp();
   const { donnees, recharger } = useDonnees(() => get<Utilisateur[]>("/utilisateurs"), []);
@@ -796,6 +829,7 @@ function UtilisateursAdmin() {
   return (
     <div>
       <p className="aide">Un employé n'est pas forcément un utilisateur : le plongeur n'a pas besoin de compte.</p>
+      <CodeSecoursAdmin />
       <button className="principal" onClick={() => setNouveau({ nom: "", role_code: "serveur", pin: "", mot_de_passe: "" })}>
         + Utilisateur
       </button>

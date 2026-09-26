@@ -78,7 +78,7 @@ fn employe(nom: &str, fonction: &str, remuneration: &str, montant: i64, contrat:
 /// Remplit une base vide. PIN : propriétaire 1234, gérant 2222, caissier 3333, serveuse 4444, cuisinier 5555.
 /// Mots de passe d'administration (RG-AUT-06) : propriétaire « baobab123 », gérant « adama123 ».
 pub fn remplir(db: &mut Db) -> Resultat<Demo> {
-    let proprietaire = auth::installer_proprietaire(db, "Mariam (propriétaire)", "1234", "baobab123", "Maquis Le Baobab")?;
+    let (proprietaire, _) = auth::installer_proprietaire(db, "Mariam (propriétaire)", "1234", "baobab123", "Maquis Le Baobab")?;
     let sys = Acteur::systeme();
     db.conn().execute("INSERT OR REPLACE INTO systeme(cle, valeur) VALUES ('demo', '1')", [])?;
     db.conn().execute(
