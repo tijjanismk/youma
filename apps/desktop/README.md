@@ -40,3 +40,4 @@ L'installateur NSIS (`target/release/bundle/nsis/`) :
 ```
 
 `reseau: true` = mode B (téléphones des serveurs). Nécessite le module « reseau » de la licence.
+Se règle sans éditer le fichier : Administration → Téléphones et tablettes → « Mode réseau », puis redémarrer Youma.

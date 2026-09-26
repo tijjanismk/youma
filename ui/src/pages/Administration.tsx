@@ -970,7 +970,17 @@ type Appareil = { id: string; nom: string; type: string; actif: boolean; cree_le
 
 function AppareilsAdmin() {
   const { agir } = useApp();
-  const { donnees: reseau } = useDonnees(() => get<{ actif: boolean; port: number; adresses: string[] }>("/reseau"), []);
+  const { donnees: reseau, recharger: rechargerReseau } = useDonnees(
+    () => get<{ actif: boolean; port: number; adresses: string[]; au_redemarrage: boolean | null }>("/reseau"),
+    [],
+  );
+  // Choix enregistré (appliqué au prochain démarrage), sinon l'état actuel.
+  const reseauVoulu = reseau?.au_redemarrage ?? reseau?.actif ?? false;
+  const changerReseau = (actif: boolean) =>
+    agir(
+      (pin) => appel("/reseau", { methode: "PUT", corps: { actif }, pin }),
+      actif ? "Mode réseau activé au prochain démarrage" : "Mode réseau désactivé au prochain démarrage",
+    ).then(rechargerReseau);
   const { donnees: appareils, recharger } = useDonnees(() => get<Appareil[]>("/appareils"), []);
   const [code, setCode] = useState<{ code: string; expire_le: number } | null>(null);
   const [qr, setQr] = useState("");
@@ -986,9 +996,11 @@ function AppareilsAdmin() {
     <div className="grille-2">
       <div className="carte">
         <h2>Connecter un téléphone</h2>
-        {!reseau?.actif && (
-          <p className="attention-texte">Le poste central est en mode mono-poste. Démarrez-le en mode réseau pour connecter des téléphones.</p>
+        {reseau && <Case libelle="Mode réseau : les téléphones du Wi-Fi se connectent à ce poste" valeur={reseauVoulu} changer={changerReseau} />}
+        {reseau && reseauVoulu !== reseau.actif && (
+          <p className="attention-texte">Fermez Youma puis rouvrez-le (ou redémarrez la caisse) pour appliquer ce changement.</p>
         )}
+        {reseau && !reseau.actif && !reseauVoulu && <p className="aide">Mode mono-poste : seule cette caisse utilise Youma.</p>}
         <p>1. Le téléphone se connecte au Wi-Fi du restaurant.</p>
         <p>2. Il scanne ce QR code (ou ouvre {adresse} et saisit le code).</p>
         <p>3. Pour le retrouver vite : menu du navigateur → « Ajouter à l'écran d'accueil ».</p>

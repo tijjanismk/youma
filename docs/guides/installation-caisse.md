@@ -81,12 +81,8 @@ s'ouvre. Annuler ensuite les lignes de cette commande d'essai (non encaissée : 
    DNS = adresse de la box). Choisir une adresse hors de la plage que la box distribue.
 2. **Réseau « privé »** dans Windows (Paramètres → Réseau et Internet → la connexion → Type de profil réseau →
    Privé), sinon le pare-feu bloque les téléphones.
-3. **Activer le mode réseau** : ouvrir le Bloc-notes **en administrateur**, créer ou modifier
-   `C:\ProgramData\Youma\config.json` avec :
-   ```json
-   { "port": 7878, "reseau": true, "demo": false }
-   ```
-   puis redémarrer la caisse (ou quitter et relancer Youma).
+3. **Activer le mode réseau** : Administration → **Téléphones et tablettes** → cocher « Mode réseau » (mot de
+   passe d'administration demandé), puis fermer et rouvrir Youma, ou redémarrer la caisse.
 4. Administration → **Téléphones et tablettes** → « Générer un code » : le téléphone, connecté au Wi-Fi du
    restaurant, scanne le QR code. Puis, dans le menu du navigateur : « Ajouter à l'écran d'accueil ».
    Aucun certificat à installer.
@@ -113,7 +109,7 @@ Avec le propriétaire et le caissier, une fois :
 
 | Symptôme | À vérifier |
 |---|---|
-| Les téléphones ne trouvent pas la caisse | Même Wi-Fi ; `"reseau": true` dans `config.json` ; réseau Windows « Privé » ; adresse de la caisse inchangée. |
+| Les téléphones ne trouvent pas la caisse | Même Wi-Fi ; « Mode réseau » coché et Youma redémarré ; réseau Windows « Privé » ; adresse de la caisse inchangée. |
 | « Poste central injoignable » sur un téléphone | La caisse est éteinte ou a changé d'adresse : fixer l'adresse (étape 6) puis refaire le QR code. |
 | Accents en idéogrammes ou en « ? » | Signaler le modèle d'imprimante au fournisseur (page de code à ajuster). |
 | Traits coupés sur deux lignes | Largeur du papier trop grande : passer à 32 (58 mm) ou 42. |

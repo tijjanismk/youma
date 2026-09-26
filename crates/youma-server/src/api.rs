@@ -209,7 +209,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/appareils/code", post(appareil_code))
         .route("/appareils/appairer", post(appareil_appairer))
         .route("/appareils/{id}/revoquer", post(appareil_revoquer))
-        .route("/reseau", get(reseau))
+        .route("/reseau", get(reseau).put(reseau_modifier))
         .route("/reseau/certificat", get(certificat_reseau))
         .route("/diagnostic", get(diagnostic))
         .route("/sauvegardes", get(sauvegardes).post(sauvegarde_creer))
@@ -1103,7 +1103,32 @@ async fn reseau(State(e): State<Etat>, _a: Auth) -> Rep<Value> {
         "adresses": ip.map(|ip| vec![format!("http://{ip}:{port}/")]).unwrap_or_default(),
         "adresses_https": ip.zip(https).map(|(ip, p)| vec![format!("https://{ip}:{p}/")]).unwrap_or_default(),
         "certificat": ip.filter(|_| https.is_some()).map(|ip| format!("http://{ip}:{port}/api/reseau/certificat")),
+        // Choix enregistré dans config.json, appliqué au prochain démarrage (null : pas de choix enregistré).
+        "au_redemarrage": crate::poste::reseau(&e.config.dossier_donnees),
     })))
+}
+
+#[derive(Deserialize)]
+struct ChoixReseau {
+    actif: bool,
+}
+
+/// Interrupteur « mode réseau » (fiche 0024) : écrit config.json, pris en compte au redémarrage de Youma.
+async fn reseau_modifier(State(e): State<Etat>, a: Auth, Json(c): Json<ChoixReseau>) -> Rep<Value> {
+    let dossier = e.config.dossier_donnees.clone();
+    let actuel = e.config.reseau;
+    let acteur = a.acteur.clone();
+    e.avec_db(move |db| {
+        db.executer(&acteur, |op| {
+            op.exiger(youma_core::permissions::APPAREIL_GERER)?;
+            let avant = crate::poste::reseau(&dossier).unwrap_or(actuel);
+            op.audit("modifier", "mode_reseau", None, Some(json!(avant)), Some(json!(c.actif)), None, None)?;
+            // Dans la transaction : si le fichier ne s'écrit pas, rien n'est tracé.
+            crate::poste::ecrire_reseau(&dossier, c.actif).map_err(|err| Erreur::Validation(format!("config.json non enregistré : {err}")))
+        })
+    })
+    .await?;
+    Ok(Json(json!({ "actif": actuel, "au_redemarrage": c.actif })))
 }
 
 /// Certificat de l'autorité locale, à installer une fois sur chaque téléphone (public : il ne contient

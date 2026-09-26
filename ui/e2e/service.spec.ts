@@ -481,3 +481,23 @@ test("thème Clair / Sombre choisi et mémorisé par poste", async ({ page }) =>
   await page.getByRole("button", { name: "Thème sombre" }).click();
   await expect(html).toHaveAttribute("data-theme", "clair");
 });
+
+test("mode réseau : interrupteur dans Administration, appliqué au redémarrage", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("tab", { name: "Téléphones et tablettes" }).click();
+  await page.getByRole("button", { name: "Saisir mon mot de passe" }).click();
+  await page.getByLabel("Mot de passe", { exact: true }).fill("baobab123");
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  const interrupteur = page.getByRole("checkbox", { name: /Mode réseau/ });
+  await expect(interrupteur).not.toBeChecked();
+  // La case suit le choix enregistré par le poste central : clic, puis réponse du serveur.
+  await interrupteur.click();
+  await expect(page.getByText("Mode réseau activé au prochain démarrage")).toBeVisible();
+  await expect(interrupteur).toBeChecked();
+  await expect(page.getByText(/Fermez Youma puis rouvrez-le/)).toBeVisible();
+  // Retour à l'état d'origine : plus rien à redémarrer.
+  await interrupteur.click();
+  await expect(interrupteur).not.toBeChecked();
+  await expect(page.getByText(/Fermez Youma puis rouvrez-le/)).toBeHidden();
+});

@@ -16,7 +16,8 @@ async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let donnees = arg(&args, "--donnees").map(PathBuf::from).unwrap_or_else(dossier_par_defaut);
     let port = arg(&args, "--port").and_then(|p| p.parse().ok()).unwrap_or(7878);
-    let reseau = args.iter().any(|a| a == "--reseau");
+    // `--reseau`, ou l'interrupteur d'Administration (écrit dans config.json, fiche 0024).
+    let reseau = args.iter().any(|a| a == "--reseau") || youma_server::poste::reseau(&donnees).unwrap_or(false);
     let mut config = Config {
         dossier_donnees: donnees,
         port,
