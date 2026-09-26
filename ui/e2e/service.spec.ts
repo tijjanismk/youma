@@ -264,7 +264,7 @@ test("commandes à distance : QR sur la table, en ligne, zone à risque, validat
   await page.getByRole("button", { name: "+ Zone à risque" }).click();
   const zone = page.getByRole("dialog", { name: "Zone à risque" });
   await zone.getByLabel("Nom").fill("Kalaban toute la journée");
-  await zone.getByLabel("Quartier").fill("Kalaban Coura");
+  await zone.getByLabel("Quartier").selectOption("Kalaban Coura");
   await zone.getByLabel("De (heure)").fill("00:00");
   await zone.getByLabel("À (heure)").fill("24:00");
   await zone.getByRole("button", { name: "Enregistrer" }).click();

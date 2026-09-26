@@ -220,7 +220,11 @@ pub async fn demarrer(config: Config) -> std::io::Result<()> {
 
 #[derive(Deserialize)]
 struct Synchronisation {
-    menu: Value,
+    /// Absent quand le relais a déjà ce menu (`menu_empreinte` renvoyée) : les photos ne repartent pas toutes les 10 s.
+    #[serde(default)]
+    menu: Option<Value>,
+    #[serde(default)]
+    menu_empreinte: Option<String>,
     #[serde(default)]
     config: Value,
     #[serde(default)]
@@ -248,11 +252,20 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         return Err(erreur(StatusCode::UNAUTHORIZED, "NON_AUTHENTIFIE", "Clé du relais incorrecte"));
     }
     let t = maintenant();
-    let (commandes, positions) = e.avec(|c| {
+    let (commandes, positions, menu_empreinte) = e.avec(|c| {
         let tx = c.unchecked_transaction()?;
-        for (cle, v) in [("menu", &s.menu), ("config", &s.config), ("dernier_contact", &json!(t))] {
+        let mut valeurs = vec![("config", s.config.clone()), ("dernier_contact", json!(t))];
+        if let Some(m) = &s.menu {
+            valeurs.push(("menu", m.clone()));
+            valeurs.push(("menu_empreinte", json!(s.menu_empreinte)));
+        }
+        for (cle, v) in valeurs {
             tx.execute("INSERT OR REPLACE INTO etat(cle, valeur) VALUES (?1, ?2)", params![cle, v.to_string()])?;
         }
+        let menu_empreinte: Option<String> = tx
+            .query_row("SELECT valeur FROM etat WHERE cle = 'menu_empreinte'", [], |r| r.get::<_, String>(0))
+            .optional()?
+            .and_then(|v| serde_json::from_str::<Option<String>>(&v).ok().flatten());
         // Les suivis sont un cache : la dernière publication du poste fait foi.
         tx.execute("DELETE FROM suivis", [])?;
         for p in &s.suivis {
@@ -281,9 +294,9 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         tx.execute("DELETE FROM verifications WHERE expire < ?1", [t])?;
         tx.commit()?;
         let commandes: Vec<Value> = a_transmettre.into_iter().filter_map(|(_, c)| serde_json::from_str(&c).ok()).collect();
-        Ok((commandes, positions))
+        Ok((commandes, positions, menu_empreinte))
     })?;
-    Ok(Json(json!({ "commandes": commandes, "positions": positions, "sms": e.sms.nom() })))
+    Ok(Json(json!({ "commandes": commandes, "positions": positions, "sms": e.sms.nom(), "menu_empreinte": menu_empreinte })))
 }
 
 // ───────────── Client ─────────────

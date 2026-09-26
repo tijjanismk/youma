@@ -2,6 +2,7 @@ import { MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
+import { VisuelPlat } from "../composants/Plat";
 import { fcfa, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante } from "../types";
 import { cleOptions, lirePanierClient, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
@@ -77,7 +78,8 @@ export default function MenuClient() {
           .filter((p) => p.categorie_id === categorie)
           .map((p) => (
             <div key={p.id} className="produit-client">
-              <div>
+              <VisuelPlat photo={p.photo} categorie={menu.categories.find((c) => c.id === p.categorie_id)} petit />
+              <div className="texte-produit-client">
                 <strong>{p.nom}</strong>
                 {p.description && <p>{p.description}</p>}
                 <div>{fcfa(p.prix)}</div>

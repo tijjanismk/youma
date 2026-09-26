@@ -10,7 +10,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0022.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0023.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
@@ -40,6 +40,7 @@ Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvert
   privées, port HTTP + 1, `--port-https 0` pour couper). `relais.rs`/`cloud.rs` : tâches de fond facultatives.
 - `crates/youma-relais` : serveur Internet facultatif (relais des commandes en ligne + cloud multi-restaurants,
   SMS Orange Mali ou simulation). `crates/youma-licence` : licences hors ligne.
+- `deploiement/relais/` + `docs/guides/relais-en-ligne.md` : mise en ligne du relais (systemd, Caddy).
 - `apps/desktop` : coquille Tauri (hors workspace, construite à part) ; elle construit `youma_server::Config`
   elle aussi : tout nouveau champ de `Config` s'y ajoute.
 - `ui/` : React + TypeScript (Vite). `src/pages` (écrans du personnel), `src/public` (menu client, suivi,

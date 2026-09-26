@@ -1,25 +1,12 @@
-import { Download, Share } from "lucide-react";
-import { useEffect, useState } from "react";
-import { get } from "../api";
+import { Download, EllipsisVertical, Share } from "lucide-react";
 import { estIphone, usePwa } from "../pwa";
 
-type Reseau = { adresses_https?: string[]; certificat?: string | null };
-
 /**
- * Proposition d'installer Youma comme une application (fiche 0020).
- * Sur le Wi-Fi du restaurant en HTTP, explique comment passer à l'adresse sécurisée.
+ * Youma sur l'écran d'accueil du téléphone. En HTTPS (relais, espace propriétaire) : vraie installation (fiche 0020).
+ * Sur le Wi-Fi du restaurant, en HTTP et sans certificat à installer (fiche 0023) : un raccourci du navigateur.
  */
-export function CarteInstallation({ reseauLocal = true }: { reseauLocal?: boolean }) {
+export function CarteInstallation() {
   const { installable, installee, installer } = usePwa();
-  const [reseau, setReseau] = useState<Reseau | null>(null);
-  const nonSecurise = !window.isSecureContext;
-  useEffect(() => {
-    if (reseauLocal && nonSecurise)
-      get<Reseau>("/reseau")
-        .then(setReseau)
-        .catch(() => setReseau(null));
-  }, [reseauLocal, nonSecurise]);
-
   if (installee) return null;
   if (installable)
     return (
@@ -33,25 +20,6 @@ export function CarteInstallation({ reseauLocal = true }: { reseauLocal?: boolea
         </button>
       </div>
     );
-  if (nonSecurise && reseauLocal) {
-    const https = reseau?.adresses_https?.[0];
-    if (!https) return null;
-    return (
-      <div className="carte installation">
-        <div>
-          <strong>Installer Youma sur ce téléphone</strong>
-          <p className="aide">
-            1. Une seule fois : <a href={reseau?.certificat ?? "/api/reseau/certificat"}>téléchargez le certificat du restaurant</a> puis installez-le (Android
-            : Paramètres → Sécurité → Installer un certificat → Certificat CA ; iPhone : Réglages → Profil téléchargé, puis Réglages → Général → Informations →
-            Réglages des certificats).
-          </p>
-          <p className="aide">
-            2. Ouvrez l'adresse sécurisée <a href={https}>{https}</a>, connectez l'appareil, puis touchez « Installer l'application ».
-          </p>
-        </div>
-      </div>
-    );
-  }
   if (estIphone())
     return (
       <div className="carte installation">
@@ -59,6 +27,17 @@ export function CarteInstallation({ reseauLocal = true }: { reseauLocal?: boolea
           <strong>Youma sur l'écran d'accueil</strong>
           <p className="aide">
             Touchez <Share size={16} aria-label="Partager" /> puis « Sur l'écran d'accueil ».
+          </p>
+        </div>
+      </div>
+    );
+  if (!window.isSecureContext)
+    return (
+      <div className="carte installation">
+        <div>
+          <strong>Youma sur l'écran d'accueil</strong>
+          <p className="aide">
+            Touchez <EllipsisVertical size={16} aria-label="Menu du navigateur" /> puis « Ajouter à l'écran d'accueil ».
           </p>
         </div>
       </div>

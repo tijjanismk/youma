@@ -161,6 +161,63 @@ export function Choix<T extends string>({
   );
 }
 
+const AUTRE = "\u0000autre";
+
+/** Liste de choix (groupée ou non) avec « Autre… » pour une saisie libre : la valeur reste un simple texte. */
+export function ChoixOuAutre({
+  libelle,
+  valeur,
+  changer,
+  groupes,
+  obligatoire,
+}: {
+  libelle: string;
+  valeur: string;
+  changer: (v: string) => void;
+  groupes: { nom: string; options: string[] }[];
+  obligatoire?: boolean;
+}) {
+  const connue = (v: string) => groupes.some((g) => g.options.some((o) => o.toLowerCase() === v.trim().toLowerCase()));
+  const [autre, setAutre] = useState(() => valeur.trim() !== "" && !connue(valeur));
+  const choisie = groupes.flatMap((g) => g.options).find((o) => o.toLowerCase() === valeur.trim().toLowerCase()) ?? "";
+  const options = (liste: string[]) =>
+    liste.map((o) => (
+      <option key={o} value={o}>
+        {o}
+      </option>
+    ));
+  return (
+    <label className="champ">
+      <span>
+        {libelle}
+        {obligatoire && " *"}
+      </span>
+      <select
+        value={autre ? AUTRE : choisie}
+        onChange={(e) => {
+          const v = e.target.value;
+          setAutre(v === AUTRE);
+          changer(v === AUTRE ? "" : v);
+        }}
+        aria-label={libelle}
+      >
+        <option value="">— Choisir —</option>
+        {groupes.map((g) =>
+          g.nom ? (
+            <optgroup key={g.nom} label={g.nom}>
+              {options(g.options)}
+            </optgroup>
+          ) : (
+            options(g.options)
+          ),
+        )}
+        <option value={AUTRE}>Autre…</option>
+      </select>
+      {autre && <input value={valeur} onChange={(e) => changer(e.target.value)} placeholder="Saisir le nom" aria-label={`${libelle} (autre)`} autoFocus />}
+    </label>
+  );
+}
+
 export function Case({ libelle, valeur, changer }: { libelle: string; valeur: boolean; changer: (v: boolean) => void }) {
   return (
     <label className="case">

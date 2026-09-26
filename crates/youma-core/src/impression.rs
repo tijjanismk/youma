@@ -42,7 +42,7 @@ pub fn rendu_envoi(t: &TicketEnvoi, largeur: usize, fuseau_minutes: i64) -> Stri
     if !t.serveur.is_empty() {
         s.push_str(&format!("Serveur : {}\n", t.serveur));
     }
-    s.push_str("--\n");
+    s.push_str(&trait_ticket(largeur));
     for l in &t.lignes {
         s.push_str(&format!("##{} × {}\n", l.quantite, l.libelle));
         for o in &l.options {
@@ -54,7 +54,7 @@ pub fn rendu_envoi(t: &TicketEnvoi, largeur: usize, fuseau_minutes: i64) -> Stri
             }
         }
     }
-    s.push_str("--\n");
+    s.push_str(&trait_ticket(largeur));
     s
 }
 
@@ -101,9 +101,16 @@ pub fn fcfa(montant: i64) -> String {
     format!("{signe}{out}")
 }
 
+/// Trait de séparation à la largeur du ticket (32 caractères en 58 mm, 42 ou 48 en 80 mm).
+pub fn trait_ticket(largeur: usize) -> String {
+    format!("{}\n", "-".repeat(largeur.max(2)))
+}
+
 /// Conversion en octets ESC/POS (page de code PC858, accents français).
+/// `FS .` annule le mode caractères chinois, actif d'origine sur beaucoup d'imprimantes chinoises (Xprinter…) :
+/// sans lui, les accents sortent en idéogrammes. Les imprimantes qui ne le connaissent pas l'ignorent.
 pub fn en_escpos(texte: &str, ouvrir_tiroir: bool) -> Vec<u8> {
-    let mut b: Vec<u8> = vec![0x1b, b'@', 0x1b, b't', 19];
+    let mut b: Vec<u8> = vec![0x1b, b'@', 0x1c, b'.', 0x1b, b't', 19];
     if ouvrir_tiroir {
         b.extend_from_slice(&[0x1b, b'p', 0, 25, 250]);
     }
@@ -125,8 +132,11 @@ pub fn en_escpos(texte: &str, ouvrir_tiroir: bool) -> Vec<u8> {
             "centre" => b.extend_from_slice(&[0x1b, b'a', 1]),
             _ => {}
         }
-        if style == "trait" {
+        // « -- » seul : ancien ticket gardé en file, sans largeur.
+        if style == "trait" && ligne == "--" {
             b.extend(std::iter::repeat_n(b'-', 42));
+        } else if style == "trait" {
+            b.extend(ligne.chars().map(vers_pc858));
         } else {
             b.extend(contenu.chars().map(vers_pc858));
         }
@@ -178,7 +188,7 @@ pub fn texte_brut(texte: &str) -> String {
     texte
         .lines()
         .map(|l| {
-            if l.starts_with("--") {
+            if l == "--" {
                 "-".repeat(42)
             } else {
                 l.trim_start_matches("##").trim_start_matches("**").trim_start_matches(">>").to_string()
@@ -321,7 +331,7 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
     if !tel.is_empty() {
         s.push_str(&format!(">>Tél. {tel}\n"));
     }
-    s.push_str("--\n");
+    s.push_str(&trait_ticket(w));
     let titre = match &c.table_nom {
         Some(t) => format!("Table {t}"),
         None => c.type_.replace('_', " "),
@@ -335,14 +345,14 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
     if let Some(serv) = &c.serveur_nom {
         s.push_str(&format!("Servi par : {serv}\n"));
     }
-    s.push_str("--\n");
+    s.push_str(&trait_ticket(w));
     for l in c.lignes.iter().filter(|l| l.quantite > l.quantite_annulee) {
         let q = l.quantite - l.quantite_annulee;
         let montant = if l.offert { "offert".to_string() } else { fcfa(l.montant) };
         s.push_str(&ligne_montant(&format!("{q} × {}", l.libelle), &montant, w));
         s.push('\n');
     }
-    s.push_str("--\n");
+    s.push_str(&trait_ticket(w));
     if c.totaux.remises != 0 {
         s.push_str(&ligne_montant("Remises", &format!("-{}", fcfa(c.totaux.remises)), w));
         s.push('\n');
@@ -379,12 +389,12 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
     }
     // Fiche 0012 : le ticket payé sert de bon de sortie (RG-SOR-01/02).
     if payee {
-        s.push_str("--\n");
+        s.push_str(&trait_ticket(w));
         s.push_str(&format!("##BON DE SORTIE n°{}\n", c.numero));
         s.push_str(&format!("**PAYÉ — Code de contrôle : {}\n", crate::sortie::code_controle(conn, commande_id)?));
         s.push_str(">>Présentez ce ticket à la sortie\n");
     }
-    s.push_str("--\n");
+    s.push_str(&trait_ticket(w));
     s.push_str(&format!(">>{pied}\n"));
     Ok(s)
 }
@@ -425,6 +435,13 @@ mod tests {
         assert!(octets.windows(4).any(|w| w == [0x1d, b'V', 66, 0]));
         // « é » en PC858
         assert!(octets.contains(&0x82));
+        // Mode chinois annulé (FS .) avant le choix de la page de code.
+        assert_eq!(&octets[..7], &[0x1b, b'@', 0x1c, b'.', 0x1b, b't', 19]);
+        // Imprimante 58 mm : traits de 32 caractères.
+        let r58 = rendu_envoi(&t, 32, 0);
+        assert!(r58.lines().any(|l| l == "-".repeat(32)));
+        assert!(!r58.contains(&"-".repeat(33)));
+        assert!(texte_brut(&r58).lines().any(|l| l == "-".repeat(32)));
     }
 
     #[test]

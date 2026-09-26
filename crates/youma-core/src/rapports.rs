@@ -4,7 +4,7 @@ use rusqlite::{params, Connection};
 use serde::Serialize;
 
 use crate::erreur::Resultat;
-use crate::impression::{fcfa, ligne_montant};
+use crate::impression::{fcfa, ligne_montant, trait_ticket};
 use crate::{caisse, employes, horloge, journee, paie, stock};
 
 #[derive(Debug, Serialize, Clone)]
@@ -626,7 +626,7 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
     if let Some(f) = s.fermee_le {
         t.push_str(&format!("Clôture : {}\n", horloge::format_ms(f + p.fuseau_minutes * 60_000)));
     }
-    t.push_str("--\n");
+    t.push_str(&trait_ticket(w));
     let mut stmt = conn.prepare(
         "SELECT type, COUNT(*), SUM(montant) FROM mouvements_tresorerie WHERE session_id = ?1 AND compte_id = ?2 GROUP BY type ORDER BY type",
     )?;
@@ -641,7 +641,7 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
         t.push_str(&ligne_montant(&format!("{} ({n})", libelle_mouvement(typ)), &fcfa(*m), w));
         t.push('\n');
     }
-    t.push_str("--\n");
+    t.push_str(&trait_ticket(w));
     let theorique = s.theorique_cloture.unwrap_or(s.solde_actuel);
     t.push_str(&ligne_montant("Espèces attendues", &fcfa(theorique), w));
     t.push('\n');
@@ -661,7 +661,8 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
     )?;
     if n > 0 {
-        t.push_str("--\n**Espèces des clients\n");
+        t.push_str(&trait_ticket(w));
+        t.push_str("**Espèces des clients\n");
         t.push_str(&ligne_montant(&format!("Reçues des clients ({n})"), &fcfa(recu), w));
         t.push('\n');
         t.push_str(&ligne_montant("Monnaie rendue", &fcfa(rendu), w));
@@ -669,7 +670,8 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
         t.push_str(&ligne_montant("Gardé en caisse", &fcfa(recu - rendu), w));
         t.push('\n');
     }
-    t.push_str("--\n**Autres encaissements de la session\n");
+    t.push_str(&trait_ticket(w));
+    t.push_str("**Autres encaissements de la session\n");
     let mut stmt = conn.prepare(
         "SELECT CASE WHEN pp.moyen = 'credit' THEN 'Crédit (ardoise)' ELSE COALESCE(c.nom, pp.moyen) END, SUM(pp.montant)
          FROM parts_paiement pp JOIN paiements p ON p.id = pp.paiement_id LEFT JOIN comptes_tresorerie c ON c.id = pp.compte_id
@@ -682,13 +684,15 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
     }
     let billets = caisse::billetage(conn, session_id, "cloture")?;
     if !billets.is_empty() {
-        t.push_str("--\n**Billetage\n");
+        t.push_str(&trait_ticket(w));
+        t.push_str("**Billetage\n");
         for b in billets {
             t.push_str(&ligne_montant(&format!("{} × {}", b.nombre, fcfa(b.coupure)), &fcfa(b.nombre * b.coupure), w));
             t.push('\n');
         }
     }
-    t.push_str("--\nSignature caissier :\n\n\nSignature responsable :\n");
+    t.push_str(&trait_ticket(w));
+    t.push_str("Signature caissier :\n\n\nSignature responsable :\n");
     Ok(t)
 }
 

@@ -19,36 +19,51 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 - **Interface refaite** (fiche 0019) : thème, menu repliable sur PC, écrans téléphone, photos des plats.
 - **Application installable (PWA)** (fiche 0020) : icône sur le téléphone, HTTPS du réseau local.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
+- **Photos au menu client, listes de villes et quartiers** (fiche 0021) : le menu n'est renvoyé au relais que
+  s'il a changé (les photos ne repartent plus toutes les 10 s).
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
 ## Ce qui reste (par ordre conseillé)
 
-1. **Installateur Windows** : construire la coquille Tauri (`apps/desktop`) sur un PC Windows et produire
-   l'installateur hors ligne ; ajouter si possible un job Windows à la CI.
-2. **Guide d'installation et de formation** (français simple, avec captures) : installation du PC, IP fixe
-   dans la box, imprimantes, appairage des téléphones, installation du certificat et de l'application,
-   ouverture/clôture de journée.
+1. **Installateur Windows** : construire la coquille Tauri (`apps/desktop`) sur un PC Windows (ou une caisse
+   POS sous Windows) et produire l'installateur hors ligne ; ajouter si possible un job Windows à la CI.
+2. **Guide d'installation et de formation** (français simple, avec captures) : installation sur la caisse POS,
+   **IP locale fixe** de la caisse, imprimantes thermiques (largeur du papier, ticket de test), connexion des
+   téléphones (QR, raccourci sur l'écran d'accueil, sans certificat), ouverture/clôture de journée.
 3. **Essais sur vrais appareils** :
-   - téléphones Android et iPhone : installation du certificat et de la PWA, usage en service ;
-   - imprimantes du pack matériel : page de code PC858, impression USB sous Windows.
+   - téléphones Android et iPhone sur le Wi-Fi du restaurant, en service ;
+   - imprimantes thermiques chinoises : accents (PC858 après `FS .`), 58 et 80 mm, imprimante intégrée à la caisse
+     POS (`windows:NOM`), tiroir-caisse.
 4. **Pilote réel d'une semaine** dans un restaurant (mono-poste + imprimante cuisine), puis mode réseau.
    Noter les retours, corriger.
 5. **Valider avec des données réelles** : relevés Orange Money, Moov, Wave (formats d'import) ;
    identifiants Orange Developer pour les vrais SMS (aujourd'hui : simulation).
-6. **Mettre le relais/cloud en ligne** (facultatif) : petit serveur (VPS) derrière Caddy en HTTPS,
-   inscription des restaurants (`youma-relais --ajouter-restaurant`).
+6. **Mettre le relais/cloud en ligne** (facultatif) : guide prêt, `docs/guides/relais-en-ligne.md`
+   (VPS, Caddy, service `deploiement/relais/`). Reste : louer le serveur, le nom de domaine, et le faire.
 7. ~~Finir la refonte des écrans secondaires~~ : fait (tableau de bord, caisse, stock, paie ; tableaux en
    cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
    des tableaux en cartes et du thème).
-8. **Plus tard** : interface en bambara (`ui/src/i18n.ts` est prêt pour la traduction).
+8. **Plus tard** : relais partagé par plusieurs restaurants pour les commandes en ligne (base du SaaS) ;
+   application Android si le raccourci du navigateur ne suffit pas (fiche 0023) ; interface en bambara
+   (`ui/src/i18n.ts` est prêt pour la traduction).
+
+## Réponses reçues (26/09/2026, fiche 0023)
+
+- Imprimantes : **thermiques chinoises** (ESC/POS, 58 ou 80 mm).
+- Poste central : le plus souvent une **caisse POS**, sans IP publique (inutile : le poste appelle le relais).
+- Certificat sur les téléphones : **refusé** → téléphones en HTTP sur le Wi-Fi du restaurant.
+- Quartiers : la liste convient, puisqu'on la modifie (quartiers de livraison dans Administration, « Autre… »
+  partout ; suggestions dans `ui/src/quartiers.ts`).
 
 ## Questions ouvertes (réponses du porteur de projet attendues)
 
-- Modèles d'imprimantes du pack matériel.
+- Modèles précis des imprimantes et des caisses POS du pack (pour les essais).
+- **[HYPOTHÈSE]** les caisses POS sont sous **Windows 10/11 64 bits** ; une caisse Android ne peut pas être le poste central.
 - Restaurant pilote et date de démarrage.
-- **[HYPOTHÈSE]** installer un certificat sur chaque téléphone est acceptable (fiche 0020).
-- **[HYPOTHÈSE]** le PC du restaurant aura une IP fixe (bail DHCP réservé).
+- **[HYPOTHÈSE]** l'adresse locale de la caisse est fixée (réglage sur la caisse ou dans la box).
+- Plusieurs restaurants d'un même propriétaire : aujourd'hui regroupés dans l'espace propriétaire (fiche 0018) et
+  une instance du relais par restaurant pour les commandes en ligne (fiche 0013). Une page en ligne commune reste à décider.
 
 ## Rappels techniques
 

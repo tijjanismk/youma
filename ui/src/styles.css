@@ -1285,6 +1285,15 @@ code {
   border: 1px solid var(--bord);
   border-radius: var(--rayon);
 }
+.produit-client .visuel-plat.petit {
+  width: 64px;
+  height: 64px;
+  font-size: 1.8rem;
+}
+.texte-produit-client {
+  flex: 1;
+  min-width: 0;
+}
 .produit-client p {
   margin: 2px 0 0;
   color: var(--doux);
