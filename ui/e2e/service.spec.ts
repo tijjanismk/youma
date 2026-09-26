@@ -501,3 +501,28 @@ test("mode réseau : interrupteur dans Administration, appliqué au redémarrage
   await expect(interrupteur).not.toBeChecked();
   await expect(page.getByText(/Fermez Youma puis rouvrez-le/)).toBeHidden();
 });
+
+test("carte bancaire sur le TPE : numéro d'autorisation obligatoire (RG-CAI-15)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  // La caisse de Kadi a été clôturée par un test précédent : on la rouvre si besoin.
+  await page.goto("/caisse");
+  const ouvrir = page.getByRole("button", { name: "Ouvrir la caisse" });
+  const session = page.getByText("Session de Kadi (caisse)");
+  await expect(ouvrir.or(session)).toBeVisible();
+  // Fond proposé = solde attendu du tiroir : pas d'écart à justifier.
+  if (await ouvrir.isVisible()) await ouvrir.click();
+  await expect(session).toBeVisible();
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Encaisser/ }).click();
+  await page.getByRole("button", { name: /Carte \(TPE\)/ }).click();
+  await expect(page.getByText("Saisissez le numéro d'autorisation imprimé par le TPE")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Valider le paiement" })).toBeDisabled();
+  await page.getByLabel("Numéro d'autorisation (ticket du TPE)").fill("A12345");
+  await page.getByRole("button", { name: "Valider le paiement" }).click();
+  await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
+  await expect(page.getByText("Addition soldée.")).toBeVisible();
+});

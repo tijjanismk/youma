@@ -118,6 +118,9 @@ describe("encaissement", () => {
     expect(verifierPaiement([], 1000, 0, true)).toMatch(/moyen/);
     expect(verifierPaiement([{ moyen: "especes", montant: 2000 }], 1000, 0, true)).toMatch(/dépasse/);
     expect(verifierPaiement([{ moyen: "mobile_money", montant: 1000, compte_id: "om" }], 1000, 0, true)).toMatch(/référence/);
+    // RG-CAI-15 : carte sur TPE, numéro d'autorisation toujours demandé.
+    expect(verifierPaiement([{ moyen: "carte", montant: 1000, compte_id: "banque" }], 1000, 0, false)).toMatch(/autorisation/);
+    expect(verifierPaiement([{ moyen: "carte", montant: 1000, compte_id: "banque", reference: "A12345" }], 1000, 0, false)).toBeNull();
     expect(verifierPaiement([{ moyen: "mobile_money", montant: 1000, compte_id: "om" }], 1000, 0, false)).toBeNull();
     expect(verifierPaiement([{ moyen: "credit", montant: 1000 }], 1000, 0, true)).toMatch(/client/);
     expect(verifierPaiement([{ moyen: "especes", montant: 1000 }], 1000, 500, true)).toMatch(/insuffisantes/);

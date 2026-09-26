@@ -1,4 +1,4 @@
-import { AlertTriangle, Banknote, Bike, HandCoins, Smartphone } from "lucide-react";
+import { AlertTriangle, Banknote, Bike, CreditCard, HandCoins, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { get, post } from "../api";
@@ -46,6 +46,8 @@ export default function Encaissement() {
     );
 
   const mm = caisse.comptes.filter((c) => c.type === "mobile_money" && c.actif);
+  // RG-CAI-15 : carte passée sur le TPE du restaurant (non relié), encaissée sur son compte bancaire.
+  const banques = caisse.comptes.filter((c) => c.type === "banque" && c.actif);
   const reste = aPayer - sommeParts(parts);
   const refObligatoire = etat?.parametres.reference_mm_obligatoire ?? true;
   const erreur = verifierPaiement(parts, cmd.totaux.reste, recues, refObligatoire);
@@ -161,6 +163,11 @@ export default function Encaissement() {
                 <Smartphone size={20} aria-hidden /> {c.nom}
               </button>
             ))}
+            {banques.map((c) => (
+              <button key={c.id} className="grand" onClick={() => ajouterPart({ moyen: "carte", montant: 0, compte_id: c.id })} disabled={reste <= 0}>
+                <CreditCard size={20} aria-hidden /> {banques.length > 1 ? `Carte — ${c.nom}` : "Carte (TPE)"}
+              </button>
+            ))}
             <button
               className="grand"
               onClick={() => (client ? ajouterPart({ moyen: "credit", montant: 0, client_id: client.id }) : setChoixClient(true))}
@@ -178,6 +185,7 @@ export default function Encaissement() {
               <div className="part-entete">
                 <strong>
                   {p.moyen === "mobile_money" ? caisse.comptes.find((c) => c.id === p.compte_id)?.nom : t(p.moyen)}
+                  {p.moyen === "carte" && banques.length > 1 && ` — ${caisse.comptes.find((c) => c.id === p.compte_id)?.nom}`}
                   {p.par_livreur && " (livreur)"}
                 </strong>
                 <button className="petit" onClick={() => setParts((x) => x.filter((_, j) => j !== i))} aria-label="Retirer ce paiement">
@@ -185,6 +193,17 @@ export default function Encaissement() {
                 </button>
               </div>
               <ChampMontant libelle="Montant" valeur={p.montant} changer={(v) => modifierPart(i, { montant: v })} />
+              {p.moyen === "carte" && (
+                <>
+                  <Champ
+                    libelle="Numéro d'autorisation (ticket du TPE)"
+                    valeur={p.reference ?? ""}
+                    changer={(v) => modifierPart(i, { reference: v })}
+                    obligatoire
+                  />
+                  <p className="aide">Passez la carte sur le TPE, attendez « accepté », puis recopiez le numéro d'autorisation de son ticket.</p>
+                </>
+              )}
               {p.moyen === "mobile_money" && (
                 <>
                   <Champ libelle="Référence de la transaction" valeur={p.reference ?? ""} changer={(v) => modifierPart(i, { reference: v })} obligatoire={refObligatoire} />

@@ -30,6 +30,8 @@ export function verifierPaiement(parts: Part[], aPayer: number, especesRecues: n
   for (const p of parts) {
     if (p.moyen === "mobile_money" && !p.compte_id) return "Choisissez l'opérateur Mobile Money";
     if (p.moyen === "mobile_money" && referenceObligatoire && !p.reference?.trim()) return "Saisissez la référence de la transaction Mobile Money";
+    if (p.moyen === "carte" && !p.compte_id) return "Choisissez le compte bancaire du TPE";
+    if (p.moyen === "carte" && !p.reference?.trim()) return "Saisissez le numéro d'autorisation imprimé par le TPE";
     if (p.moyen === "credit" && !p.client_id) return "Choisissez le client pour le crédit";
   }
   return null;

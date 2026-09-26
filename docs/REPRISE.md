@@ -18,6 +18,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
   (résumés, sauvegardes chiffrées, espace propriétaire).
 - **Interface refaite** (fiche 0019) : thème, menu repliable sur PC, écrans téléphone, photos des plats.
 - **Application installable (PWA)** (fiche 0020) : icône sur le téléphone, HTTPS du réseau local.
+- **Interface à jour** (fiche 0025) : React 19, React Router 7, Vite 8 ; Tauri 2.11 (dernière stable).
+- **Paiement par carte** sur un TPE non relié (fiche 0026) : numéro d'autorisation obligatoire, une fois par jour.
 - **Design system « Mali vivant »** (fiche 0022) : palette indigo et mangue, thème clair / sombre au choix du poste.
 - **Photos au menu client, listes de villes et quartiers** (fiche 0021) : le menu n'est renvoyé au relais que
   s'il a changé (les photos ne repartent plus toutes les 10 s).
