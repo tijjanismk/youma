@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get } from "../api";
 import { dateHeure, depuisMicro, fcfa, minutesDepuis } from "../format";
@@ -61,7 +61,7 @@ export default function Suivi({ code }: { code: string }) {
         <ol className="etapes-suivi" aria-label="Étapes de la commande">
           {etapes.map((e, i) => (
             <li key={e.cle} className={i < rang ? "faite" : i === rang ? "courante" : ""} aria-current={i === rang ? "step" : undefined}>
-              {i < rang ? "✓ " : ""}
+              {i < rang && <Check size={16} className="icone-texte" aria-hidden />}
               {e.libelle}
             </li>
           ))}
