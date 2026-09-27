@@ -59,7 +59,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 5. **Valider avec des données réelles** : relevés Orange Money, Moov, Wave (formats d'import) ;
    identifiants Orange Developer pour les vrais SMS (aujourd'hui : simulation).
 6. **Mettre le relais/cloud en ligne** (facultatif) : prêt pour **Railway** (`railway.toml`, image
-   `deploiement/railway/Dockerfile`, fiche 0030) ou un VPS, guide `docs/guides/relais-en-ligne.md`. Reste : créer le
+   `deploiement/railway/Dockerfile`, fiche 0030), **Oracle Cloud gratuit** (Always Free, ARM, DuckDNS) ou un VPS, guide `docs/guides/relais-en-ligne.md`. Reste : créer le
    projet Railway (variable `YOUMA_RELAIS_CLE`, volume `/donnees`, domaine) et relier un poste.
 7. ~~Finir la refonte des écrans secondaires~~ : fait (tableau de bord, caisse, stock, paie ; tableaux en
    cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
