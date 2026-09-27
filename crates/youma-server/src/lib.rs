@@ -178,12 +178,25 @@ pub async fn demarrer(config: Config) -> Resultat<()> {
     let adresse: IpAddr = if config.reseau { [0, 0, 0, 0].into() } else { [127, 0, 0, 1].into() };
     let ecoute = tokio::net::TcpListener::bind(SocketAddr::new(adresse, config.port)).await?;
     tracing::info!("Youma à l'écoute sur http://{}", ecoute.local_addr()?);
+    // Adresse à taper sur les téléphones (0.0.0.0 ne dit rien à l'installateur).
+    if !config.reseau {
+        tracing::info!("Mode réseau coupé : seul ce PC voit Youma (option --reseau, ou Administration → Téléphones et tablettes)");
+    } else if let Some(lien) = lien_telephones(api::adresse_locale(), config.port) {
+        tracing::info!("Téléphones et tablettes (même Wi-Fi) : {lien}");
+    } else {
+        tracing::warn!("Aucune adresse de réseau local (192.168…, 10…) : le poste est-il relié au Wi-Fi ou au câble du restaurant ?");
+    }
     if let Some(port) = config.port_https {
         let ecoute_https = tokio::net::TcpListener::bind(SocketAddr::new(adresse, port)).await?;
         tracing::info!("HTTPS local sur https://{}", ecoute_https.local_addr()?);
         lancer_https(&etat, ecoute_https)?;
     }
     servir(etat, ecoute).await
+}
+
+/// Lien à ouvrir sur un téléphone du restaurant : seulement pour une adresse de réseau local (pas 127.0.0.1).
+pub fn lien_telephones(ip: Option<IpAddr>, port: u16) -> Option<String> {
+    ip.filter(|ip| !ip.is_loopback() && tls::adresse_locale_permise(ip)).map(|ip| format!("http://{ip}:{port}"))
 }
 
 /// Sert aussi l'application en HTTPS, certificat fait pour les adresses actuelles du poste.
@@ -207,4 +220,18 @@ pub async fn servir(etat: Etat, ecoute: tokio::net::TcpListener) -> Resultat<()>
     let app = api::routeur(etat);
     axum::serve(ecoute, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lien_telephones;
+
+    #[test]
+    fn lien_telephones_seulement_pour_une_adresse_du_reseau_local() {
+        assert_eq!(lien_telephones(Some([192, 168, 1, 10].into()), 7878).as_deref(), Some("http://192.168.1.10:7878"));
+        assert_eq!(lien_telephones(Some([10, 0, 0, 5].into()), 8000).as_deref(), Some("http://10.0.0.5:8000"));
+        assert_eq!(lien_telephones(Some([127, 0, 0, 1].into()), 7878), None);
+        assert_eq!(lien_telephones(Some([8, 8, 8, 8].into()), 7878), None);
+        assert_eq!(lien_telephones(None, 7878), None);
+    }
 }

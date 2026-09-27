@@ -99,6 +99,8 @@ s'ouvre. Annuler ensuite les lignes de cette commande d'essai (non encaissée : 
    du réseau → Profil réseau → Privé), sinon le pare-feu bloque les téléphones.
 3. **Activer le mode réseau** : Administration → **Téléphones et tablettes** → cocher « Mode réseau » (mot de
    passe d'administration demandé), puis fermer et rouvrir Youma, ou redémarrer la caisse.
+   Au démarrage, le journal de Youma affiche l'adresse à ouvrir sur les téléphones :
+   « Téléphones et tablettes (même Wi-Fi) : http://192.168.1.10:7878 ».
 4. Administration → **Téléphones et tablettes** → « Générer un code » : le téléphone, connecté au Wi-Fi du
    restaurant, scanne le QR code. Puis, dans le menu du navigateur : « Ajouter à l'écran d'accueil ».
    Aucun certificat à installer.
@@ -125,7 +127,7 @@ Avec le propriétaire et le caissier, une fois :
 
 | Symptôme | À vérifier |
 |---|---|
-| Les téléphones ne trouvent pas la caisse | Même Wi-Fi ; « Mode réseau » coché et Youma redémarré ; réseau Windows « Privé » ; adresse de la caisse inchangée. |
+| Les téléphones ne trouvent pas la caisse | Adresse affichée au démarrage (« Téléphones et tablettes : http://… ») ; même Wi-Fi ; « Mode réseau » coché et Youma redémarré ; réseau Windows « Privé » ; adresse de la caisse inchangée. |
 | « Poste central injoignable » sur un téléphone | La caisse est éteinte ou a changé d'adresse : fixer l'adresse (étape 6) puis refaire le QR code. |
 | Accents en idéogrammes ou en « ? » | Refaire la page d'autotest et envoyer la photo au fournisseur avec le modèle exact (page de code à ajuster). |
 | Xprinter réseau introuvable | Adresse de l'autotest dans le même réseau que la caisse (`192.168.1.x`) ; câble branché sur la box. |
