@@ -750,3 +750,12 @@ test("le client modifie sa commande avant acceptation, avec avertissement (RG-CA
   await expect(web.getByRole("link", { name: "Modifier ma commande" })).toHaveCount(0);
   await client.close();
 });
+
+test("clôture impossible expliquée, historique de paie (RG-JOU-04, RG-PAI-06)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  // Des additions restent ouvertes après les tests précédents : le bouton est inactif et la raison affichée.
+  await expect(page.getByRole("button", { name: "Clôturer la journée" })).toBeDisabled();
+  await expect(page.getByRole("list", { name: "Clôture impossible" })).toContainText("addition(s) encore ouverte(s)");
+  await page.goto("/paie");
+  await expect(page.getByRole("heading", { name: "Historique de paie" })).toBeVisible();
+});

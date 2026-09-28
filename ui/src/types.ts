@@ -356,6 +356,8 @@ export type Bulletin = {
   lignes: { type: string; libelle: string; montant: number; quantite: number | null }[];
   paye_depuis: number;
   reste_a_payer: number;
+  /** Aperçu : pourquoi la période ne peut pas être clôturée (RG-PAI-06). */
+  cloture_bloquee?: string | null;
 };
 
 export type Indicateur = { cle: string; libelle: string; valeur: number; formule: string };

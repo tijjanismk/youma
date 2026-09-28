@@ -44,6 +44,8 @@ pub struct Bulletin {
     /// Payé depuis la clôture (bulletins figés uniquement).
     pub paye_depuis: i64,
     pub reste_a_payer: i64,
+    /// Aperçu seulement : pourquoi la période ne peut pas être clôturée (affiché à la place du bouton).
+    pub cloture_bloquee: Option<String>,
 }
 
 /// Mouvements générés par la clôture (salaire, absences, cotisations).
@@ -203,6 +205,7 @@ fn assembler(conn: &Connection, e: &Employe, debut: &str, fin: &str, mvts: &[Mvt
         lignes,
         paye_depuis: 0,
         reste_a_payer: net,
+        cloture_bloquee: None,
     })
 }
 
@@ -215,7 +218,8 @@ pub fn apercu(conn: &Connection, employe_id: &str, debut: &str, fin: &str) -> Re
     valider_periode(debut, fin)?;
     let e = employe(conn, employe_id)?;
     let p = crate::parametres::lire(conn)?;
-    let prev = dernier_bulletin(conn, employe_id)?.map(|b| b.2).unwrap_or(0);
+    let dernier = dernier_bulletin(conn, employe_id)?;
+    let prev = dernier.as_ref().map(|b| b.2).unwrap_or(0);
     let mut mvts = mouvements_apres(conn, employe_id, prev)?;
     let c = calculer(conn, &e, &p, debut, fin, gains_variables(&mvts))?;
     for (t, m) in [
@@ -228,7 +232,19 @@ pub fn apercu(conn: &Connection, employe_id: &str, debut: &str, fin: &str) -> Re
             mvts.push(Mvt { type_: t.into(), montant: m, quantite: None, bulletin_id: None });
         }
     }
-    assembler(conn, &e, debut, fin, &mvts, prev, &c)
+    let mut b = assembler(conn, &e, debut, fin, &mvts, prev, &c)?;
+    b.cloture_bloquee = raison_blocage(dernier.as_ref().map(|d| d.1.as_str()), debut);
+    Ok(b)
+}
+
+/// RG-PAI-06 : une période ne se clôture qu'une fois ; la suivante commence après la dernière clôture.
+fn raison_blocage(fin_precedente: Option<&str>, debut: &str) -> Option<String> {
+    fin_precedente
+        .filter(|f| debut <= *f)
+        .map(|f| {
+            let j: Vec<&str> = f.split('-').rev().collect();
+            format!("Paie déjà clôturée jusqu'au {} : choisissez une période qui commence après.", j.join("/"))
+        })
 }
 
 /// RG-PAI-03/04/06 : clôture de la période et bulletin figé.
@@ -238,13 +254,8 @@ pub fn cloturer(db: &mut Db, acteur: &Acteur, employe_id: &str, debut: &str, fin
         let autorise_par = op.exiger(perm::PAIE_GERER)?;
         let e = employe(op, employe_id)?;
         let prev = dernier_bulletin(op, employe_id)?;
-        if let Some((_, fin_prev, _)) = &prev {
-            if debut <= fin_prev.as_str() {
-                return Err(Erreur::regle(
-                    "RG-PAI-06",
-                    format!("Période déjà clôturée jusqu'au {fin_prev} : commencez après cette date"),
-                ));
-            }
+        if let Some(raison) = raison_blocage(prev.as_ref().map(|b| b.1.as_str()), debut) {
+            return Err(Erreur::regle("RG-PAI-06", raison));
         }
         let prev_seq = prev.as_ref().map(|b| b.2).unwrap_or(0);
         let avant = mouvements_apres(op, employe_id, prev_seq)?;
@@ -337,6 +348,7 @@ pub fn bulletin(conn: &Connection, id: &str) -> Resultat<Bulletin> {
                     lignes: serde_json::from_str(&detail).unwrap_or_default(),
                     paye_depuis: 0,
                     reste_a_payer: 0,
+                    cloture_bloquee: None,
                 })
             },
         ),

@@ -21,8 +21,8 @@ import {
 import { Link, useNavigate } from "react-router";
 import { CarteInstallation } from "../composants/Installation";
 import { CarteMenuDuJour } from "../composants/MenuDuJour";
-import { post } from "../api";
-import { useApp } from "../contexte";
+import { get, post } from "../api";
+import { useApp, useDonnees } from "../contexte";
 import { dateFr } from "../format";
 import type { EtatGeneral } from "../types";
 
@@ -85,11 +85,7 @@ export default function Accueil() {
             <span>
               Journée d'exploitation du <strong>{dateFr(etat.journee.date_exploitation)}</strong> ouverte
             </span>
-            {peut("journee.gerer") && (
-              <button onClick={cloturerJournee} className="attention">
-                Clôturer la journée
-              </button>
-            )}
+            {peut("journee.gerer") && <ClotureJournee cloturer={cloturerJournee} />}
           </>
         ) : (
           <>
@@ -124,6 +120,29 @@ export default function Accueil() {
         ))}
       </div>
       <CarteInstallation />
+    </div>
+  );
+}
+
+/** RG-JOU-04 : le bouton n'est actif que si rien n'empêche la clôture ; sinon on dit pourquoi. */
+function ClotureJournee({ cloturer }: { cloturer: () => void }) {
+  const { donnees: raisons } = useDonnees(
+    () => get<string[]>("/journee/blocages"),
+    ["commande", "commande_entrante", "caisse", "paiement", "table", "journee"],
+  );
+  const bloquee = (raisons ?? []).length > 0;
+  return (
+    <div className="cloture-journee">
+      <button onClick={cloturer} className="attention" disabled={bloquee}>
+        Clôturer la journée
+      </button>
+      {bloquee && (
+        <ul className="raison-bloquee" aria-label="Clôture impossible">
+          {raisons!.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

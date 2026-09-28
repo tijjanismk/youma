@@ -26,3 +26,11 @@ laissé en caisse ». Champ `fond_garde` facultatif dans l'API : absent, rien ne
 
 - La session suivante n'attend que le fond laissé.
 - Pas de permission supplémentaire : la remise est faite par le caissier qui clôture, tracée dans l'audit.
+
+## Complément : raisons d'une clôture impossible, historique de paie
+
+- « Clôturer la journée » est inactif tant qu'une règle RG-JOU-04 l'interdit, et la liste des raisons s'affiche
+  dessous (`GET /api/journee/blocages`, `journee::blocages_cloture`, la même fonction que le refus).
+- Paie : l'aperçu porte `cloture_bloquee` (RG-PAI-06, période déjà clôturée) ; l'écran affiche la raison à la
+  place du bouton « Clôturer ».
+- Paie : carte « Historique de paie » (bulletins clôturés, filtre par employé, net, payé, reste, « Voir »).

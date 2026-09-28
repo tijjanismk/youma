@@ -157,7 +157,13 @@ fn rg_jou_01_02_04_journee() {
     b.ouvrir_journee();
     let c = b.caissier();
     assert_eq!(journee::ouvrir(&mut b.db, &c).unwrap_err().regle_code(), Some("RG-JOU-02"));
+    let j = journee::ouverte(b.db.conn()).unwrap().unwrap();
+    assert!(journee::blocages_cloture(b.db.conn(), &j.id).unwrap().is_empty());
     commandes::ouvrir(&mut b.db, &a, &n).unwrap();
+    // La raison est donnée avant de toucher le bouton, la même que celle du refus.
+    let raisons = journee::blocages_cloture(b.db.conn(), &j.id).unwrap();
+    assert_eq!(raisons.len(), 1, "{raisons:?}");
+    assert!(raisons[0].contains("addition(s) encore ouverte(s)"));
     assert_eq!(journee::cloturer(&mut b.db, &c).unwrap_err().regle_code(), Some("RG-JOU-04"));
 }
 
@@ -481,6 +487,10 @@ fn rg_pai_05_06_paiement_partiel_et_periode_figee() {
     assert_eq!(b.compter("SELECT COUNT(*) FROM mouvements_tresorerie WHERE type = 'paiement_salaire' AND session_id IS NOT NULL"), 0);
     // Période chevauchante refusée ; correction par régularisation sur la suivante.
     assert_eq!(paie::cloturer(&mut b.db, &g, &awa, "2026-03-15", "2026-04-14").unwrap_err().regle_code(), Some("RG-PAI-06"));
+    // L'aperçu dit pourquoi, pour que l'écran remplace le bouton « Clôturer » par la raison.
+    let bloque = paie::apercu(b.db.conn(), &awa, "2026-03-15", "2026-04-14").unwrap().cloture_bloquee.unwrap();
+    assert!(bloque.contains("déjà clôturée jusqu'au 31/03/2026"), "{bloque}");
+    assert!(paie::apercu(b.db.conn(), &awa, "2026-04-01", "2026-04-30").unwrap().cloture_bloquee.is_none());
     employes::evenement(&mut b.db, &g, &Evenement { employe_id: awa.clone(), type_: "regularisation".into(), montant: 2_000, quantite: None, motif: "Oubli prime mars".into() }).unwrap();
     let avril = paie::cloturer(&mut b.db, &g, &awa, "2026-04-01", "2026-04-30").unwrap();
     assert_eq!(avril.report_precedent, 0, "mars soldé");

@@ -111,6 +111,7 @@ Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.
 **Ouvrir et clôturer la journée**
 - Le matin : Accueil → **Ouvrir la journée**. Sans journée ouverte, personne ne peut vendre.
 - Le soir, quand toutes les caisses sont clôturées : Accueil → **Clôturer la journée** (Youma fait une sauvegarde).
+  Si le bouton est grisé, la raison est écrite dessous (addition ouverte, caisse ouverte, commande à accepter).
 - Après l'ouverture : **Menu du jour** (carte de l'accueil) → cocher les plats du jour proposés aujourd'hui
   (« Reprendre le menu d'hier » si rien ne change). Boissons et eau restent toujours proposées.
 

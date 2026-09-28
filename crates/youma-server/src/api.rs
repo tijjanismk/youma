@@ -95,6 +95,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/journee/ouvrir", post(journee_ouvrir))
         .route("/journee/cloturer", post(journee_cloturer))
         .route("/journee/resume", get(journee_resume))
+        .route("/journee/blocages", get(journee_blocages))
         // Catalogue
         .route("/catalogue", get(catalogue_tout))
         .route("/categories", post(categorie_enregistrer))
@@ -403,6 +404,14 @@ async fn journees(State(e): State<Etat>, a: Auth) -> Rep<Vec<journee::Journee>> 
 
 async fn journee_ouvrir(State(e): State<Etat>, a: Auth) -> Rep<journee::Journee> {
     ecrire!(e, a, |db| journee::ouvrir(db, &a))
+}
+
+/// RG-JOU-04 : raisons affichées sous « Clôturer la journée » (vide : clôture possible).
+async fn journee_blocages(State(e): State<Etat>, a: Auth) -> Rep<Vec<String>> {
+    lire!(e, a, AUCUNE, |db| match journee::ouverte(db.conn())? {
+        Some(j) => journee::blocages_cloture(db.conn(), &j.id),
+        None => Ok(vec![]),
+    })
 }
 
 async fn journee_cloturer(State(e): State<Etat>, a: Auth) -> Rep<journee::Journee> {
