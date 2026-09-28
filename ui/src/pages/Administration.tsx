@@ -8,6 +8,7 @@ import { dateHeure, fcfa, nombre } from "../format";
 import { t } from "../i18n";
 import { ChoixPhoto } from "../composants/Plat";
 import { CodeSecours } from "../composants/Secours";
+import { UNITES } from "../listesStock";
 import { quartiersDeLaVille, VILLES } from "../quartiers";
 import CloudAdmin from "./CloudAdmin";
 import CommandesDistance from "./CommandesDistance";
@@ -173,6 +174,7 @@ const PRODUIT_VIDE: Produit = {
   ordre: 0,
   prix_zones: [],
   groupes_options: [],
+  selon_jour: false,
 };
 
 function CatalogueAdmin() {
@@ -209,7 +211,7 @@ function CatalogueAdmin() {
             lignes={cat.produits
               .filter((p) => p.categorie_id === c.id)
               .map((p) => [
-                `${p.nom}${p.actif ? "" : " (inactif)"}`,
+                `${p.nom}${p.actif ? "" : " (inactif)"}${p.selon_jour ? " (plat du jour)" : ""}`,
                 fcfa(p.prix) + (p.prix_zones.length ? " *" : ""),
                 cat.postes.find((x) => x.id === p.poste_id)?.nom ?? "—",
                 p.suivi_stock === "revendu" ? "Suivi à l'unité" : p.suivi_stock === "recette" ? "Recette" : "—",
@@ -292,6 +294,17 @@ function CatalogueAdmin() {
   );
 }
 
+/** Produit revendu : coût réel du dernier achat de son article (sinon le coût estimé sert au bénéfice). */
+function CoutReel({ article }: { article?: NiveauStock }) {
+  return (
+    <p className="aide">
+      {article && article.cout_unitaire > 0
+        ? `Coût du dernier achat : ${fcfa(article.cout_unitaire)} par ${article.unite} (utilisé pour le bénéfice).`
+        : "Pas encore d'achat enregistré : le coût estimé sert au bénéfice ; le premier achat donnera le coût réel."}
+    </p>
+  );
+}
+
 function FormProduit({ p, cat, fermer, fait }: { p: Produit; cat: Catalogue; fermer: () => void; fait: () => void }) {
   const { agir } = useApp();
   const [x, setX] = useState(p);
@@ -333,10 +346,24 @@ function FormProduit({ p, cat, fermer, fait }: { p: Produit; cat: Catalogue; fer
             libelle="Article de stock"
             valeur={x.article_stock_id ?? ""}
             changer={(v) => setX({ ...x, article_stock_id: v || null })}
-            options={[{ valeur: "", libelle: "— choisir —" }, ...(articles ?? []).map((a) => ({ valeur: a.article_id, libelle: a.nom }))]}
+            options={[{ valeur: "", libelle: "Créer l'article avec ce produit" }, ...(articles ?? []).map((a) => ({ valeur: a.article_id, libelle: a.nom }))]}
+          />
+        )}
+        {x.suivi_stock === "revendu" && !x.article_stock_id && (
+          <Choix
+            libelle="Unité de l'article"
+            valeur={x.unite_stock ?? "bouteille"}
+            changer={(v) => setX({ ...x, unite_stock: v })}
+            options={UNITES.flatMap((g) => g.options).map((u) => ({ valeur: u, libelle: u }))}
           />
         )}
         <ChampMontant libelle="Coût d'achat estimé (pour le bénéfice)" valeur={x.prix_achat_estime} changer={(v) => setX({ ...x, prix_achat_estime: v })} />
+        {x.suivi_stock === "revendu" && <CoutReel article={(articles ?? []).find((a) => a.article_id === x.article_stock_id)} />}
+        <Case
+          libelle="Plat du jour : proposé seulement les jours où il est coché au menu du jour"
+          valeur={x.selon_jour}
+          changer={(v) => setX({ ...x, selon_jour: v })}
+        />
         <Champ libelle="Code" valeur={x.code} changer={(v) => setX({ ...x, code: v })} />
         <ChoixPhoto valeur={x.photo} changer={(v) => setX({ ...x, photo: v })} categorie={cat.categories.find((c) => c.id === x.categorie_id)} />
         <Case libelle="Actif" valeur={x.actif} changer={(v) => setX({ ...x, actif: v })} />
@@ -439,6 +466,7 @@ function FormProduit({ p, cat, fermer, fait }: { p: Produit; cat: Catalogue; fer
                   "/produits",
                   {
                     ...x,
+                    unite_stock: x.unite_stock ?? "bouteille",
                     groupes_options: x.groupes_options.filter((g) => g.nom.trim()).map((g) => ({ ...g, options: g.options.filter((o) => o.nom.trim()) })),
                   },
                   pin,

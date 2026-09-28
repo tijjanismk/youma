@@ -105,6 +105,8 @@ export type Entrante = {
   validation_responsable: boolean;
   motif: string | null;
   commandes_precedentes: number;
+  /** RG-CAN-06 : fois où le client a modifié sa commande avant acceptation. */
+  modifications_client: number;
   verification_numero: string;
 };
 
@@ -154,6 +156,10 @@ export type Suivi = {
   livreur: [number, number, number] | null;
   destination: [number, number] | null;
   mis_a_jour: number;
+  /** RG-CAN-06 : modifications encore possibles (avant acceptation), commande à reprendre et code de la table. */
+  modifications_restantes?: number;
+  panier?: { produit_id: string; quantite: number; options: string[]; commentaire: string }[];
+  code_table?: string | null;
 };
 
 export type Categorie = { id: string; nom: string; couleur: string; icone: string; ordre: number; actif: boolean };
@@ -179,6 +185,12 @@ export type Produit = {
   ordre: number;
   prix_zones: { zone_id: string; prix: number }[];
   groupes_options: GroupeOptions[];
+  /** RG-CAT-07 : proposé seulement les jours où il est coché au menu du jour. */
+  selon_jour: boolean;
+  /** Calculé par le poste central : proposé aujourd'hui (RG-CAT-07). */
+  au_menu?: boolean;
+  /** Produit revendu sans article : unité de l'article créé avec lui (fiche 0036). */
+  unite_stock?: string;
 };
 export type Poste = { id: string; nom: string; imprimante: string; ecran: boolean; actif: boolean };
 export type Catalogue = {

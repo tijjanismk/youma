@@ -27,6 +27,7 @@ const produit = (p: Partial<Produit>): Produit => ({
   ordre: 0,
   prix_zones: [],
   groupes_options: [],
+  selon_jour: false,
   ...p,
 });
 

@@ -4,7 +4,7 @@ import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
 import { VisuelPlat } from "../composants/Plat";
 import { fcfa, versMicro } from "../format";
-import type { GroupeOptions, MenuPublic, ReponseEntrante } from "../types";
+import type { GroupeOptions, MenuPublic, ReponseEntrante, Suivi } from "../types";
 import { cleOptions, lirePanierClient, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
 
 type Produit = MenuPublic["produits"][number];
@@ -15,7 +15,9 @@ type Produit = MenuPublic["produits"][number];
  */
 export default function MenuClient() {
   const table = new URLSearchParams(location.search).get("table");
-  const clePanier = `youma.panier-client.${table ?? "en-ligne"}`;
+  // RG-CAN-06 : modification d'une commande pas encore prise par le restaurant (code de suivi).
+  const modifier = new URLSearchParams(location.search).get("modifier");
+  const clePanier = modifier ? `youma.panier-client.modification.${modifier}` : `youma.panier-client.${table ?? "en-ligne"}`;
   const [menu, setMenu] = useState<MenuPublic | null>(null);
   const [erreur, setErreur] = useState("");
   const [categorie, setCategorie] = useState("");
@@ -23,6 +25,19 @@ export default function MenuClient() {
   const [choixOptions, setChoixOptions] = useState<Produit | null>(null);
   const [commander, setCommander] = useState(false);
   const [refus, setRefus] = useState("");
+  const [modification, setModification] = useState<{ numero: number; restantes: number } | null>(null);
+
+  useEffect(() => {
+    if (!modifier) return;
+    get<Suivi>(`/public/suivi/${encodeURIComponent(modifier)}`)
+      .then((s) => {
+        if ((s.modifications_restantes ?? 0) > 0) {
+          setModification({ numero: s.numero, restantes: s.modifications_restantes ?? 0 });
+          setPanier(s.panier ?? []);
+        } else setRefus("Cette commande ne peut plus être modifiée : le restaurant l'a déjà prise. Demandez à un serveur.");
+      })
+      .catch((e) => setRefus(messageClient(e, !!table)));
+  }, [modifier, table]);
 
   useEffect(() => {
     get<MenuPublic>(`/public/menu${table ? `?table=${encodeURIComponent(table)}` : ""}`)
@@ -72,6 +87,12 @@ export default function MenuClient() {
           {refus}
         </p>
       )}
+      {modification && (
+        <p className="bandeau avertissement" role="status">
+          Vous modifiez votre commande n°{modification.numero}. Le restaurant voit chaque modification :{" "}
+          {modification.restantes === 1 ? "c'est la dernière possible." : `encore ${modification.restantes} possibles.`}
+        </p>
+      )}
       <Onglets onglets={cats.map((c) => ({ cle: c.id, libelle: c.nom }))} actif={categorie} changer={setCategorie} />
       <div className="produits-client">
         {menu.produits
@@ -100,12 +121,30 @@ export default function MenuClient() {
             </div>
           ))}
       </div>
-      {nombreArticles > 0 && menu.ouvert && (
+      {nombreArticles > 0 && menu.ouvert && (!modifier || modification) && (
         <div className="barre-panier">
           <button className="principal grand" onClick={() => setCommander(true)}>
-            Commander ({nombreArticles}) — {fcfa(total)}
+            {modifier ? "Envoyer la modification" : "Commander"} ({nombreArticles}) — {fcfa(total)}
           </button>
         </div>
+      )}
+      {commander && modifier && modification && (
+        <ConfirmerModification
+          code={modifier}
+          restantes={modification.restantes}
+          panier={panier}
+          total={total}
+          fermer={() => setCommander(false)}
+          fait={(r) => {
+            if (r.statut === "en_attente") {
+              setPanier([]);
+              location.assign(`/suivi/${modifier}`);
+            } else {
+              setCommander(false);
+              setRefus(r.message);
+            }
+          }}
+        />
       )}
       {choixOptions && (
         <ChoixOptionsClient
@@ -117,7 +156,7 @@ export default function MenuClient() {
           }}
         />
       )}
-      {commander && (
+      {commander && !modifier && (
         <Validation
           menu={menu}
           table={table}
@@ -137,6 +176,57 @@ export default function MenuClient() {
         />
       )}
     </Page>
+  );
+}
+
+/** RG-CAN-06 : avertissement avant d'envoyer une modification (le restaurant la voit ; deux au plus). */
+function ConfirmerModification({
+  code,
+  restantes,
+  panier,
+  total,
+  fermer,
+  fait,
+}: {
+  code: string;
+  restantes: number;
+  panier: PanierClient;
+  total: number;
+  fermer: () => void;
+  fait: (r: ReponseEntrante) => void;
+}) {
+  const [note, setNote] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const envoyer = async () => {
+    setEnvoi(true);
+    setErreur("");
+    try {
+      fait(await post<ReponseEntrante>(`/public/commandes/${encodeURIComponent(code)}/modifier`, { lignes: panier, note }));
+    } catch (e) {
+      setErreur(messageClient(e, false));
+      setEnvoi(false);
+    }
+  };
+  return (
+    <Modal titre="Modifier ma commande" fermer={fermer}>
+      <p className="alerte" role="alert">
+        Attention : votre commande sera remplacée par celle-ci, et le restaurant verra que vous l'avez modifiée.{" "}
+        {restantes === 1 ? "C'est votre dernière modification possible." : `Vous pourrez encore la modifier ${restantes - 1} fois.`} Pour
+        l'annuler, appelez le restaurant.
+      </p>
+      <p>
+        Nouveau total : <strong>{fcfa(total)}</strong>
+      </p>
+      <Champ libelle="Remarque (facultatif)" valeur={note} changer={setNote} placeholder="Sans piment…" />
+      {erreur && <p className="erreur-texte">{erreur}</p>}
+      <div className="actions">
+        <button onClick={fermer}>Annuler</button>
+        <button className="principal" disabled={envoi || panier.length === 0} onClick={envoyer}>
+          Confirmer la modification
+        </button>
+      </div>
+    </Modal>
   );
 }
 

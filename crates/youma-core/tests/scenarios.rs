@@ -304,6 +304,10 @@ fn s10_reception_boissons() {
     let hist = achats::historique_prix_achat(b.db.conn(), &coca).unwrap();
     assert_eq!(hist[0].1, 550, "26 400 / 48 = 550 par bouteille");
     assert_eq!(hist[1].1, 500, "prix précédent conservé");
+    // RG-ACH-05 : payé depuis le tiroir d'une caisse → tracé et signalé au propriétaire.
+    assert_eq!(b.compter("SELECT COUNT(*) FROM journal_audit WHERE action = 'achat.paye_par_tiroir'"), 1);
+    assert_eq!(youma_core::rapports::tableau_de_bord(b.db.conn()).unwrap().achats_tiroir, (1, 26_400));
+    assert!(achats::lister_achats(b.db.conn(), 50).unwrap().iter().any(|a| a.tiroir && a.total == 26_400));
 }
 
 /// Scénario 11 : inventaire du soir, 30 théoriques, 27 comptés.

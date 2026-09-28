@@ -43,6 +43,12 @@ export default function Entrantes() {
             {e.verification_numero === "rappel" && e.canal === "en_ligne" && e.commandes_precedentes === 0 && (
               <p className="attention-texte">Rappelez le client pour confirmer le numéro avant d'accepter.</p>
             )}
+            {e.modifications_client > 0 && (
+              <p className="attention-texte">
+                <AlertTriangle size={16} className="icone-texte" aria-hidden /> Modifiée par le client ({e.modifications_client} fois) : vérifiez la
+                commande avant de l'accepter.
+              </p>
+            )}
             {e.validation_responsable && (
               <p className="attention-texte">
                 <AlertTriangle size={16} className="icone-texte" aria-hidden /> {e.motif ?? "Zone à risque"} : accord d'un responsable.

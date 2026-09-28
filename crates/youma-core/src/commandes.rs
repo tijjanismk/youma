@@ -48,7 +48,7 @@ pub struct InfosLivraison {
     pub lon: Option<i64>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LigneSaisie {
     pub produit_id: String,
     #[serde(default = "un")]
@@ -510,6 +510,9 @@ pub(crate) fn ajouter_lignes_op(op: &mut Op, commande_id: &str, lignes: &[LigneS
         let p = catalogue::produit(op, &l.produit_id)?;
         if !p.actif || !p.disponible {
             return Err(Erreur::regle("RG-CAT-05", format!("« {} » est indisponible aujourd'hui", p.nom)));
+        }
+        if !p.au_menu {
+            return Err(Erreur::regle("RG-CAT-07", format!("« {} » n'est pas au menu du jour", p.nom)));
         }
         // RG-CAT-04 : options.
         let mut choisies = Vec::new();

@@ -34,6 +34,7 @@ type Tdb = {
   annulations: [number, number];
   remises: [number, number];
   offerts: [number, number];
+  achats_tiroir: [number, number];
   employes_presents: number;
   employes_actifs: number;
   salaires_a_payer: number;
@@ -144,6 +145,12 @@ export default function TableauDeBord() {
             <span>Offerts ({d.offerts[0]})</span>
             <Montant valeur={d.offerts[1]} />
           </div>
+          {d.achats_tiroir[0] > 0 && (
+            <Link to="/achats" className="alerte">
+              <AlertTriangle size={16} className="icone-texte" aria-hidden /> {d.achats_tiroir[0]} achat(s) payé(s) par le tiroir de caisse (
+              {fcfa(d.achats_tiroir[1])})
+            </Link>
+          )}
           {d.impressions_en_erreur > 0 && (
             <Link to="/cuisine" className="alerte">
               <AlertTriangle size={16} className="icone-texte" aria-hidden /> {d.impressions_en_erreur} ticket(s) non imprimé(s)

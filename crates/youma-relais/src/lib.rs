@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS suivis (code_suivi TEXT PRIMARY KEY, code_livreur TEX
 CREATE INDEX IF NOT EXISTS idx_suivis_livreur ON suivis(code_livreur);
 CREATE TABLE IF NOT EXISTS positions (code_livreur TEXT PRIMARY KEY, lat INTEGER NOT NULL, lon INTEGER NOT NULL,
     ms INTEGER NOT NULL, transmise INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS modifications (code_suivi TEXT PRIMARY KEY, corps TEXT NOT NULL, ms INTEGER NOT NULL,
+    transmise INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS verifications (telephone TEXT PRIMARY KEY, empreinte TEXT NOT NULL, expire INTEGER NOT NULL,
     tentatives INTEGER NOT NULL DEFAULT 0);
 ";
@@ -185,6 +187,7 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/public/verification", post(verification))
         .route("/api/public/commandes", post(commande))
         .route("/api/public/suivi/{code}", get(suivi))
+        .route("/api/public/commandes/{code}/modifier", post(modifier))
         .route("/api/public/position/{code}", post(position))
         .merge(cloud::routes())
         // Le relais ne sert que les pages du client et du livreur, jamais l'application du personnel.
@@ -252,7 +255,7 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         return Err(erreur(StatusCode::UNAUTHORIZED, "NON_AUTHENTIFIE", "Clé du relais incorrecte"));
     }
     let t = maintenant();
-    let (commandes, positions, menu_empreinte) = e.avec(|c| {
+    let (commandes, positions, modifications, menu_empreinte) = e.avec(|c| {
         let tx = c.unchecked_transaction()?;
         let mut valeurs = vec![("config", s.config.clone()), ("dernier_contact", json!(t))];
         if let Some(m) = &s.menu {
@@ -289,14 +292,23 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
             .query_map([], |r| Ok(json!({ "code_livreur": r.get::<_, String>(0)?, "lat": r.get::<_, i64>(1)?, "lon": r.get::<_, i64>(2)? })))?
             .collect::<Result<_, _>>()?;
         tx.execute("UPDATE positions SET transmise = 1 WHERE transmise = 0", [])?;
+        let modifications: Vec<Value> = tx
+            .prepare("SELECT code_suivi, corps FROM modifications WHERE transmise = 0")?
+            .query_map([], |r| {
+                let corps: String = r.get(1)?;
+                Ok(json!({ "code_suivi": r.get::<_, String>(0)?, "modification": serde_json::from_str::<Value>(&corps).unwrap_or_default() }))
+            })?
+            .collect::<Result<_, _>>()?;
+        tx.execute("UPDATE modifications SET transmise = 1 WHERE transmise = 0", [])?;
+        tx.execute("DELETE FROM modifications WHERE transmise = 1 AND ms < ?1", [t - 86_400_000])?;
         // Ménage : commandes traitées de plus de 3 jours, codes SMS expirés.
         tx.execute("DELETE FROM commandes WHERE cree_le < ?1 AND resultat IS NOT NULL", [t - 3 * 86_400_000])?;
         tx.execute("DELETE FROM verifications WHERE expire < ?1", [t])?;
         tx.commit()?;
         let commandes: Vec<Value> = a_transmettre.into_iter().filter_map(|(_, c)| serde_json::from_str(&c).ok()).collect();
-        Ok((commandes, positions, menu_empreinte))
+        Ok((commandes, positions, modifications, menu_empreinte))
     })?;
-    Ok(Json(json!({ "commandes": commandes, "positions": positions, "sms": e.sms.nom(), "menu_empreinte": menu_empreinte })))
+    Ok(Json(json!({ "commandes": commandes, "positions": positions, "modifications": modifications, "sms": e.sms.nom(), "menu_empreinte": menu_empreinte })))
 }
 
 // ───────────── Client ─────────────
@@ -471,6 +483,34 @@ async fn suivi(State(e): State<Etat>, Path(code): Path<String>) -> Rep {
         "destination": null,
         "mis_a_jour": cree_le,
     })))
+}
+
+/// RG-CAN-06 : modification par le client, transmise au poste qui la vérifie et l'applique (ou non) ; le client voit
+/// le résultat dans son suivi. Le relais n'accepte que si le dernier suivi publié permet encore de modifier.
+async fn modifier(State(e): State<Etat>, Path(code): Path<String>, Json(m): Json<Value>) -> Rep {
+    let code = code.trim().to_uppercase();
+    let lignes = m["lignes"].as_array().map(|l| l.len()).unwrap_or(0);
+    if lignes == 0 || lignes > 50 || m["note"].as_str().unwrap_or("").len() > 500 {
+        return Ok(refus("Commande vide ou trop longue"));
+    }
+    let restantes: Option<i64> = e.avec(|c| {
+        c.query_row("SELECT corps FROM suivis WHERE code_suivi = ?1", [&code], |r| r.get::<_, String>(0))
+            .optional()
+            .map(|o| o.and_then(|s| serde_json::from_str::<Value>(&s).ok()).map(|v| v["modifications_restantes"].as_i64().unwrap_or(0)))
+    })?;
+    match restantes {
+        None => Ok(refus("Commande pas encore reçue par le restaurant : réessayez dans quelques secondes")),
+        Some(0) => Ok(refus("Le restaurant a déjà pris votre commande, ou vous l'avez déjà modifiée deux fois : appelez le restaurant")),
+        Some(_) => {
+            e.avec(|c| {
+                c.execute(
+                    "INSERT OR REPLACE INTO modifications(code_suivi, corps, ms, transmise) VALUES (?1, ?2, ?3, 0)",
+                    params![code, m.to_string(), maintenant()],
+                )
+            })?;
+            Ok(Json(json!({ "statut": "en_attente", "message": "Modification envoyée au restaurant", "numero": null, "code_suivi": code, "total": 0 })))
+        }
+    }
 }
 
 #[derive(Deserialize)]

@@ -1,14 +1,25 @@
-import { X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, Onglets, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa } from "../format";
 import { consigneNette, consignesSaisies } from "../consigne";
+import { comptesHorsCaisse } from "../paiement";
 import type { Compte, ConsigneAchat, EtatEmballage, NiveauStock } from "../types";
 
 type Fournisseur = { id: string; nom: string; telephone: string; notes: string; actif: boolean; dette: number };
-type Achat = { id: string; numero: number; fournisseur: string | null; mode: string; total: number; horodatage: number; lignes: [string, number, number, number][] };
+type Achat = {
+  id: string;
+  numero: number;
+  fournisseur: string | null;
+  mode: string;
+  total: number;
+  horodatage: number;
+  lignes: [string, number, number, number][];
+  paye_par: string | null;
+  tiroir: boolean;
+};
 type LigneSaisie = { article_id: string; conditionnement_id: string; quantite: number; prix_total: number };
 
 export default function Achats() {
@@ -39,7 +50,11 @@ function Reception() {
   const { donnees: comptes } = useDonnees(() => get<Compte[]>("/comptes"), []);
   const [fournisseur, setFournisseur] = useState("");
   const [mode, setMode] = useState("comptant");
-  const [compte, setCompte] = useState("");
+  // RG-ACH-05 : les achats se paient hors caisse ; « tiroir » = tiroir de ma caisse (session ouverte).
+  const [choixCompte, setCompte] = useState<string | null>(null);
+  const horsCaisse = comptesHorsCaisse(comptes ?? []);
+  const compte = choixCompte ?? horsCaisse[0]?.id ?? "tiroir";
+  const tiroir = compte === "tiroir" || (comptes ?? []).some((c) => c.id === compte && c.type === "especes");
   const [lignes, setLignes] = useState<LigneSaisie[]>([]);
   const [note, setNote] = useState("");
   // Emballages consignés reçus et vides rendus avec la livraison (fiche 0015).
@@ -72,10 +87,20 @@ function Reception() {
             libelle="Payé depuis"
             valeur={compte}
             changer={setCompte}
-            options={[{ valeur: "", libelle: "Ma caisse (session ouverte)" }, ...(comptes ?? []).filter((c) => c.actif && c.type !== "livreur").map((c) => ({ valeur: c.id, libelle: c.nom }))]}
+            options={[
+              ...horsCaisse.map((c) => ({ valeur: c.id, libelle: c.nom })),
+              { valeur: "tiroir", libelle: "Tiroir de ma caisse (déconseillé)" },
+              ...(comptes ?? []).filter((c) => c.actif && c.type === "especes").map((c) => ({ valeur: c.id, libelle: `${c.nom} (tiroir, déconseillé)` })),
+            ]}
           />
         )}
       </div>
+      {mode === "comptant" && tiroir && (
+        <p className="alerte" role="alert">
+          <AlertTriangle size={16} className="icone-texte" aria-hidden /> Les achats ne se paient pas avec l'argent de la caisse. Payé depuis le tiroir,
+          cet achat sera signalé au propriétaire (Ma journée, Contrôle) et visible à la clôture de caisse.
+        </p>
+      )}
       {lignes.map((l, i) => {
         const a = articles?.find((x) => x.article_id === l.article_id);
         const cond = a?.conditionnements.find((c) => c.id === l.conditionnement_id);
@@ -154,14 +179,14 @@ function Reception() {
                 {
                   fournisseur_id: fournisseur || null,
                   mode,
-                  compte_id: compte || null,
+                  compte_id: mode === "comptant" && compte !== "tiroir" ? compte : null,
                   note,
                   lignes: lignes.map((l) => ({ ...l, conditionnement_id: l.conditionnement_id || null })),
                   consignes: saisies,
                 },
                 pin,
               ),
-            "Réception enregistrée : stock mis à jour",
+            mode === "comptant" && tiroir ? "Réception enregistrée, payée par le tiroir : signalée au propriétaire" : "Réception enregistrée : stock mis à jour",
           ).then((r) => {
             if (r !== undefined) {
               setLignes([]);
@@ -180,8 +205,15 @@ function Historique() {
   const { donnees } = useDonnees(() => get<Achat[]>("/achats"), ["stock"]);
   return (
     <TableauDonnees
-      colonnes={["N°", "Date", "Fournisseur", "Mode", "Articles", "Total"]}
-      lignes={(donnees ?? []).map((a) => [a.numero, dateHeure(a.horodatage), a.fournisseur ?? "Marché", a.mode, a.lignes.map(([n, q]) => `${q} ${n}`).join(", "), fcfa(a.total)])}
+      colonnes={["N°", "Date", "Fournisseur", "Payé", "Articles", "Total"]}
+      lignes={(donnees ?? []).map((a) => [
+        a.numero,
+        dateHeure(a.horodatage),
+        a.fournisseur ?? "Marché",
+        a.mode === "credit" ? "À crédit" : a.tiroir ? <strong className="negatif">{a.paye_par} (tiroir)</strong> : (a.paye_par ?? "Comptant"),
+        a.lignes.map(([n, q]) => `${q} ${n}`).join(", "),
+        fcfa(a.total),
+      ])}
     />
   );
 }

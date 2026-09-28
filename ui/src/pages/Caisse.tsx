@@ -1,9 +1,10 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowUpDown, Banknote, Bike, Landmark, Lock, LockOpen, MinusCircle, Smartphone, Vault, Wallet } from "lucide-react";
+import { ArrowUpDown, Banknote, Bike, Landmark, Lock, LockOpen, MinusCircle, Printer, Smartphone, Vault, Wallet } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { Champ, ChampMontant, Choix, Modal, Montant, Onglets, TableauDonnees, Vide } from "../composants/Base";
 import { Chiffre, Chiffres } from "../composants/Chiffres";
+import { TicketImprimable } from "../composants/Ticket";
 import { useApp, useDonnees } from "../contexte";
 import { dateHeure, fcfa, heure, nombre } from "../format";
 import { t } from "../i18n";
@@ -44,11 +45,12 @@ export function Billetage({ coupures, lignes, changer }: { coupures: number[]; l
 const ICONE_COMPTE: Record<string, LucideIcon> = { especes: Banknote, mobile_money: Smartphone, banque: Landmark, coffre: Vault, livreur: Bike };
 
 export default function Caisse() {
-  const { etat, peut } = useApp();
+  const { etat, peut, agir } = useApp();
   const { donnees, recharger } = useDonnees(() => get<EtatCaisse>("/caisse"), ["caisse", "paiement"]);
   const [onglet, setOnglet] = useState<"session" | "depenses" | "comptes">("session");
   // Le rapport Z survit au retour à l'écran d'ouverture après la clôture.
-  const [z, setZ] = useState<string | null>(null);
+  // Rapport Z de la session qui vient d'être clôturée : texte et session (pour l'imprimante de caisse).
+  const [z, setZ] = useState<{ texte: string; session: string } | null>(null);
   if (!donnees) return <p className="aide">Chargement…</p>;
   if (!etat?.journee) return <Vide>Ouvrez la journée pour utiliser la caisse.</Vide>;
   // Un seul chiffre pour tous les opérateurs : le détail est dans « Comptes et transferts ».
@@ -99,8 +101,15 @@ export default function Caisse() {
         (donnees.session ? <SessionOuverte e={donnees} recharger={recharger} afficherZ={setZ} /> : <Ouverture e={donnees} recharger={recharger} />)}
       {z && (
         <Modal titre="Rapport de clôture (Z)" fermer={() => setZ(null)}>
-          <pre className="apercu-ticket">{z}</pre>
-          <button onClick={() => window.print()}>Imprimer</button>
+          <pre className="apercu-ticket">{z.texte}</pre>
+          {/* Le rapport seul est imprimé par le navigateur, pas l'écran de caisse (comme le ticket, fiche 0028). */}
+          <TicketImprimable texte={z.texte} />
+          <div className="actions">
+            <button onClick={() => agir(() => post(`/caisse/${z.session}/z/imprimer`, {}), "Rapport Z envoyé à l'imprimante de caisse")}>
+              <Printer size={18} aria-hidden /> Imprimante de caisse
+            </button>
+            <button onClick={() => window.print()}>Imprimer (navigateur)</button>
+          </div>
         </Modal>
       )}
       {onglet === "depenses" && <Depenses />}
@@ -158,7 +167,7 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
   );
 }
 
-function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger: () => void; afficherZ: (z: string) => void }) {
+function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger: () => void; afficherZ: (z: { texte: string; session: string }) => void }) {
   const s = e.session!;
   const { peut } = useApp();
   const { donnees: mvts, recharger: rechargerMvts } = useDonnees(() => get<Mvt[]>(`/caisse/mouvements?session=${s.id}`), ["caisse", "paiement"], [s.id]);
@@ -208,7 +217,7 @@ function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger:
           fermer={() => setMode("")}
           fait={(texte) => {
             setMode("");
-            afficherZ(texte);
+            afficherZ({ texte, session: s.id });
             tout();
           }}
         />

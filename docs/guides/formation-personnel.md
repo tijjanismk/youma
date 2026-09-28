@@ -72,7 +72,8 @@ quartier et noter le téléphone du client.
    sortie.
 
 **Dépenses et argent sorti du tiroir** (charbon, glace, taxi…) : Caisse → **Nouvelle dépense**, avec le
-bénéficiaire. Jamais d'argent sorti du tiroir sans l'enregistrer.
+bénéficiaire. Jamais d'argent sorti du tiroir sans l'enregistrer. Les **achats de marchandises** se paient hors
+caisse (coffre) : payés par le tiroir, ils sont signalés au propriétaire.
 
 **En fin de service**
 1. Caisse → **Clôturer ma caisse**.
@@ -108,6 +109,8 @@ Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.
 **Ouvrir et clôturer la journée**
 - Le matin : Accueil → **Ouvrir la journée**. Sans journée ouverte, personne ne peut vendre.
 - Le soir, quand toutes les caisses sont clôturées : Accueil → **Clôturer la journée** (Youma fait une sauvegarde).
+- Après l'ouverture : **Menu du jour** (carte de l'accueil) → cocher les plats du jour proposés aujourd'hui
+  (« Reprendre le menu d'hier » si rien ne change). Boissons et eau restent toujours proposées.
 
 **Ce qui demande le PIN du gérant** : annuler un article envoyé, une remise au-delà du plafond, certains retraits.
 Le gérant tape son PIN **lui-même** sur l'écran : ne jamais le donner au personnel.

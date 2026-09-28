@@ -423,6 +423,12 @@ code {
 .bandeau.erreur button {
   background: var(--carte);
 }
+/* Client qui modifie sa commande (RG-CAN-06) : le rappel reste visible. */
+.bandeau.avertissement {
+  background: var(--jaune-doux);
+  color: var(--jaune);
+  font-weight: 600;
+}
 .bandeau.demo {
   background: #fde047;
   color: #1c2150;
@@ -1081,6 +1087,19 @@ code {
   font-size: 2rem;
   letter-spacing: 6px;
   font-weight: 800;
+}
+
+/* Menu du jour (fiche 0036) : carte de l'accueil, mise en avant tant que rien n'est coché. */
+.menu-du-jour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.menu-du-jour.a-faire {
+  border-color: var(--accent);
+  background: var(--accent-doux);
 }
 
 /* Aperçu de l'icône choisie pour une catégorie (fiche 0035). */

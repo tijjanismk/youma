@@ -134,6 +134,8 @@ pub struct TableauDeBord {
     pub annulations: (i64, i64),
     pub remises: (i64, i64),
     pub offerts: (i64, i64),
+    /// RG-ACH-05 : achats payés depuis le tiroir d'une caisse (nombre, montant), signalés au propriétaire.
+    pub achats_tiroir: (i64, i64),
     pub employes_presents: i64,
     pub employes_actifs: i64,
     pub salaires_a_payer: i64,
@@ -157,6 +159,7 @@ pub fn tableau_de_bord(conn: &Connection) -> Resultat<TableauDeBord> {
             annulations: (0, 0),
             remises: (0, 0),
             offerts: (0, 0),
+            achats_tiroir: (0, 0),
             employes_presents: 0,
             employes_actifs: 0,
             salaires_a_payer: 0,
@@ -226,6 +229,12 @@ pub fn tableau_de_bord(conn: &Connection) -> Resultat<TableauDeBord> {
         params![j.id],
         |r| Ok((r.get(0)?, r.get(1)?)),
     )?;
+    let achats_tiroir: (i64, i64) = conn.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(a.total), 0) FROM achats a JOIN comptes_tresorerie t ON t.id = a.compte_id
+         WHERE a.journee_id = ?1 AND a.mode = 'comptant' AND t.type = 'especes'",
+        params![j.id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
     let presents = employes::presences(conn, None, d, d)?
         .iter()
         .filter(|p| p.statut == "present" || p.statut == "retard")
@@ -247,6 +256,7 @@ pub fn tableau_de_bord(conn: &Connection) -> Resultat<TableauDeBord> {
         annulations,
         remises,
         offerts,
+        achats_tiroir,
         employes_presents: presents,
         employes_actifs: actifs,
         salaires_a_payer,

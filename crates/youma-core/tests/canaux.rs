@@ -170,7 +170,23 @@ fn rg_can_02_qr_table_file_de_validation_et_addition_unique() {
     assert_eq!(cmd.envois.len(), 2);
     assert_eq!(cmd.lignes.iter().map(|l| l.quantite).sum::<i64>(), 3);
     assert_eq!(b.compter("SELECT COUNT(*) FROM commandes WHERE table_id IS NOT NULL AND statut = 'ouverte'"), 1);
-    assert_eq!(entrantes::suivi(b.db.conn(), r2.code_suivi.as_deref().unwrap()).unwrap().etape, "acceptee");
+    // Suivi de la seconde commande (fiche 0036) : ses propres lignes, envoyées en cuisine avec la tournée.
+    let code2 = r2.code_suivi.clone().unwrap();
+    let s2 = entrantes::suivi(b.db.conn(), &code2).unwrap();
+    assert_eq!(s2.etape, "en_preparation");
+    assert_eq!(s2.lignes, vec![(2, "Brochettes (3)".to_string())]);
+    assert!(s2.reste > 0, "l'addition de la table n'est pas réglée");
+    // La cuisine sert tout : le client voit « Servie » (étape livree hors livraison).
+    let g = b.gerant();
+    for e in commandes::detail(b.db.conn(), &id).unwrap().envois {
+        commandes::statut_envoi(&mut b.db, &g, &e.id, "pret", "").unwrap();
+    }
+    assert_eq!(entrantes::suivi(b.db.conn(), &code2).unwrap().etape, "prete");
+    for e in commandes::detail(b.db.conn(), &id).unwrap().envois {
+        commandes::statut_envoi(&mut b.db, &g, &e.id, "servi", "").unwrap();
+    }
+    assert_eq!(entrantes::suivi(b.db.conn(), &code2).unwrap().etape, "livree");
+    assert_eq!(entrantes::suivi(b.db.conn(), r.code_suivi.as_deref().unwrap()).unwrap().etape, "livree");
 }
 
 #[test]
@@ -427,4 +443,56 @@ fn rg_liv_04_suivi_en_direct_et_position_du_livreur() {
     assert!(s.livreur.is_none(), "la position n'est plus visible après la course");
     assert!(entrantes::ajouter_position(&mut b.db, &code_livreur, 12_640_000, -8_000_000).is_err());
     assert!(entrantes::suivi(b.db.conn(), "INCONNU").is_err());
+}
+
+#[test]
+fn rg_can_06_le_client_modifie_avant_acceptation_deux_fois_au_plus() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    activer(&mut b, |c| c.qr_table = true);
+    let a = b.proprietaire();
+    entrantes::generer_codes_qr(&mut b.db, &a, false).unwrap();
+    let t = b.table("4");
+    let code: String = b.db.conn().query_row("SELECT code_qr FROM tables_salle WHERE id = ?1", [&t], |r| r.get(0)).unwrap();
+    let r = recu_qr(&mut b, &code, vec![]);
+    let suivi = r.code_suivi.clone().unwrap();
+    assert_eq!(entrantes::suivi(b.db.conn(), &suivi).unwrap().modifications_restantes, 2);
+
+    let modif = |b: &Banc, lignes: Vec<(&str, i64)>| entrantes::ModificationClient {
+        lignes: lignes.into_iter().map(|(n, q)| b.ligne(n, q)).collect(),
+        note: "sans piment".into(),
+    };
+    // Première modification : 2 brochettes + 1 Coca à la place d'une brochette.
+    let m = modif(&b, vec![("Brochettes (3)", 2), ("Coca-Cola", 1)]);
+    let r1 = entrantes::modifier(&mut b.db, &suivi, &m).unwrap();
+    assert_eq!(r1.statut, "en_attente", "{}", r1.message);
+    let s = entrantes::suivi(b.db.conn(), &suivi).unwrap();
+    assert_eq!(s.lignes.len(), 2);
+    assert_eq!(s.modifications_restantes, 1);
+    assert_eq!(entrantes::file(b.db.conn()).unwrap()[0].modifications_client, 1);
+    // Vide : refusé, rien ne change.
+    let vide = entrantes::ModificationClient { lignes: vec![], note: String::new() };
+    assert_eq!(entrantes::modifier(&mut b.db, &suivi, &vide).unwrap().statut, "refusee");
+    // Deuxième, puis troisième refusée.
+    let m = modif(&b, vec![("Brochettes (3)", 1)]);
+    assert_eq!(entrantes::modifier(&mut b.db, &suivi, &m).unwrap().statut, "en_attente");
+    assert_eq!(entrantes::suivi(b.db.conn(), &suivi).unwrap().modifications_restantes, 0);
+    let r3 = entrantes::modifier(&mut b.db, &suivi, &m).unwrap();
+    assert_eq!(r3.statut, "refusee");
+    assert!(r3.message.contains("deux fois"));
+    assert_eq!(b.compter("SELECT COUNT(*) FROM journal_audit WHERE action = 'commande_entrante.modifiee'"), 2);
+
+    // Une nouvelle commande, acceptée : plus de modification possible.
+    let t5 = b.table("5");
+    let code5: String = b.db.conn().query_row("SELECT code_qr FROM tables_salle WHERE id = ?1", [&t5], |r| r.get(0)).unwrap();
+    let r5 = recu_qr(&mut b, &code5, vec![]);
+    let c = b.caissier();
+    let id5 = id_par_numero(&b, r5.numero.unwrap());
+    entrantes::valider(&mut b.db, &c, &id5, true, "").unwrap();
+    let suivi5 = r5.code_suivi.unwrap();
+    assert_eq!(entrantes::suivi(b.db.conn(), &suivi5).unwrap().modifications_restantes, 0);
+    let m = modif(&b, vec![("Brochettes (3)", 3)]);
+    let refus = entrantes::modifier(&mut b.db, &suivi5, &m).unwrap();
+    assert_eq!(refus.statut, "refusee");
+    assert!(refus.message.contains("déjà pris"));
 }
