@@ -369,9 +369,11 @@ function Validation({
     };
   }, [partager]);
 
+  // Position GPS précise (100 m au plus) : le point de repère devient facultatif ; sans GPS, il reste obligatoire (fiche 0038).
+  const positionPrecise = position !== null && precision !== null && precision <= 100;
   const valide =
     !enLigne ||
-    (telephone.replace(/\D/g, "").length >= 8 && (!sms || codeSms.trim().length === 4) && (type === "emporter" || (quartier.trim() && repere.trim())) && (mode !== "avance" || (operateur && reference.trim())));
+    (telephone.replace(/\D/g, "").length >= 8 && (!sms || codeSms.trim().length === 4) && (type === "emporter" || (quartier.trim() && (repere.trim() || positionPrecise))) && (mode !== "avance" || (operateur && reference.trim())));
 
   const envoyer = async () => {
     setEnvoi(true);
@@ -443,7 +445,13 @@ function Validation({
               ) : (
                 <Champ libelle="Quartier" valeur={quartier} changer={setQuartier} obligatoire />
               )}
-              <Champ libelle="Point de repère" valeur={repere} changer={setRepere} placeholder="Derrière la mosquée, portail bleu…" obligatoire />
+              <Champ
+                libelle={positionPrecise ? "Point de repère (facultatif : votre position est partagée)" : "Point de repère"}
+                valeur={repere}
+                changer={setRepere}
+                placeholder="Derrière la mosquée, portail bleu…"
+                obligatoire={!positionPrecise}
+              />
               <Case libelle="Partager ma position pour le livreur" valeur={partager} changer={setPartager} />
               {partager && !position && <p className="aide">Recherche de votre position…</p>}
               {position && (
@@ -452,7 +460,7 @@ function Validation({
                   {precision !== null && ` (à ${precision} m près)`}
                   {precision !== null &&
                     precision > 100 &&
-                    " : approximative. Activez la localisation précise (GPS) du téléphone ; le point de repère reste indispensable."}{" "}
+                    " : approximative. Activez la localisation précise (GPS) du téléphone, ou indiquez un point de repère."}{" "}
                   <a href={lienCarte(position[0], position[1])} target="_blank" rel="noreferrer">
                     Vérifier sur la carte
                   </a>

@@ -11,8 +11,8 @@ le restaurant non.
 
 - Menu client : `watchPosition` avec `enableHighAccuracy: true`, `maximumAge: 0`. On garde la meilleure mesure
   pendant 30 s au plus et on s'arrête sous 25 m. La précision est affichée (« à 12 m près ») avec un lien
-  « Vérifier sur la carte » ; au-delà de 100 m, avertissement : activer la localisation précise, le point de
-  repère reste indispensable.
+  « Vérifier sur la carte ». À 100 m près ou mieux, le **point de repère devient facultatif** (le livreur a la
+  vraie position). GPS indisponible, refusé ou imprécis : le point de repère reste obligatoire, comme avant.
 - Écran Livraisons : carte « Livreurs en route » (dernière position de chaque course assignée ou en route, nom du
   livreur, « il y a n min », distance au client si sa position est connue, lien carte).
   `livraison::positions_en_cours`, `GET /api/livraisons/positions`.
@@ -22,8 +22,9 @@ le restaurant non.
 
 - Carte intégrée à l'écran (tuiles OpenStreetMap chargées dans l'application) : contraire à la règle « rien n'est
   chargé depuis Internet par l'interface ». Le lien ouvre la carte dans un autre onglet.
-- Refuser les positions imprécises : un client sans GPS ne pourrait plus rien partager ; le point de repère reste
-  obligatoire de toute façon.
+- Refuser les positions imprécises : un client sans GPS ne pourrait plus rien partager ; il donne alors un point
+  de repère, comme avant.
+- Supprimer le point de repère : sans GPS (ou GPS refusé), c'est le seul moyen de trouver le client.
 
 ## Conséquences
 
