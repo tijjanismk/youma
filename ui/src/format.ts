@@ -79,3 +79,14 @@ export function joursLibelle(bits: number): string {
 /** Degrés décimaux ↔ microdegrés entiers (positions GPS stockées en entiers). */
 export const versMicro = (degres: number) => Math.round(degres * 1_000_000);
 export const depuisMicro = (micro: number) => micro / 1_000_000;
+
+/** Lien OpenStreetMap vers une position en microdegrés (ouvert dans un autre onglet, hors de l'application). */
+export function lienCarte(lat: number, lon: number): string {
+  const [a, o] = [depuisMicro(lat), depuisMicro(lon)];
+  return `https://www.openstreetmap.org/?mlat=${a}&mlon=${o}#map=16/${a}/${o}`;
+}
+
+/** « 800 m » ou « 1,2 km ». */
+export function distanceTexte(metres: number): string {
+  return metres < 1000 ? `${metres} m` : `${(metres / 1000).toFixed(1).replace(".", ",")} km`;
+}

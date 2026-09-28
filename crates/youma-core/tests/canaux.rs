@@ -434,6 +434,12 @@ fn rg_liv_04_suivi_en_direct_et_position_du_livreur() {
     let s = entrantes::suivi(b.db.conn(), &code_suivi).unwrap();
     assert_eq!(s.etape, "en_route");
     assert_eq!(s.livreur.map(|l| (l.0, l.1)), Some((12_641_000, -8_000_500)));
+    // Le restaurant voit aussi la dernière position de la course, avec le nom du livreur.
+    let j = journee::ouverte(b.db.conn()).unwrap().unwrap();
+    let en_cours = livraison::positions_en_cours(b.db.conn(), &j.id).unwrap();
+    assert_eq!(en_cours.len(), 1);
+    assert_eq!((en_cours[0].lat, en_cours[0].lon), (12_641_000, -8_000_500));
+    assert_eq!(en_cours[0].livreur_nom.as_deref(), Some("Ibrahim Keïta"));
     // Ajout seul.
     assert!(b.db.conn().execute("UPDATE positions_livreur SET lat = 0", []).is_err());
 
@@ -441,6 +447,7 @@ fn rg_liv_04_suivi_en_direct_et_position_du_livreur() {
     let s = entrantes::suivi(b.db.conn(), &code_suivi).unwrap();
     assert_eq!(s.etape, "livree");
     assert!(s.livreur.is_none(), "la position n'est plus visible après la course");
+    assert!(livraison::positions_en_cours(b.db.conn(), &j.id).unwrap().is_empty());
     assert!(entrantes::ajouter_position(&mut b.db, &code_livreur, 12_640_000, -8_000_000).is_err());
     assert!(entrantes::suivi(b.db.conn(), "INCONNU").is_err());
 }

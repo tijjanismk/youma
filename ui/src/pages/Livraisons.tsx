@@ -5,10 +5,21 @@ import { get, post } from "../api";
 import { ChampMontant, Choix, Modal, Montant, TableauDonnees } from "../composants/Base";
 import { useApp, useDonnees } from "../contexte";
 import { lienWhatsApp } from "../whatsapp";
-import { fcfa, heure } from "../format";
+import { distanceTexte, fcfa, heure, lienCarte, minutesDepuis } from "../format";
+import { distanceMetres } from "../public/panierClient";
+import { MapPin } from "lucide-react";
 import { t } from "../i18n";
 import type { CommandeResume, Employe } from "../types";
 
+type PositionCourse = {
+  commande_id: string;
+  numero: number;
+  livreur_nom: string | null;
+  lat: number;
+  lon: number;
+  horodatage: number;
+  destination: [number, number] | null;
+};
 type Livreur = { employe_id: string; nom: string; a_remettre: number; livraisons_en_cours: number };
 const SUIVANT: Record<string, string> = { nouvelle: "confirmee", confirmee: "en_preparation", en_preparation: "prete", assignee: "en_route", en_route: "livree" };
 
@@ -68,6 +79,7 @@ export default function Livraisons() {
           </span>,
         ])}
       />
+      <LivreursEnRoute />
       <h2>Argent à remettre par les livreurs</h2>
       <TableauDonnees
         colonnes={["Livreur", "En cours", "À remettre", ""]}
@@ -91,6 +103,36 @@ export default function Livraisons() {
       )}
       {remise && <RemiseLivreur l={remise} fermer={() => setRemise(null)} fait={tout} />}
       {liens && <LiensSuivi {...liens} fermer={() => setLiens(null)} />}
+    </div>
+  );
+}
+
+/** Dernière position GPS envoyée par le téléphone de chaque livreur en course (page du livreur, RG-LIV-04). */
+function LivreursEnRoute() {
+  const { donnees } = useDonnees(() => get<PositionCourse[]>("/livraisons/positions"), ["position", "livraison"]);
+  // Rafraîchit « il y a n min » même sans nouvelle position.
+  const [, setTic] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTic((x) => x + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  if (!donnees?.length) return null;
+  return (
+    <div className="carte">
+      <h2>Livreurs en route</h2>
+      {donnees.map((p) => {
+        const reste = p.destination ? distanceMetres([p.lat, p.lon], p.destination) : null;
+        return (
+          <p key={p.commande_id}>
+            <MapPin size={16} className="icone-texte" aria-hidden /> n°{p.numero} — {p.livreur_nom ?? "Livreur"} : position il y a {minutesDepuis(p.horodatage)}{" "}
+            min
+            {reste !== null && <> — environ {distanceTexte(reste)} du client</>}{" "}
+            <a className="bouton petit" href={lienCarte(p.lat, p.lon)} target="_blank" rel="noreferrer">
+              Voir sur la carte
+            </a>
+          </p>
+        );
+      })}
     </div>
   );
 }

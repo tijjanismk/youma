@@ -195,6 +195,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/paie/bulletins/{id}", get(paie_bulletin))
         // Livraison
         .route("/livraisons", get(livraisons))
+        .route("/livraisons/positions", get(livraisons_positions))
         .route("/livraisons/{id}/assigner", post(livraison_assigner))
         .route("/livraisons/{id}/statut", post(livraison_statut))
         .route("/livreurs", get(livreurs))
@@ -980,6 +981,13 @@ async fn paie_bulletin(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -
 }
 
 // ───────────── Livraison ─────────────
+
+async fn livraisons_positions(State(e): State<Etat>, a: Auth) -> Rep<Vec<livraison::PositionCourse>> {
+    lire!(e, a, Some(perm::LIVRAISON_GERER), |db| match journee::ouverte(db.conn())? {
+        Some(j) => livraison::positions_en_cours(db.conn(), &j.id),
+        None => Ok(vec![]),
+    })
+}
 
 async fn livraisons(State(e): State<Etat>, a: Auth) -> Rep<Vec<commandes::CommandeResume>> {
     lire!(e, a, Some(perm::LIVRAISON_GERER), |db| {
