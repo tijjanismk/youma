@@ -71,6 +71,7 @@ const fr = {
   vente: "Vente",
   depense: "Dépense",
   retrait_proprietaire: "Retrait propriétaire",
+  remise_coffre: "Remise au coffre",
   retrait: "Retrait",
   entree_diverse: "Entrée diverse",
   apport: "Apport",

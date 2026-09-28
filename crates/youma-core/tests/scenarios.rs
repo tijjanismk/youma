@@ -432,9 +432,9 @@ fn cloture_caisse_avec_ecart() {
     let c = b.commande_table("1", &[("Bière blonde", 5)]);
     b.payer_especes(&c, 5_000);
     let a = b.caissier();
-    let e = caisse::cloturer_session(&mut b.db, &a, &s, &ClotureSession { compte_final: 14_000, billetage: vec![], motif_ecart: String::new() }).unwrap_err();
+    let e = caisse::cloturer_session(&mut b.db, &a, &s, &ClotureSession { compte_final: 14_000, billetage: vec![], motif_ecart: String::new(), fond_garde: None }).unwrap_err();
     assert_eq!(e.regle_code(), Some("RG-CAI-09"));
-    let r = caisse::cloturer_session(&mut b.db, &a, &s, &ClotureSession { compte_final: 14_000, billetage: vec![], motif_ecart: "Erreur de rendu".into() }).unwrap();
+    let r = caisse::cloturer_session(&mut b.db, &a, &s, &ClotureSession { compte_final: 14_000, billetage: vec![], motif_ecart: "Erreur de rendu".into(), fond_garde: None }).unwrap();
     assert_eq!(r.ecart, Some(-1_000));
     assert_eq!(b.solde("Caisse principale"), 14_000);
     let z = rapports::rapport_z(b.db.conn(), &s).unwrap();

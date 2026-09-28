@@ -646,7 +646,7 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
     t.push_str(&ligne_montant("Fond compté à l'ouverture", &fcfa(s.fond_compte), w));
     t.push('\n');
     for (typ, n, m) in &par_type {
-        if typ == "ecart_ouverture" || typ == "ecart_cloture" {
+        if typ == "ecart_ouverture" || typ == "ecart_cloture" || typ == "remise_coffre" {
             continue;
         }
         t.push_str(&ligne_montant(&format!("{} ({n})", libelle_mouvement(typ)), &fcfa(*m), w));
@@ -662,6 +662,14 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
         t.push_str(&format!("**{}\n", ligne_montant("ÉCART", &fcfa(s.ecart.unwrap_or(0)), w)));
         if let Some(m) = s.motif_ecart.as_ref().filter(|m| !m.is_empty()) {
             t.push_str(&format!("Motif : {m}\n"));
+        }
+        // RG-CAI-15 : ce qui part au coffre et le fond laissé pour la monnaie.
+        let remise: i64 = par_type.iter().filter(|(typ, _, _)| typ == "remise_coffre").map(|(_, _, m)| -m).sum();
+        if remise > 0 {
+            t.push_str(&ligne_montant("Remis au coffre", &fcfa(remise), w));
+            t.push('\n');
+            t.push_str(&ligne_montant("Fond laissé en caisse", &fcfa(c - remise), w));
+            t.push('\n');
         }
     }
     // RG-CAI-14 : billets reçus des clients et monnaie rendue, pour recouper le comptage.
@@ -725,6 +733,7 @@ pub fn libelle_mouvement(t: &str) -> &str {
         "transfert_sortant" => "Transferts sortants",
         "transfert_entrant" => "Transferts entrants",
         "remise_livreur" => "Remises livreurs",
+        "remise_coffre" => "Remises au coffre",
         "ecart_ouverture" => "Écart d'ouverture",
         "ecart_cloture" => "Écart de clôture",
         "ecart_livreur" => "Écart livreur",

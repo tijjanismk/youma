@@ -219,8 +219,12 @@ test("clôture de caisse avec billetage et écart motivé", async ({ page }) => 
   const cloturer = page.getByRole("button", { name: "Clôturer", exact: true });
   await expect(cloturer).toBeDisabled();
   await page.getByLabel("Motif de l'écart (obligatoire)").fill("Erreur de rendu");
+  // RG-CAI-15 : fond de 10 000 gardé pour la monnaie, le reste part au coffre.
+  await expect(page.getByRole("dialog").getByText("Remis au coffre")).toBeVisible();
   await cloturer.click();
-  await expect(page.getByRole("dialog", { name: "Rapport de clôture (Z)" })).toContainText("RAPPORT Z");
+  const z = page.getByRole("dialog", { name: "Rapport de clôture (Z)" });
+  await expect(z).toContainText("RAPPORT Z");
+  await expect(z).toContainText("Fond laissé en caisse");
 });
 
 test("interface utilisable sur le téléphone d'un serveur", async ({ browser }) => {

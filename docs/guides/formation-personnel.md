@@ -79,7 +79,9 @@ caisse (coffre) : payés par le tiroir, ils sont signalés au propriétaire.
 1. Caisse → **Clôturer ma caisse**.
 2. Compter l'argent : **Compter billet par billet** (le plus sûr) ou taper le total.
 3. S'il y a un écart, le **motif est obligatoire**.
-4. Imprimer le **Rapport de clôture (Z)** et le remettre au gérant avec l'argent.
+4. **Fond gardé dans le tiroir** : laisser la monnaie pour le prochain service (le fond du matin, proposé) ;
+   le reste est remis au coffre.
+5. Imprimer le **Rapport de clôture (Z)** et le remettre au gérant avec l'argent remis au coffre.
 
 ---
 

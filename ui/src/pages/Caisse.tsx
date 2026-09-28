@@ -214,6 +214,7 @@ function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger:
         <Cloture
           s={s}
           coupures={e.coupures}
+          coffre={e.comptes.some((c) => c.type === "coffre" && c.actif)}
           fermer={() => setMode("")}
           fait={(texte) => {
             setMode("");
@@ -226,13 +227,29 @@ function SessionOuverte({ e, recharger, afficherZ }: { e: EtatCaisse; recharger:
   );
 }
 
-function Cloture({ s, coupures, fermer, fait }: { s: SessionCaisse; coupures: number[]; fermer: () => void; fait: (z: string) => void }) {
+function Cloture({
+  s,
+  coupures,
+  coffre,
+  fermer,
+  fait,
+}: {
+  s: SessionCaisse;
+  coupures: number[];
+  coffre: boolean;
+  fermer: () => void;
+  fait: (z: string) => void;
+}) {
   const { agir, etat } = useApp();
   const [billets, setBillets] = useState<LigneBillet[]>([]);
   const [montant, setMontant] = useState(0);
   const [detail, setDetail] = useState(true);
   const [motif, setMotif] = useState("");
+  // RG-CAI-15 : on garde un fond pour la monnaie, le reste part au coffre.
+  const [remettre, setRemettre] = useState(coffre);
+  const [fond, setFond] = useState(s.fond_compte);
   const compte = detail ? billets.reduce((x, l) => x + l.coupure * l.nombre, 0) : montant;
+  const garde = Math.min(fond, compte);
   const ecart = compte - s.solde_actuel;
   const seuil = etat?.parametres.seuil_ecart_caisse ?? 500;
   return (
@@ -251,6 +268,22 @@ function Cloture({ s, coupures, fermer, fait }: { s: SessionCaisse; coupures: nu
         Attendu : <strong>{fcfa(s.solde_actuel)}</strong> — Écart : <strong className={ecart < 0 ? "negatif" : ""}>{fcfa(ecart)}</strong>
       </p>
       {Math.abs(ecart) > seuil && <Champ libelle="Motif de l'écart (obligatoire)" valeur={motif} changer={setMotif} obligatoire />}
+      {coffre && (
+        <>
+          <label className="case">
+            <input type="checkbox" checked={remettre} onChange={(x) => setRemettre(x.target.checked)} />
+            <span>Remettre l'argent au coffre en gardant un fond pour la monnaie</span>
+          </label>
+          {remettre && (
+            <>
+              <ChampMontant libelle="Fond gardé dans le tiroir" valeur={fond} changer={setFond} />
+              <p>
+                Remis au coffre : <strong>{fcfa(compte - garde)}</strong> — Reste dans le tiroir : <strong>{fcfa(garde)}</strong>
+              </p>
+            </>
+          )}
+        </>
+      )}
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
         <button
@@ -258,7 +291,12 @@ function Cloture({ s, coupures, fermer, fait }: { s: SessionCaisse; coupures: nu
           disabled={Math.abs(ecart) > seuil && !motif.trim()}
           onClick={async () => {
             const r = await agir(
-              (pin) => post<{ z: string }>(`/caisse/${s.id}/cloturer`, { compte_final: compte, billetage: detail ? billets : [], motif_ecart: motif }, pin),
+              (pin) =>
+                post<{ z: string }>(
+                  `/caisse/${s.id}/cloturer`,
+                  { compte_final: compte, billetage: detail ? billets : [], motif_ecart: motif, fond_garde: remettre ? garde : null },
+                  pin,
+                ),
               "Caisse clôturée",
             );
             if (r) fait(r.z);

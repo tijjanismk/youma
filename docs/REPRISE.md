@@ -26,6 +26,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
   revendu (coût réel par les achats) ; **menu du jour** (plats du jour cochés chaque matin) ; **modification de la
   commande par le client** avant acceptation (2 fois, avertissement) ; achats payés hors caisse (tiroir signalé) ;
   rapport Z imprimé seul et sur l'imprimante de caisse. **[HYPOTHÈSE]** bug de clôture signalé = impression du Z.
+- **Remise au coffre à la clôture** (fiche 0037, RG-CAI-15) : fond gardé pour la monnaie, le reste part au coffre ;
+  la réouverture n'attend plus l'argent déjà remis.
 - **Plus d'émojis** (fiche 0035) : icônes dessinées partout, icône de catégorie choisie dans une liste.
 - **Formation du personnel** : `docs/guides/formation-personnel.md` et version illustrée à imprimer
   `docs/guides/formation/formation-personnel.pdf` (captures refaites par `ui/outils/formation.mjs`).
