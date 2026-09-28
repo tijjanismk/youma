@@ -101,6 +101,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/produits", post(produit_enregistrer))
         .route("/produits/import", post(produits_import))
         .route("/produits/{id}/disponibilite", post(produit_disponibilite))
+        .route("/menu-du-jour", get(menu_du_jour).post(menu_du_jour_definir))
         .route("/produits/{id}/historique", get(produit_historique))
         .route("/produits/{id}/recette", get(recette_lire).post(recette_definir))
         .route("/rapports/cout-matiere", get(rapport_cout_matiere))
@@ -143,6 +144,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/caisse/ouvrir", post(caisse_ouvrir))
         .route("/caisse/{id}/cloturer", post(caisse_cloturer))
         .route("/caisse/{id}/z", get(caisse_z))
+        .route("/caisse/{id}/z/imprimer", post(caisse_z_imprimer))
         .route("/caisse/encaisser", post(caisse_encaisser))
         .route("/caisse/mouvement", post(caisse_mouvement))
         .route("/caisse/transfert", post(caisse_transfert))
@@ -240,6 +242,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/public/menu", get(public_menu))
         .route("/public/commandes", post(public_commande))
         .route("/public/suivi/{code}", get(public_suivi))
+        .route("/public/commandes/{code}/modifier", post(public_modifier))
         .route("/public/position/{code}", post(public_position));
 
     let mut app = Router::new().nest("/api", api);
@@ -442,6 +445,19 @@ async fn produits_import(State(e): State<Etat>, a: Auth, corps: String) -> Rep<u
 #[derive(Deserialize)]
 struct Disponibilite {
     disponible: bool,
+}
+
+async fn menu_du_jour(State(e): State<Etat>, a: Auth) -> Rep<catalogue::MenuDuJour> {
+    lire!(e, a, AUCUNE, |db| catalogue::menu_du_jour(db.conn()))
+}
+
+#[derive(Deserialize)]
+struct MenuDuJourSaisi {
+    produits: Vec<String>,
+}
+
+async fn menu_du_jour_definir(State(e): State<Etat>, a: Auth, Json(m): Json<MenuDuJourSaisi>) -> Rep<()> {
+    ecrire!(e, a, |db| catalogue::definir_menu_du_jour(db, &a, &m.produits))
 }
 
 async fn produit_disponibilite(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(d): Json<Disponibilite>) -> Rep<()> {
@@ -686,6 +702,10 @@ async fn caisse_cloturer(State(e): State<Etat>, a: Auth, Path(id): Path<String>,
 
 async fn caisse_z(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<String> {
     lire!(e, a, AUCUNE, |db| rapports::rapport_z(db.conn(), &id).map(|z| impression::texte_brut(&z)))
+}
+
+async fn caisse_z_imprimer(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Option<String>> {
+    ecrire!(e, a, |db| impression::imprimer_z(db, &a, &id))
 }
 
 async fn caisse_encaisser(State(e): State<Etat>, a: Auth, Json(x): Json<caisse::Encaissement>) -> Rep<caisse::ResultatEncaissement> {
@@ -1355,6 +1375,11 @@ async fn public_menu(State(e): State<Etat>, Query(p): Q) -> Rep<entrantes::MenuP
         })
         .await?;
     Ok(Json(m))
+}
+
+/// RG-CAN-06 : le client modifie sa commande avant acceptation (le code de suivi fait office de clé).
+async fn public_modifier(State(e): State<Etat>, Path(code): Path<String>, Json(m): Json<entrantes::ModificationClient>) -> Rep<entrantes::Reponse> {
+    Ok(Json(e.avec_db(move |db| entrantes::modifier(db, &code, &m)).await?))
 }
 
 async fn public_commande(State(e): State<Etat>, Json(c): Json<entrantes::CommandeEntrante>) -> Rep<entrantes::Reponse> {

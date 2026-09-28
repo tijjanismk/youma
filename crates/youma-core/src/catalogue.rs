@@ -146,6 +146,15 @@ pub struct Produit {
     pub prix_zones: Vec<PrixZone>,
     #[serde(default)]
     pub groupes_options: Vec<GroupeOptions>,
+    /// RG-CAT-07 : proposé seulement les jours où il est coché au menu du jour (sinon : toujours proposé).
+    #[serde(default)]
+    pub selon_jour: bool,
+    /// Calculé : proposé aujourd'hui (pas un plat du jour, ou coché au menu de la journée ouverte).
+    #[serde(default = "vrai")]
+    pub au_menu: bool,
+    /// Produit revendu sans article de stock : unité de l'article créé avec lui (RG-CAT-06, fiche 0036).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unite_stock: Option<String>,
 }
 
 fn suivi_defaut() -> String {
@@ -185,7 +194,7 @@ pub struct OptionProduit {
 }
 
 const COLS_PRODUIT: &str = "id, categorie_id, nom, nom_court, description, photo, prix, poste_id, disponible, actif,
-    code, code_barres, taux_tva_bp, suivi_stock, article_stock_id, prix_achat_estime, ordre";
+    code, code_barres, taux_tva_bp, suivi_stock, article_stock_id, prix_achat_estime, ordre, selon_jour";
 
 fn produit_depuis(r: &rusqlite::Row) -> rusqlite::Result<Produit> {
     Ok(Produit {
@@ -208,6 +217,9 @@ fn produit_depuis(r: &rusqlite::Row) -> rusqlite::Result<Produit> {
         ordre: r.get(16)?,
         prix_zones: vec![],
         groupes_options: vec![],
+        selon_jour: r.get(17)?,
+        au_menu: true,
+        unite_stock: None,
     })
 }
 
@@ -231,6 +243,13 @@ fn completer(conn: &Connection, p: &mut Produit) -> Resultat<()> {
             .collect::<Result<Vec<_>, _>>()?;
     }
     p.groupes_options = groupes;
+    // RG-CAT-07 : un plat du jour n'est proposé que s'il est coché pour la journée ouverte.
+    p.au_menu = !p.selon_jour
+        || conn
+            .prepare_cached(
+                "SELECT 1 FROM menu_du_jour m JOIN journees j ON j.id = m.journee_id WHERE j.statut = 'ouverte' AND m.produit_id = ?1",
+            )?
+            .exists(params![p.id])?;
     Ok(())
 }
 
@@ -284,8 +303,21 @@ pub(crate) fn enregistrer_produit_op(op: &Op, p: &Produit) -> Resultat<String> {
     if !["aucun", "revendu", "recette"].contains(&p.suivi_stock.as_str()) {
         return Err(Erreur::validation("Mode de suivi du stock inconnu"));
     }
-    if p.suivi_stock == "revendu" && p.article_stock_id.is_none() {
-        return Err(Erreur::regle("RG-CAT-06", "Un produit revendu doit être lié à un article de stock"));
+    // RG-CAT-06 : un produit revendu est lié à un article de stock ; sans article choisi, il est créé avec lui
+    // (même nom, famille = catégorie, coût de départ = coût d'achat estimé ; chaque achat le met ensuite à jour).
+    let mut article_stock_id = p.article_stock_id.clone();
+    if p.suivi_stock == "revendu" && article_stock_id.is_none() {
+        let famille: String =
+            op.query_row("SELECT nom FROM categories WHERE id = ?1", params![p.categorie_id], |r| r.get(0)).optional()?.unwrap_or_default();
+        let unite = p.unite_stock.as_deref().map(str::trim).filter(|u| !u.is_empty()).unwrap_or("pièce");
+        let a = op.nouvel_id();
+        op.execute(
+            "INSERT INTO articles_stock(id, nom, unite, seuil_alerte, cout_unitaire, famille, actif, modifie_le)
+             VALUES (?1, ?2, ?3, 0, ?4, ?5, 1, ?6)",
+            params![a, p.nom.trim(), unite, p.prix_achat_estime.max(0), famille, op.maintenant],
+        )?;
+        op.audit("article.creer_avec_produit", "article_stock", Some(&a), None, Some(json!({ "produit": p.nom.trim() })), None, None)?;
+        article_stock_id = Some(a);
     }
     let nouveau = p.id.is_empty();
     let id = if nouveau { op.nouvel_id() } else { p.id.clone() };
@@ -293,15 +325,15 @@ pub(crate) fn enregistrer_produit_op(op: &Op, p: &Produit) -> Resultat<String> {
         op.query_row("SELECT prix FROM produits WHERE id = ?1", params![id], |r| r.get(0)).optional()?;
     op.execute(
         "INSERT INTO produits(id, categorie_id, nom, nom_court, description, photo, prix, poste_id, disponible, actif,
-            code, code_barres, taux_tva_bp, suivi_stock, article_stock_id, prix_achat_estime, ordre, modifie_le)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+            code, code_barres, taux_tva_bp, suivi_stock, article_stock_id, prix_achat_estime, ordre, modifie_le, selon_jour)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
          ON CONFLICT(id) DO UPDATE SET categorie_id = excluded.categorie_id, nom = excluded.nom,
             nom_court = excluded.nom_court, description = excluded.description, photo = excluded.photo,
             prix = excluded.prix, poste_id = excluded.poste_id, disponible = excluded.disponible,
             actif = excluded.actif, code = excluded.code, code_barres = excluded.code_barres,
             taux_tva_bp = excluded.taux_tva_bp, suivi_stock = excluded.suivi_stock,
             article_stock_id = excluded.article_stock_id, prix_achat_estime = excluded.prix_achat_estime,
-            ordre = excluded.ordre, modifie_le = excluded.modifie_le, version = version + 1",
+            ordre = excluded.ordre, modifie_le = excluded.modifie_le, selon_jour = excluded.selon_jour, version = version + 1",
         params![
             id,
             p.categorie_id,
@@ -317,10 +349,11 @@ pub(crate) fn enregistrer_produit_op(op: &Op, p: &Produit) -> Resultat<String> {
             p.code_barres,
             p.taux_tva_bp,
             p.suivi_stock,
-            p.article_stock_id,
+            article_stock_id,
             p.prix_achat_estime,
             p.ordre,
-            op.maintenant
+            op.maintenant,
+            p.selon_jour
         ],
     )?;
     // RG-CAT-02 : historique des prix.
@@ -417,6 +450,65 @@ pub(crate) fn enregistrer_produit_op(op: &Op, p: &Produit) -> Resultat<String> {
 }
 
 /// Rupture du jour en un clic (RG-CAT-05).
+/// Menu du jour de la journée ouverte (RG-CAT-07) : plats du jour possibles et ceux cochés aujourd'hui.
+#[derive(Debug, Serialize)]
+pub struct MenuDuJour {
+    pub journee_ouverte: bool,
+    /// (id, nom, catégorie) des produits « plat du jour » actifs.
+    pub plats: Vec<(String, String, String)>,
+    pub coches: Vec<String>,
+    /// Cochés lors de la dernière journée qui avait un menu (pour « Reprendre le menu d'hier »).
+    pub precedents: Vec<String>,
+}
+
+pub fn menu_du_jour(conn: &Connection) -> Resultat<MenuDuJour> {
+    let journee = crate::journee::ouverte(conn)?;
+    let mut s = conn.prepare(
+        "SELECT p.id, p.nom, COALESCE(c.nom, '') FROM produits p LEFT JOIN categories c ON c.id = p.categorie_id
+         WHERE p.actif = 1 AND p.selon_jour = 1 ORDER BY c.ordre, c.nom, p.ordre, p.nom",
+    )?;
+    let plats = s.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect::<Result<Vec<_>, _>>()?;
+    let ids = |sql: &str, p: &dyn rusqlite::ToSql| -> Resultat<Vec<String>> {
+        let mut s = conn.prepare(sql)?;
+        let v = s.query_map([p], |r| r.get(0))?.collect::<Result<Vec<String>, _>>()?;
+        Ok(v)
+    };
+    let jid = journee.as_ref().map(|j| j.id.clone()).unwrap_or_default();
+    let coches = ids("SELECT produit_id FROM menu_du_jour WHERE journee_id = ?1", &jid)?;
+    let precedents = ids(
+        "SELECT produit_id FROM menu_du_jour WHERE journee_id = (
+            SELECT m.journee_id FROM menu_du_jour m JOIN journees j ON j.id = m.journee_id
+            WHERE m.journee_id <> ?1 ORDER BY j.date_exploitation DESC LIMIT 1)",
+        &jid,
+    )?;
+    Ok(MenuDuJour { journee_ouverte: journee.is_some(), plats, coches, precedents })
+}
+
+/// RG-CAT-07 : compose le menu du jour de la journée ouverte (remplace la sélection du jour).
+/// Même droit que la disponibilité : le caissier ou le gérant le fait le matin.
+pub fn definir_menu_du_jour(db: &mut Db, acteur: &Acteur, produits: &[String]) -> Resultat<()> {
+    db.executer(acteur, |op| {
+        if !op.a_permission(perm::CAISSE_ENCAISSER) {
+            op.exiger(perm::CATALOGUE_GERER)?;
+        }
+        let journee = op.journee_ouverte()?.id;
+        op.execute("DELETE FROM menu_du_jour WHERE journee_id = ?1", params![journee])?;
+        for id in produits {
+            let plat: bool = op
+                .query_row("SELECT selon_jour = 1 AND actif = 1 FROM produits WHERE id = ?1", params![id], |r| r.get(0))
+                .optional()?
+                .unwrap_or(false);
+            if !plat {
+                return Err(Erreur::validation("Seuls les plats du jour se cochent au menu du jour"));
+            }
+            op.execute("INSERT INTO menu_du_jour(journee_id, produit_id) VALUES (?1, ?2)", params![journee, id])?;
+        }
+        op.audit("menu_du_jour.definir", "journee", Some(&journee), None, Some(json!({ "produits": produits })), None, None)?;
+        op.evenement("catalogue", None);
+        Ok(())
+    })
+}
+
 pub fn definir_disponibilite(db: &mut Db, acteur: &Acteur, produit_id: &str, disponible: bool) -> Resultat<()> {
     db.executer(acteur, |op| {
         // Le caissier doit pouvoir signaler une rupture sans droits de catalogue.
@@ -539,6 +631,9 @@ pub fn importer_csv(db: &mut Db, acteur: &Acteur, texte: &str) -> Resultat<usize
                     ordre: 0,
                     prix_zones: vec![],
                     groupes_options: vec![],
+                    selon_jour: false,
+                    au_menu: true,
+                    unite_stock: None,
                 },
             )?;
             n += 1;

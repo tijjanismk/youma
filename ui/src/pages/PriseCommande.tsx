@@ -59,7 +59,7 @@ export default function PriseCommande() {
   const produits = useMemo(() => {
     if (!cat) return [];
     const r = recherche.trim().toLowerCase();
-    return cat.produits.filter((p) => p.actif && (r ? p.nom.toLowerCase().includes(r) || p.code === r : p.categorie_id === categorie));
+    return cat.produits.filter((p) => p.actif && p.au_menu !== false && (r ? p.nom.toLowerCase().includes(r) || p.code === r : p.categorie_id === categorie));
   }, [cat, categorie, recherche]);
 
   if (!cmd || !cat) return <p className="aide">Chargement…</p>;

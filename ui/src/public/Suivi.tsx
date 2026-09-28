@@ -1,4 +1,4 @@
-import { Check, MapPin } from "lucide-react";
+import { Check, MapPin, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get } from "../api";
 import { dateHeure, depuisMicro, fcfa, minutesDepuis } from "../format";
@@ -66,6 +66,16 @@ export default function Suivi({ code }: { code: string }) {
             </li>
           ))}
         </ol>
+      )}
+      {(s.modifications_restantes ?? 0) > 0 && (
+        <div className="carte">
+          <a className="bouton" href={`/menu?modifier=${encodeURIComponent(code)}${s.code_table ? `&table=${encodeURIComponent(s.code_table)}` : ""}`}>
+            <Pencil size={18} aria-hidden /> Modifier ma commande
+          </a>
+          <p className="aide">
+            Possible tant que le restaurant ne l'a pas prise, {s.modifications_restantes === 1 ? "encore une fois" : `encore ${s.modifications_restantes} fois`}.
+          </p>
+        </div>
       )}
       {s.etape === "en_route" && s.livreur && (
         <div className="carte">

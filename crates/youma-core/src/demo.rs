@@ -43,6 +43,9 @@ fn produit(categorie: &str, nom: &str, prix: i64, poste: Option<&str>) -> Produi
         ordre: 0,
         prix_zones: vec![],
         groupes_options: vec![],
+        selon_jour: false,
+        au_menu: true,
+        unite_stock: None,
     }
 }
 

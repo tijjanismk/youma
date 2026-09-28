@@ -680,3 +680,69 @@ test("stock : article et sortie saisis par des listes, sans texte libre (fiche 0
   await sortie.getByRole("button", { name: "Enregistrer" }).click();
   await expect(ligne).toContainText("500 g");
 });
+
+test("menu du jour : un plat du jour n'est proposé que s'il est coché (RG-CAT-07)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/administration");
+  await page.getByRole("row").filter({ hasText: "Poulet braisé" }).getByRole("button", { name: "Modifier" }).click();
+  const fiche = page.getByRole("dialog");
+  await fiche.getByLabel("Plat du jour : proposé seulement les jours où il est coché au menu du jour").check();
+  await fiche.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(fiche).toBeHidden();
+  // Pas coché aujourd'hui : absent de la prise de commande.
+  await page.goto("/");
+  await expect(page.locator(".menu-du-jour")).toContainText("aucun plat coché");
+  await page.getByRole("button", { name: /Vente comptoir/ }).click();
+  await page.getByRole("tab", { name: /Grillades/ }).click();
+  await expect(page.getByRole("button", { name: /^Brochettes \(3\) \d/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Poulet braisé/ })).toHaveCount(0);
+  // Coché au menu du jour : proposé.
+  await page.goto("/");
+  await page.getByRole("button", { name: "Composer le menu du jour" }).click();
+  await page.getByRole("dialog", { name: "Menu du jour" }).getByLabel("Poulet braisé").check();
+  await page.getByRole("button", { name: "Enregistrer (1)" }).click();
+  await expect(page.locator(".menu-du-jour")).toContainText("1 plat sur 1");
+  // Retour à l'état de départ pour les tests suivants.
+  await page.goto("/administration");
+  await page.getByRole("row").filter({ hasText: "Poulet braisé" }).getByRole("button", { name: "Modifier" }).click();
+  await page.getByRole("dialog").getByLabel("Plat du jour : proposé seulement les jours où il est coché au menu du jour").uncheck();
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+});
+
+test("le client modifie sa commande avant acceptation, avec avertissement (RG-CAN-06)", async ({ page, browser }) => {
+  const client = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
+  const web = await client.newPage();
+  await web.goto("/menu");
+  await web.getByRole("tab", { name: /Grillades/ }).click();
+  await web.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
+  await web.getByRole("button", { name: /^Commander \(1\)/ }).click();
+  await web.getByLabel("Votre téléphone").fill("76 44 55 66");
+  await web.getByLabel("Quartier").selectOption("Hamdallaye");
+  await web.getByLabel("Point de repère").fill("Face au lycée");
+  await web.getByRole("button", { name: "Envoyer la commande" }).click();
+  await expect(web).toHaveURL(/\/suivi\//);
+  // Modification : ajout d'un Coca, avec avertissement avant l'envoi.
+  await web.getByRole("link", { name: "Modifier ma commande" }).click();
+  await expect(web.getByRole("status")).toContainText("encore 2 possibles");
+  await web.getByRole("tab", { name: /Boissons/ }).click();
+  await web.getByRole("button", { name: /^Ajouter Coca-Cola/ }).click();
+  await web.getByRole("button", { name: /^Envoyer la modification \(2\)/ }).click();
+  await expect(web.getByRole("dialog", { name: "Modifier ma commande" })).toContainText("le restaurant verra que vous l'avez modifiée");
+  await web.getByRole("button", { name: "Confirmer la modification" }).click();
+  await expect(web).toHaveURL(/\/suivi\//);
+  await expect(web.getByText("1 × Coca-Cola")).toBeVisible();
+  await expect(web.getByText("encore une fois")).toBeVisible();
+
+  // Le restaurant voit la modification, puis refuse (pas de livreur) : plus rien à modifier.
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/entrantes");
+  const c = page.locator(".entrante").filter({ hasText: "Face au lycée" });
+  await expect(c).toContainText("Modifiée par le client (1 fois)");
+  await c.getByRole("button", { name: "Refuser" }).click();
+  await page.getByRole("button", { name: "Rupture" }).click();
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await web.reload();
+  await expect(web.getByText("Commande refusée")).toBeVisible();
+  await expect(web.getByRole("link", { name: "Modifier ma commande" })).toHaveCount(0);
+  await client.close();
+});

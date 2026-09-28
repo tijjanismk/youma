@@ -306,6 +306,15 @@ pub fn reimprimer(db: &mut Db, acteur: &Acteur, id: &str, destination: Option<&s
     })
 }
 
+/// Rapport de clôture (Z) d'une session, mis en file sur l'imprimante de caisse (remis au gérant avec l'argent).
+pub fn imprimer_z(db: &mut Db, acteur: &Acteur, session_id: &str) -> Resultat<Option<String>> {
+    db.executer(acteur, |op| {
+        op.exiger(perm::CAISSE_SESSION)?;
+        let texte = crate::rapports::rapport_z(op, session_id)?;
+        mettre_en_file(op, None, "rapport_z", Some(session_id), &texte)
+    })
+}
+
 /// Ticket client (addition ou reçu) mis en file sur l'imprimante de caisse.
 pub fn imprimer_ticket_client(db: &mut Db, acteur: &Acteur, commande_id: &str) -> Resultat<Option<String>> {
     db.executer(acteur, |op| {

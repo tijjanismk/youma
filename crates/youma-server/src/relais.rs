@@ -113,6 +113,13 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
             resultats.push(json!({ "origine_id": origine, "reponse": reponse }));
         }
     }
+    // RG-CAN-06 : modifications faites par les clients sur le relais ; le résultat se voit dans le suivi publié.
+    for m in reponse["modifications"].as_array().cloned().unwrap_or_default() {
+        let code = m["code_suivi"].as_str().unwrap_or("").to_string();
+        if let Ok(modif) = serde_json::from_value::<entrantes::ModificationClient>(m["modification"].clone()) {
+            let _ = etat.avec_db(move |db| entrantes::modifier(db, &code, &modif)).await;
+        }
+    }
     for p in reponse["positions"].as_array().cloned().unwrap_or_default() {
         let (Some(code), Some(lat), Some(lon)) = (p["code_livreur"].as_str().map(str::to_owned), p["lat"].as_i64(), p["lon"].as_i64()) else {
             continue;

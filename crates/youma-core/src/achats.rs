@@ -182,6 +182,14 @@ pub fn receptionner(db: &mut Db, acteur: &Acteur, a: &NouvelAchat) -> Resultat<S
             )?;
         }
         op.audit("achat.receptionner", "achat", Some(&id), None, Some(json!({ "total": total, "mode": a.mode })), None, None)?;
+        // RG-ACH-05 : les achats se paient hors caisse (coffre, banque, Mobile Money) ; payé depuis le tiroir d'une
+        // caisse, il est tracé et signalé au propriétaire (« Ma journée » → Contrôle).
+        if let Some(c) = &compte {
+            let tiroir: bool = op.query_row("SELECT type = 'especes' FROM comptes_tresorerie WHERE id = ?1", params![c], |r| r.get(0))?;
+            if tiroir && total > 0 {
+                op.audit("achat.paye_par_tiroir", "achat", Some(&id), None, Some(json!({ "total": total, "compte": c })), None, None)?;
+            }
+        }
         op.outbox("achat", &id, "creer")?;
         op.evenement("stock", None);
         Ok(id)
@@ -233,16 +241,30 @@ pub struct AchatLu {
     pub total: i64,
     pub horodatage: i64,
     pub lignes: Vec<(String, i64, i64, i64)>,
+    /// Compte qui a payé (comptant) et s'il s'agit du tiroir d'une caisse (RG-ACH-05).
+    pub paye_par: Option<String>,
+    pub tiroir: bool,
 }
 
 pub fn lister_achats(conn: &Connection, limite: i64) -> Resultat<Vec<AchatLu>> {
     let mut s = conn.prepare(
-        "SELECT a.id, a.numero, f.nom, a.mode, a.total, a.horodatage FROM achats a
-         LEFT JOIN fournisseurs f ON f.id = a.fournisseur_id ORDER BY a.horodatage DESC LIMIT ?1",
+        "SELECT a.id, a.numero, f.nom, a.mode, a.total, a.horodatage, t.nom, COALESCE(t.type = 'especes', 0) FROM achats a
+         LEFT JOIN fournisseurs f ON f.id = a.fournisseur_id LEFT JOIN comptes_tresorerie t ON t.id = a.compte_id
+         ORDER BY a.horodatage DESC LIMIT ?1",
     )?;
     let base = s
         .query_map(params![limite], |r| {
-            Ok(AchatLu { id: r.get(0)?, numero: r.get(1)?, fournisseur: r.get(2)?, mode: r.get(3)?, total: r.get(4)?, horodatage: r.get(5)?, lignes: vec![] })
+            Ok(AchatLu {
+                id: r.get(0)?,
+                numero: r.get(1)?,
+                fournisseur: r.get(2)?,
+                mode: r.get(3)?,
+                total: r.get(4)?,
+                horodatage: r.get(5)?,
+                lignes: vec![],
+                paye_par: r.get(6)?,
+                tiroir: r.get(7)?,
+            })
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let mut v = Vec::new();

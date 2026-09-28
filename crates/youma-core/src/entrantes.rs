@@ -80,7 +80,7 @@ pub fn menu_public(conn: &Connection, code_table: Option<&str>, ms: i64) -> Resu
         .map(|c| CategoriePublique { id: c.id, nom: c.nom, icone: c.icone, couleur: c.couleur })
         .collect();
     let mut produits = Vec::new();
-    for pr in catalogue::lister_produits(conn, true)?.into_iter().filter(|p| p.disponible) {
+    for pr in catalogue::lister_produits(conn, true)?.into_iter().filter(|p| p.disponible && p.au_menu) {
         // Happy hour en cours : le client voit le prix qu'il paiera.
         let prix = crate::promotions::prix_du_moment(conn, &pr.id, table.as_ref().map(|t| t.2.as_str()), ms)?.prix;
         produits.push(ProduitPublic {
@@ -307,7 +307,7 @@ fn recevoir_op(op: &mut Op, e: &CommandeEntrante) -> Resultat<Reponse> {
             Ok(p) => p,
             Err(_) => return Ok(refus("Un article n'existe plus : rechargez le menu")),
         };
-        if !p.actif || !p.disponible {
+        if !p.actif || !p.disponible || !p.au_menu {
             return Ok(refus(format!("« {} » n'est plus disponible aujourd'hui", p.nom)));
         }
         if l.quantite <= 0 || l.quantite > 50 {
@@ -403,6 +403,87 @@ fn recevoir_op(op: &mut Op, e: &CommandeEntrante) -> Resultat<Reponse> {
     })
 }
 
+// ───────────── Modification par le client ─────────────
+
+/// RG-CAN-06 : nombre de modifications permises au client, avant acceptation seulement.
+pub const MODIFICATIONS_MAX: i64 = 2;
+
+/// Nouvelle version de la commande envoyée par le client depuis sa page de suivi.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ModificationClient {
+    pub lignes: Vec<LigneSaisie>,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// RG-CAN-06 : le client modifie sa commande tant que le restaurant ne l'a pas acceptée, deux fois au plus.
+/// Mêmes contrôles qu'à la commande (disponibilité, menu du jour, quantités, plafond du paiement à la livraison).
+/// Les lignes (jamais envoyées en cuisine) sont remplacées ; le restaurant voit « modifiée » dans sa file.
+pub fn modifier(db: &mut Db, code_suivi: &str, m: &ModificationClient) -> Resultat<Reponse> {
+    db.executer(&Acteur::systeme(), |op| {
+        let Ok(id) = id_par_code(op, code_suivi.trim()) else {
+            return Ok(refus("Commande introuvable"));
+        };
+        let (numero, validation, statut, canal, mode, zone, deja): (i64, Option<String>, String, String, Option<String>, Option<String>, i64) =
+            op.query_row(
+                "SELECT numero, validation, statut, canal, paiement_mode, zone_id, modifications_client FROM commandes WHERE id = ?1",
+                params![id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?)),
+            )?;
+        if validation.as_deref() != Some("en_attente") || statut != "ouverte" {
+            return Ok(refus("Le restaurant a déjà pris votre commande : demandez à un serveur pour la changer"));
+        }
+        if deja >= MODIFICATIONS_MAX {
+            return Ok(refus("Vous avez déjà modifié votre commande deux fois : appelez le restaurant ou un serveur"));
+        }
+        if m.lignes.is_empty() {
+            return Ok(refus("Votre commande ne peut pas être vide"));
+        }
+        if m.lignes.len() > 50 || m.note.len() > 500 {
+            return Ok(refus("Commande trop longue : appelez le restaurant"));
+        }
+        let mut total_articles = 0;
+        for l in &m.lignes {
+            let Ok(p) = catalogue::produit(op, &l.produit_id) else {
+                return Ok(refus("Un article n'existe plus : rechargez le menu"));
+            };
+            if !p.actif || !p.disponible || !p.au_menu {
+                return Ok(refus(format!("« {} » n'est plus disponible aujourd'hui", p.nom)));
+            }
+            if l.quantite <= 0 || l.quantite > 50 {
+                return Ok(refus("Quantité invalide"));
+            }
+            total_articles += l.quantite * crate::promotions::prix_du_moment(op, &p.id, zone.as_deref(), op.maintenant)?.prix;
+        }
+        let plafond = op.params.canaux.plafond_paiement_livraison;
+        if canal == "en_ligne" && mode.as_deref() == Some("a_la_livraison") && plafond > 0 && total_articles > plafond {
+            return Ok(refus("Au-delà de ce montant, le paiement Mobile Money d'avance est obligatoire : passez une nouvelle commande"));
+        }
+        // Lignes jamais envoyées : remplacées librement (RG-CMD-02).
+        op.execute("DELETE FROM lignes_commande WHERE commande_id = ?1 AND statut = 'brouillon'", params![id])?;
+        commandes::ajouter_lignes_op(op, &id, &m.lignes)?;
+        op.execute(
+            "UPDATE commandes SET note = ?1, modifications_client = modifications_client + 1, modifie_le = ?2, version = version + 1 WHERE id = ?3",
+            params![m.note.trim(), op.maintenant, id],
+        )?;
+        op.audit("commande_entrante.modifiee", "commande", Some(&id), None, Some(json!({ "fois": deja + 1, "lignes": m.lignes.len() })), None, None)?;
+        op.evenement("commande_entrante", Some(&id));
+        let total = commandes::totaux(op, &id)?.total;
+        let restantes = MODIFICATIONS_MAX - deja - 1;
+        Ok(Reponse {
+            statut: "en_attente".into(),
+            message: if restantes > 0 {
+                format!("Commande modifiée. Encore {restantes} modification possible avant que le restaurant la prenne.")
+            } else {
+                "Commande modifiée. C'était la dernière modification possible.".into()
+            },
+            numero: Some(numero),
+            code_suivi: Some(code_suivi.trim().to_string()),
+            total,
+        })
+    })
+}
+
 // ───────────── File de validation ─────────────
 
 #[derive(Debug, Serialize)]
@@ -420,6 +501,8 @@ pub struct Entrante {
     /// Commandes déjà servies à ce numéro (confiance).
     pub commandes_precedentes: i64,
     pub verification_numero: String,
+    /// RG-CAN-06 : fois où le client a modifié sa commande avant acceptation.
+    pub modifications_client: i64,
 }
 
 pub fn file(conn: &Connection) -> Resultat<Vec<Entrante>> {
@@ -430,7 +513,7 @@ pub fn file(conn: &Connection) -> Resultat<Vec<Entrante>> {
     let verif = crate::parametres::lire(conn)?.canaux.verification_numero;
     let mut v = Vec::new();
     for id in ids {
-        let (canal, table, nom, tel, mode, op_mm, reference, resp, motif): (
+        let (canal, table, nom, tel, mode, op_mm, reference, resp, motif, modifications): (
             String,
             Option<String>,
             Option<String>,
@@ -440,12 +523,13 @@ pub fn file(conn: &Connection) -> Resultat<Vec<Entrante>> {
             Option<String>,
             bool,
             Option<String>,
+            i64,
         ) = conn.query_row(
             "SELECT c.canal, t.nom, c.client_nom_saisi, c.client_telephone, c.paiement_mode, c.paiement_operateur,
-                    c.paiement_reference, c.validation_responsable, c.validation_motif
+                    c.paiement_reference, c.validation_responsable, c.validation_motif, c.modifications_client
              FROM commandes c LEFT JOIN tables_salle t ON t.id = c.table_demandee WHERE c.id = ?1",
             params![id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?)),
         )?;
         let precedentes = match &tel {
             Some(t) => conn.query_row(
@@ -468,6 +552,7 @@ pub fn file(conn: &Connection) -> Resultat<Vec<Entrante>> {
             motif,
             commandes_precedentes: precedentes,
             verification_numero: verif.clone(),
+            modifications_client: modifications,
         });
     }
     Ok(v)
@@ -521,7 +606,10 @@ pub fn valider(db: &mut Db, acteur: &Acteur, commande_id: &str, accepter: bool, 
             match ouverte {
                 // La table a déjà une addition : nouvelle tournée sur la même addition (RG-CMD-01).
                 Some(existante) => {
-                    op.execute("UPDATE lignes_commande SET commande_id = ?1 WHERE commande_id = ?2", params![existante, commande_id])?;
+                    op.execute(
+                        "UPDATE lignes_commande SET commande_id = ?1, origine_commande_id = ?2 WHERE commande_id = ?2",
+                        params![existante, commande_id],
+                    )?;
                     op.execute(
                         "UPDATE commandes SET validation = 'acceptee', statut = 'annulee', note = note || ' [ajoutée à l''addition de la table]',
                             cloturee_le = ?1, modifie_le = ?1 WHERE id = ?2",
@@ -587,6 +675,15 @@ pub fn valider(db: &mut Db, acteur: &Acteur, commande_id: &str, accepter: bool, 
 #[derive(Debug, Serialize)]
 pub struct Suivi {
     pub numero: i64,
+    /// RG-CAN-06 : modifications encore possibles par le client (0 dès que le restaurant a accepté).
+    #[serde(default)]
+    pub modifications_restantes: i64,
+    /// Tant qu'elle est modifiable : la commande à reprendre dans le menu (produits, options, commentaires)
+    /// et le code de la table (commande QR), pour ouvrir le bon menu.
+    #[serde(default)]
+    pub panier: Vec<LigneSaisie>,
+    #[serde(default)]
+    pub code_table: Option<String>,
     pub restaurant: String,
     /// recue | refusee | acceptee | en_preparation | prete | en_route | livree | echec | annulee
     pub etape: String,
@@ -613,18 +710,44 @@ pub fn suivi(conn: &Connection, code: &str) -> Resultat<Suivi> {
             params![id],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
         )?;
-    // Commande QR ajoutée à une addition existante : on suit l'addition de la table.
-    let tous_prets = !c.envois.is_empty() && c.envois.iter().all(|e| e.statut == "pret" || e.statut == "servi");
+    // Lignes de cette commande, même ajoutées à l'addition déjà ouverte de la table (fiche 0036).
+    let lignes: Vec<(i64, String, String, i64)> = {
+        let mut st = conn.prepare(
+            "SELECT quantite - quantite_annulee, libelle, statut, CASE WHEN offert = 1 THEN 0 ELSE (quantite - quantite_annulee) * (prix_unitaire + montant_options) END
+             FROM lignes_commande WHERE (commande_id = ?1 OR origine_commande_id = ?1) AND quantite > quantite_annulee ORDER BY cree_le",
+        )?;
+        let v = st.query_map(params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<Result<Vec<_>, _>>()?;
+        v
+    };
+    let rang = |statut: &str| match statut {
+        "brouillon" => 0,
+        "envoyee" | "en_preparation" => 1,
+        "prete" => 2,
+        _ => 3, // servie
+    };
+    let moins_avancee = lignes.iter().map(|l| rang(&l.2)).min().unwrap_or(0);
+    let fusionnee = c.statut == "annulee" && validation.as_deref() == Some("acceptee") && !lignes.is_empty();
+    // Addition de la table où les lignes ont été ajoutées : encore à régler ?
+    let addition_ouverte = fusionnee
+        && conn
+            .query_row(
+                "SELECT c.statut FROM lignes_commande l JOIN commandes c ON c.id = l.commande_id WHERE l.origine_commande_id = ?1 LIMIT 1",
+                params![id],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?
+            .is_some_and(|st| st == "ouverte");
     let etape = match (validation.as_deref(), c.statut.as_str(), c.livraison_statut.as_deref()) {
         (Some("en_attente"), _, _) => "recue",
         (Some("refusee"), _, _) => "refusee",
         (_, _, Some("livree")) => "livree",
         (_, _, Some("echec")) => "echec",
         (_, _, Some("en_route")) => "en_route",
-        (_, "annulee", _) if c.note.contains("[ajoutée") => "acceptee",
-        (_, "annulee", _) => "annulee",
-        _ if tous_prets => "prete",
-        _ if !c.envois.is_empty() => "en_preparation",
+        (_, "annulee", _) if !fusionnee => "annulee",
+        // Sur place ou à emporter : « Servi » à la cuisine ou addition réglée → servie (affichée « Servie »).
+        _ if c.type_ != "livraison" && (moins_avancee == 3 || (matches!(c.statut.as_str(), "payee" | "cloturee") && moins_avancee >= 2)) => "livree",
+        _ if moins_avancee >= 2 => "prete",
+        _ if moins_avancee == 1 => "en_preparation",
         _ => "acceptee",
     };
     let livreur = if etape == "en_route" {
@@ -637,16 +760,46 @@ pub fn suivi(conn: &Connection, code: &str) -> Resultat<Suivi> {
     } else {
         None
     };
+    let (deja_modifiee, code_table): (i64, Option<String>) = conn.query_row(
+        "SELECT c.modifications_client, t.code_qr FROM commandes c LEFT JOIN tables_salle t ON t.id = c.table_demandee WHERE c.id = ?1",
+        params![id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    let modifiable = etape == "recue" && c.statut == "ouverte";
+    let panier = if modifiable {
+        let mut st = conn.prepare("SELECT produit_id, quantite, options_json, commentaire FROM lignes_commande WHERE commande_id = ?1 ORDER BY cree_le")?;
+        let v = st
+            .query_map(params![id], |r| {
+                let options: String = r.get(2)?;
+                let options = serde_json::from_str::<Vec<serde_json::Value>>(&options)
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(|o| o["id"].as_str().map(str::to_owned))
+                    .collect();
+                Ok(LigneSaisie { produit_id: r.get(0)?, quantite: r.get(1)?, options, commentaire: r.get(3)? })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        v
+    } else {
+        vec![]
+    };
     Ok(Suivi {
         numero: c.numero,
+        modifications_restantes: if modifiable { (MODIFICATIONS_MAX - deja_modifiee).max(0) } else { 0 },
+        panier,
+        code_table: if modifiable { code_table } else { None },
         restaurant: crate::parametres::restaurant(conn)?.nom,
         etape: etape.into(),
         motif: if etape == "refusee" { motif } else { None },
         type_: c.type_.clone(),
-        total: c.totaux.total,
-        reste: c.totaux.reste,
+        total: if fusionnee { lignes.iter().map(|l| l.3).sum() } else { c.totaux.total },
+        reste: match (fusionnee, addition_ouverte) {
+            (true, true) => lignes.iter().map(|l| l.3).sum(),
+            (true, false) => 0,
+            _ => c.totaux.reste,
+        },
         paiement_mode: mode,
-        lignes: c.lignes.iter().filter(|l| l.quantite > l.quantite_annulee).map(|l| (l.quantite - l.quantite_annulee, l.libelle.clone())).collect(),
+        lignes: lignes.iter().map(|l| (l.0, l.1.clone())).collect(),
         livreur,
         destination: lat.zip(lon),
         mis_a_jour: modifie,

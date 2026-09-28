@@ -5,6 +5,7 @@ mod commun;
 use commun::*;
 use youma_core::auth::{self, NouvelUtilisateur};
 use youma_core::caisse::{self, Encaissement, MouvementCaisse, NouvelleDepense, OuvertureSession};
+use youma_core::achats;
 use youma_core::catalogue;
 use youma_core::commandes::{self, LigneSaisie, NouvelleCommande};
 use youma_core::employes::{self, Employe, Evenement, SaisiePresence};
@@ -704,7 +705,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 8);
+    assert_eq!(v, 9);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);
@@ -752,4 +753,86 @@ fn rg_sal_01_liberer_une_table_vide_ou_marquee_mais_pas_une_addition_envoyee() {
     youma_core::salle::marquer_table(&mut b.db, &serveur, &t3, Some(true), Some(true)).unwrap();
     youma_core::salle::liberer_table(&mut b.db, &serveur, &t3).unwrap();
     assert!(youma_core::salle::plan(b.db.conn()).unwrap().iter().any(|t| t.id == t3 && t.statut == "libre"));
+}
+
+#[test]
+fn rg_cat_06_article_cree_avec_le_produit_revendu_et_cout_suivi_par_les_achats() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let g = b.proprietaire();
+    // Nouveau produit revendu, sans article choisi : l'article est créé avec lui (fiche 0036).
+    let mut fanta = catalogue::produit(b.db.conn(), &b.produit("Coca-Cola")).unwrap();
+    fanta.id = String::new();
+    fanta.nom = "Fanta 33 cl".into();
+    fanta.suivi_stock = "revendu".into();
+    fanta.article_stock_id = None;
+    fanta.prix_achat_estime = 400;
+    fanta.unite_stock = Some("canette".into());
+    fanta.prix_zones = vec![];
+    let id = catalogue::enregistrer_produit(&mut b.db, &g, &fanta).unwrap();
+    let p = catalogue::produit(b.db.conn(), &id).unwrap();
+    let article = p.article_stock_id.clone().expect("article créé et lié");
+    let (nom, unite, cout, famille): (String, String, i64, String) = b
+        .db
+        .conn()
+        .query_row("SELECT nom, unite, cout_unitaire, famille FROM articles_stock WHERE id = ?1", [&article], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })
+        .unwrap();
+    assert_eq!((nom.as_str(), unite.as_str(), cout, famille.as_str()), ("Fanta 33 cl", "canette", 400, "Boissons"));
+    // Réenregistrer le produit ne crée pas un second article.
+    catalogue::enregistrer_produit(&mut b.db, &g, &p).unwrap();
+    assert_eq!(b.compter("SELECT COUNT(*) FROM articles_stock WHERE nom = 'Fanta 33 cl'"), 1);
+
+    // Achat de 24 canettes pour 12 000 : le coût réel (500) remplace l'estimation.
+    let f: String = b.db.conn().query_row("SELECT id FROM fournisseurs LIMIT 1", [], |r| r.get(0)).unwrap();
+    achats::receptionner(
+        &mut b.db,
+        &g,
+        &achats::NouvelAchat {
+            fournisseur_id: Some(f),
+            mode: "credit".into(),
+            compte_id: None,
+            lignes: vec![achats::LigneAchatSaisie { article_id: article.clone(), conditionnement_id: None, quantite: 24, prix_total: 12_000 }],
+            consignes: vec![],
+            note: String::new(),
+        },
+    )
+    .unwrap();
+    assert_eq!(b.stock("Fanta 33 cl"), 24);
+    // La vente prend le coût du dernier achat pour le bénéfice estimé.
+    let cmd = b.commande_table("7", &[("Fanta 33 cl", 2)]);
+    let cout_vente: i64 = b.db.conn().query_row("SELECT cout_unitaire FROM lignes_commande WHERE commande_id = ?1", [&cmd], |r| r.get(0)).unwrap();
+    assert_eq!(cout_vente, 500);
+    assert_eq!(b.stock("Fanta 33 cl"), 22);
+}
+
+#[test]
+fn rg_cat_07_menu_du_jour() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let g = b.proprietaire();
+    // Le poulet devient un plat du jour ; les boissons restent toujours proposées.
+    let mut poulet = catalogue::produit(b.db.conn(), &b.produit("Poulet braisé")).unwrap();
+    poulet.selon_jour = true;
+    catalogue::enregistrer_produit(&mut b.db, &g, &poulet).unwrap();
+    let au_menu = |b: &Banc, nom: &str| catalogue::produit(b.db.conn(), &b.produit(nom)).unwrap().au_menu;
+    assert!(!au_menu(&b, "Poulet braisé"), "pas coché aujourd'hui");
+    assert!(au_menu(&b, "Coca-Cola"));
+    // Refusé à la commande tant qu'il n'est pas au menu.
+    let s = b.serveur();
+    let t = b.table("6");
+    let id = commandes::ouvrir(&mut b.db, &s, &NouvelleCommande { type_: "sur_place".into(), table_id: Some(t), client_id: None, employe_id: None, couverts: 2, note: String::new(), livraison: None, canal: None }).unwrap();
+    let l = b.ligne("Poulet braisé", 1);
+    let e = commandes::ajouter_lignes(&mut b.db, &s, &id, std::slice::from_ref(&l)).unwrap_err();
+    assert!(matches!(e, youma_core::Erreur::Regle { regle: "RG-CAT-07", .. }), "{e}");
+    // Le caissier compose le menu du jour : seuls les plats du jour se cochent.
+    let c = b.caissier();
+    let (coca, poulet) = (b.produit("Coca-Cola"), b.produit("Poulet braisé"));
+    assert!(catalogue::definir_menu_du_jour(&mut b.db, &c, &[coca]).is_err());
+    catalogue::definir_menu_du_jour(&mut b.db, &c, &[poulet]).unwrap();
+    assert!(au_menu(&b, "Poulet braisé"));
+    commandes::ajouter_lignes(&mut b.db, &s, &id, &[l]).unwrap();
+    let m = catalogue::menu_du_jour(b.db.conn()).unwrap();
+    assert_eq!((m.plats.len(), m.coches.len()), (1, 1));
 }

@@ -71,7 +71,10 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAT-03** Prix par zone : si la zone de la table a un prix pour le produit, il s'applique ; sinon le prix de base.
 * **RG-CAT-04** Groupe d'options : le nombre d'options choisies doit respecter `min`/`max`.
 * **RG-CAT-05** Un produit indisponible (rupture du jour) ne peut pas être ajouté à une commande.
-* **RG-CAT-06** Un produit « revendu » doit être lié à un article de stock.
+* **RG-CAT-06** Un produit « revendu » doit être lié à un article de stock ; sans article choisi, l'article est créé avec
+  lui (même nom, famille = catégorie, coût de départ = coût d'achat estimé), puis chaque achat met son coût à jour (fiche 0036).
+* **RG-CAT-07** Menu du jour : un produit « plat du jour » n'est proposé (personnel, QR, en ligne) que s'il est coché pour la
+  journée ouverte ; les autres produits (boissons, eau…) le sont toujours. Sélection vide à chaque nouvelle journée (fiche 0036).
 
 ### Commandes (CMD)
 * **RG-CMD-01** Une table ne peut avoir qu'une addition ouverte ; ajouter des articles = nouvelle tournée sur la même addition.
@@ -189,6 +192,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-ACH-02** Achat comptant → mouvement de trésorerie négatif sur le compte choisi ; achat à crédit → dette fournisseur.
 * **RG-ACH-03** Réception → mouvements de stock et mise à jour du coût unitaire (RG-STK-06).
 * **RG-ACH-04** Règlement fournisseur ≤ dette.
+* **RG-ACH-05** Les achats se paient hors caisse (coffre, banque, Mobile Money : compte proposé par défaut) ; payé depuis le
+  tiroir d'une caisse, l'achat est tracé au journal et signalé au propriétaire (« Ma journée », Contrôle) (fiche 0036).
 
 ### Employés (EMP) — réalités maliennes
 * **RG-EMP-01** Seuls le nom et le mode de rémunération sont obligatoires. Téléphone, pièce
@@ -239,6 +244,9 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAN-05** Paiement des commandes en ligne : Mobile Money d'avance (opérateur et référence obligatoires,
   encaissé à l'acceptation, « à vérifier », référence unique RG-CAI-05) et/ou paiement à la livraison, selon les
   paramètres. L'avance peut être imposée au nouveau client ou au-delà d'un plafond.
+* **RG-CAN-06** Le client (QR ou en ligne) modifie sa commande depuis sa page de suivi tant que le restaurant ne l'a pas
+  acceptée, **deux fois au plus**, après un avertissement ; mêmes contrôles qu'à la commande. Le restaurant voit « modifiée
+  par le client (n fois) » ; ensuite, seul un serveur change la commande (fiche 0036).
 
 ### Zones à risque (ZON) — fiche 0013
 * **RG-ZON-01** Une zone à risque est un quartier et/ou un cercle GPS (centre, rayon), une plage horaire (qui peut

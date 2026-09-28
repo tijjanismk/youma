@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { CarteInstallation } from "../composants/Installation";
+import { CarteMenuDuJour } from "../composants/MenuDuJour";
 import { post } from "../api";
 import { useApp } from "../contexte";
 import { dateFr } from "../format";
@@ -101,6 +102,7 @@ export default function Accueil() {
           </>
         )}
       </div>
+      <CarteMenuDuJour />
       {etat?.journee && peut("commande.creer") && (
         <div className="actions-rapides">
           <Link className="bouton principal grand" to="/salle">
