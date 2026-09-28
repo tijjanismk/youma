@@ -1,7 +1,7 @@
 import { Check, MapPin, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get } from "../api";
-import { dateHeure, depuisMicro, fcfa, minutesDepuis } from "../format";
+import { dateHeure, distanceTexte, fcfa, lienCarte, minutesDepuis } from "../format";
 import type { Suivi as SuiviT } from "../types";
 import { Page } from "./MenuClient";
 import { distanceMetres } from "./panierClient";
@@ -81,11 +81,11 @@ export default function Suivi({ code }: { code: string }) {
         <div className="carte">
           <p>
             <MapPin size={16} className="icone-texte" aria-hidden /> Position du livreur il y a {minutesDepuis(s.livreur[2])} min
-            {distance !== null && <> — environ {distance < 1000 ? `${distance} m` : `${(distance / 1000).toFixed(1).replace(".", ",")} km`} de chez vous</>}
+            {distance !== null && <> — environ {distanceTexte(distance)} de chez vous</>}
           </p>
           <a
             className="bouton"
-            href={`https://www.openstreetmap.org/?mlat=${depuisMicro(s.livreur[0])}&mlon=${depuisMicro(s.livreur[1])}#map=16/${depuisMicro(s.livreur[0])}/${depuisMicro(s.livreur[1])}`}
+            href={lienCarte(s.livreur[0], s.livreur[1])}
             target="_blank"
             rel="noreferrer"
           >

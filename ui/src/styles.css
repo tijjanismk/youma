@@ -1158,6 +1158,24 @@ code {
 }
 
 /* ───── Téléphones et petites tablettes ───── */
+/* Raison pour laquelle un bouton de clôture ne peut pas servir (RG-JOU-04, RG-PAI-06). */
+.raison-bloquee {
+  color: var(--doux);
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+}
+span.raison-bloquee {
+  display: inline-block;
+  padding-left: 0;
+  max-width: 22rem;
+}
+.cloture-journee {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 @media (max-width: 900px) {
   .prise-commande {
     /* minmax(0, …) : la barre des catégories défile au lieu d'élargir la page. */

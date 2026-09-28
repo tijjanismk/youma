@@ -154,14 +154,19 @@ export default function Paie() {
               <button className="petit" onClick={() => setAffiche(a)}>
                 Détail
               </button>
-              <button className="petit principal" onClick={() => cloturer(e)}>
-                Clôturer
-              </button>
+              {a.cloture_bloquee ? (
+                <span className="raison-bloquee">{a.cloture_bloquee}</span>
+              ) : (
+                <button className="petit principal" onClick={() => cloturer(e)}>
+                  Clôturer
+                </button>
+              )}
             </span>,
           ];
         })}
       />
       <BulletinsAPayer ouvrir={setPaiement} />
+      <HistoriquePaie employes={employes ?? []} ouvrir={setAffiche} />
       {affiche && (
         <Modal titre="Bulletin" fermer={() => setAffiche(null)} large>
           <BulletinImprimable b={affiche} />
@@ -199,6 +204,42 @@ function BulletinsAPayer({ ouvrir }: { ouvrir: (b: Bulletin) => void }) {
           <span>Reste {fcfa(b.reste_a_payer)}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Historique des bulletins clôturés, du plus récent au plus ancien, avec ce qui a été payé. */
+function HistoriquePaie({ employes, ouvrir }: { employes: Employe[]; ouvrir: (b: Bulletin) => void }) {
+  const [employe, setEmploye] = useState("");
+  const { donnees } = useDonnees(() => get<Bulletin[]>(`/paie/bulletins${employe ? `?employe=${employe}` : ""}`), ["caisse", "employes"], [employe]);
+  const bulletins = donnees ?? [];
+  return (
+    <div className="carte">
+      <h2>Historique de paie</h2>
+      <Choix
+        libelle="Employé"
+        valeur={employe}
+        changer={setEmploye}
+        options={[{ valeur: "", libelle: "Tous les employés" }, ...employes.map((e) => ({ valeur: e.id, libelle: e.nom }))]}
+      />
+      {bulletins.length === 0 ? (
+        <p className="aide">Aucune paie clôturée pour l'instant.</p>
+      ) : (
+        <TableauDonnees
+          colonnes={["N°", "Employé", "Période", "Net", "Payé", "État", ""]}
+          lignes={bulletins.map((b) => [
+            b.numero ?? "",
+            b.employe_nom,
+            `${dateFr(b.debut)} → ${dateFr(b.fin)}`,
+            <Montant valeur={b.net_a_payer} />,
+            <Montant valeur={b.paye_depuis} />,
+            b.reste_a_payer > 0 ? `Reste ${fcfa(b.reste_a_payer)}` : "Payé",
+            <button className="petit" onClick={() => ouvrir(b)}>
+              Voir
+            </button>,
+          ])}
+        />
+      )}
     </div>
   );
 }

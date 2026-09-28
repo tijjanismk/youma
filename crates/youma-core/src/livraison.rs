@@ -136,3 +136,43 @@ pub fn remise_livreur(db: &mut Db, acteur: &Acteur, livreur_id: &str, remis: i64
         Ok(ResultatRemise { attendu, remis, ecart })
     })
 }
+
+/// Dernière position connue de chaque livreur en course (écran Livraisons du restaurant).
+#[derive(Debug, Serialize)]
+pub struct PositionCourse {
+    pub commande_id: String,
+    pub numero: i64,
+    pub livreur_nom: Option<String>,
+    /// Microdegrés, comme `positions_livreur`.
+    pub lat: i64,
+    pub lon: i64,
+    pub horodatage: i64,
+    /// Position partagée par le client à la commande, si elle existe.
+    pub destination: Option<(i64, i64)>,
+}
+
+pub fn positions_en_cours(conn: &Connection, journee_id: &str) -> Resultat<Vec<PositionCourse>> {
+    let mut s = conn.prepare(
+        "SELECT c.id, c.numero, e.nom, p.lat, p.lon, p.horodatage, c.livraison_lat, c.livraison_lon
+         FROM commandes c
+         JOIN positions_livreur p ON p.id = (SELECT id FROM positions_livreur WHERE commande_id = c.id ORDER BY horodatage DESC LIMIT 1)
+         LEFT JOIN employes e ON e.id = c.livreur_id
+         WHERE c.journee_id = ?1 AND c.type = 'livraison' AND c.livraison_statut IN ('assignee', 'en_route')
+         ORDER BY c.numero",
+    )?;
+    let lignes = s
+        .query_map(params![journee_id], |r| {
+            let (dlat, dlon): (Option<i64>, Option<i64>) = (r.get(6)?, r.get(7)?);
+            Ok(PositionCourse {
+                commande_id: r.get(0)?,
+                numero: r.get(1)?,
+                livreur_nom: r.get(2)?,
+                lat: r.get(3)?,
+                lon: r.get(4)?,
+                horodatage: r.get(5)?,
+                destination: dlat.zip(dlon),
+            })
+        })?
+        .collect::<Result<_, _>>()?;
+    Ok(lignes)
+}

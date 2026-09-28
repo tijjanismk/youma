@@ -95,6 +95,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/journee/ouvrir", post(journee_ouvrir))
         .route("/journee/cloturer", post(journee_cloturer))
         .route("/journee/resume", get(journee_resume))
+        .route("/journee/blocages", get(journee_blocages))
         // Catalogue
         .route("/catalogue", get(catalogue_tout))
         .route("/categories", post(categorie_enregistrer))
@@ -194,6 +195,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/paie/bulletins/{id}", get(paie_bulletin))
         // Livraison
         .route("/livraisons", get(livraisons))
+        .route("/livraisons/positions", get(livraisons_positions))
         .route("/livraisons/{id}/assigner", post(livraison_assigner))
         .route("/livraisons/{id}/statut", post(livraison_statut))
         .route("/livreurs", get(livreurs))
@@ -403,6 +405,14 @@ async fn journees(State(e): State<Etat>, a: Auth) -> Rep<Vec<journee::Journee>> 
 
 async fn journee_ouvrir(State(e): State<Etat>, a: Auth) -> Rep<journee::Journee> {
     ecrire!(e, a, |db| journee::ouvrir(db, &a))
+}
+
+/// RG-JOU-04 : raisons affichées sous « Clôturer la journée » (vide : clôture possible).
+async fn journee_blocages(State(e): State<Etat>, a: Auth) -> Rep<Vec<String>> {
+    lire!(e, a, AUCUNE, |db| match journee::ouverte(db.conn())? {
+        Some(j) => journee::blocages_cloture(db.conn(), &j.id),
+        None => Ok(vec![]),
+    })
 }
 
 async fn journee_cloturer(State(e): State<Etat>, a: Auth) -> Rep<journee::Journee> {
@@ -971,6 +981,13 @@ async fn paie_bulletin(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -
 }
 
 // ───────────── Livraison ─────────────
+
+async fn livraisons_positions(State(e): State<Etat>, a: Auth) -> Rep<Vec<livraison::PositionCourse>> {
+    lire!(e, a, Some(perm::LIVRAISON_GERER), |db| match journee::ouverte(db.conn())? {
+        Some(j) => livraison::positions_en_cours(db.conn(), &j.id),
+        None => Ok(vec![]),
+    })
+}
 
 async fn livraisons(State(e): State<Etat>, a: Auth) -> Rep<Vec<commandes::CommandeResume>> {
     lire!(e, a, Some(perm::LIVRAISON_GERER), |db| {

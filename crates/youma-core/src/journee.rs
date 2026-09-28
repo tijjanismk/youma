@@ -99,40 +99,39 @@ pub fn ouvrir(db: &mut Db, acteur: &Acteur) -> Resultat<Journee> {
     par_id(db.conn(), &j)
 }
 
+/// RG-JOU-04 : ce qui empêche de clôturer la journée (vide : clôture possible). Affiché sous le bouton.
+pub fn blocages_cloture(conn: &Connection, journee_id: &str) -> Resultat<Vec<String>> {
+    let mut raisons = Vec::new();
+    let entrantes: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM commandes WHERE journee_id = ?1 AND validation = 'en_attente'",
+        params![journee_id],
+        |r| r.get(0),
+    )?;
+    if entrantes > 0 {
+        raisons.push(format!("{entrantes} commande(s) en ligne ou QR à accepter ou refuser avant la clôture."));
+    }
+    let commandes: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM commandes WHERE journee_id = ?1 AND statut = 'ouverte'",
+        params![journee_id],
+        |r| r.get(0),
+    )?;
+    if commandes > 0 {
+        raisons.push(format!("{commandes} addition(s) encore ouverte(s). Encaissez-les ou transférez-les."));
+    }
+    let sessions: i64 = conn.query_row("SELECT COUNT(*) FROM sessions_caisse WHERE statut = 'ouverte'", [], |r| r.get(0))?;
+    if sessions > 0 {
+        raisons.push(format!("{sessions} session(s) de caisse ouverte(s) : clôturez d'abord les caisses."));
+    }
+    Ok(raisons)
+}
+
 /// RG-JOU-04.
 pub fn cloturer(db: &mut Db, acteur: &Acteur) -> Resultat<Journee> {
     let id = db.executer(acteur, |op| {
         op.exiger(perm::JOURNEE_GERER)?;
         let j = op.journee_ouverte()?;
-        let entrantes: i64 = op.query_row(
-            "SELECT COUNT(*) FROM commandes WHERE journee_id = ?1 AND validation = 'en_attente'",
-            params![j.id],
-            |r| r.get(0),
-        )?;
-        if entrantes > 0 {
-            return Err(Erreur::regle(
-                "RG-JOU-04",
-                format!("{entrantes} commande(s) en ligne ou QR à accepter ou refuser avant la clôture."),
-            ));
-        }
-        let commandes: i64 = op.query_row(
-            "SELECT COUNT(*) FROM commandes WHERE journee_id = ?1 AND statut = 'ouverte'",
-            params![j.id],
-            |r| r.get(0),
-        )?;
-        if commandes > 0 {
-            return Err(Erreur::regle(
-                "RG-JOU-04",
-                format!("{commandes} addition(s) encore ouverte(s). Encaissez-les ou transférez-les."),
-            ));
-        }
-        let sessions: i64 = op.query_row(
-            "SELECT COUNT(*) FROM sessions_caisse WHERE statut = 'ouverte'",
-            [],
-            |r| r.get(0),
-        )?;
-        if sessions > 0 {
-            return Err(Erreur::regle("RG-JOU-04", "Clôturez d'abord les sessions de caisse ouvertes"));
+        if let Some(raison) = blocages_cloture(op, &j.id)?.into_iter().next() {
+            return Err(Erreur::regle("RG-JOU-04", raison));
         }
         op.execute(
             "UPDATE journees SET statut = 'cloturee', cloturee_le = ?1, cloturee_par = ?2 WHERE id = ?3",

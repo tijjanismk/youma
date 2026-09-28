@@ -79,7 +79,9 @@ caisse (coffre) : payés par le tiroir, ils sont signalés au propriétaire.
 1. Caisse → **Clôturer ma caisse**.
 2. Compter l'argent : **Compter billet par billet** (le plus sûr) ou taper le total.
 3. S'il y a un écart, le **motif est obligatoire**.
-4. Imprimer le **Rapport de clôture (Z)** et le remettre au gérant avec l'argent.
+4. **Fond gardé dans le tiroir** : laisser la monnaie pour le prochain service (le fond du matin, proposé) ;
+   le reste est remis au coffre.
+5. Imprimer le **Rapport de clôture (Z)** et le remettre au gérant avec l'argent remis au coffre.
 
 ---
 
@@ -109,6 +111,7 @@ Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.
 **Ouvrir et clôturer la journée**
 - Le matin : Accueil → **Ouvrir la journée**. Sans journée ouverte, personne ne peut vendre.
 - Le soir, quand toutes les caisses sont clôturées : Accueil → **Clôturer la journée** (Youma fait une sauvegarde).
+  Si le bouton est grisé, la raison est écrite dessous (addition ouverte, caisse ouverte, commande à accepter).
 - Après l'ouverture : **Menu du jour** (carte de l'accueil) → cocher les plats du jour proposés aujourd'hui
   (« Reprendre le menu d'hier » si rien ne change). Boissons et eau restent toujours proposées.
 

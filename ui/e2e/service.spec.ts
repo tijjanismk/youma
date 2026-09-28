@@ -219,8 +219,12 @@ test("clôture de caisse avec billetage et écart motivé", async ({ page }) => 
   const cloturer = page.getByRole("button", { name: "Clôturer", exact: true });
   await expect(cloturer).toBeDisabled();
   await page.getByLabel("Motif de l'écart (obligatoire)").fill("Erreur de rendu");
+  // RG-CAI-15 : fond de 10 000 gardé pour la monnaie, le reste part au coffre.
+  await expect(page.getByRole("dialog").getByText("Remis au coffre")).toBeVisible();
   await cloturer.click();
-  await expect(page.getByRole("dialog", { name: "Rapport de clôture (Z)" })).toContainText("RAPPORT Z");
+  const z = page.getByRole("dialog", { name: "Rapport de clôture (Z)" });
+  await expect(z).toContainText("RAPPORT Z");
+  await expect(z).toContainText("Fond laissé en caisse");
 });
 
 test("interface utilisable sur le téléphone d'un serveur", async ({ browser }) => {
@@ -745,4 +749,13 @@ test("le client modifie sa commande avant acceptation, avec avertissement (RG-CA
   await expect(web.getByText("Commande refusée")).toBeVisible();
   await expect(web.getByRole("link", { name: "Modifier ma commande" })).toHaveCount(0);
   await client.close();
+});
+
+test("clôture impossible expliquée, historique de paie (RG-JOU-04, RG-PAI-06)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  // Des additions restent ouvertes après les tests précédents : le bouton est inactif et la raison affichée.
+  await expect(page.getByRole("button", { name: "Clôturer la journée" })).toBeDisabled();
+  await expect(page.getByRole("list", { name: "Clôture impossible" })).toContainText("addition(s) encore ouverte(s)");
+  await page.goto("/paie");
+  await expect(page.getByRole("heading", { name: "Historique de paie" })).toBeVisible();
 });

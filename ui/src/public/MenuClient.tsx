@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
 import { VisuelPlat } from "../composants/Plat";
-import { fcfa, versMicro } from "../format";
+import { fcfa, lienCarte, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante, Suivi } from "../types";
 import { cleOptions, lirePanierClient, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
 
@@ -310,6 +310,7 @@ function Validation({
   const [quartier, setQuartier] = useState(menu.quartiers[0]?.nom ?? "");
   const [repere, setRepere] = useState("");
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [precision, setPrecision] = useState<number | null>(null);
   const [partager, setPartager] = useState(false);
   const [mode, setMode] = useState(menu.paiement_a_la_livraison ? "a_la_livraison" : "avance");
   const [operateur, setOperateur] = useState(menu.operateurs[0] ?? "");
@@ -335,20 +336,44 @@ function Validation({
   const [erreur, setErreur] = useState("");
   const frais = enLigne && type === "livraison" ? (menu.quartiers.find((q) => q.nom === quartier)?.frais ?? 0) : 0;
 
+  // Position du client : le GPS (haute précision) plutôt que la position approchée du réseau, sans cache. La
+  // première réponse est souvent grossière (antennes, Wi-Fi) : on garde la meilleure pendant 30 s au plus,
+  // et on s'arrête dès qu'elle est à moins de 25 m.
   useEffect(() => {
-    if (!partager) return setPosition(null);
-    navigator.geolocation?.getCurrentPosition(
-      (p) => setPosition([versMicro(p.coords.latitude), versMicro(p.coords.longitude)]),
-      () => {
-        setPartager(false);
-        setErreur("Position indisponible : indiquez un point de repère précis.");
+    if (!partager) {
+      setPosition(null);
+      setPrecision(null);
+      return;
+    }
+    if (!navigator.geolocation) return;
+    let meilleure = Infinity;
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        if (p.coords.accuracy >= meilleure) return;
+        meilleure = p.coords.accuracy;
+        setPosition([versMicro(p.coords.latitude), versMicro(p.coords.longitude)]);
+        setPrecision(Math.round(p.coords.accuracy));
+        if (meilleure <= 25) navigator.geolocation.clearWatch(id);
       },
+      () => {
+        if (meilleure < Infinity) return;
+        setPartager(false);
+        setErreur("Position indisponible : activez la localisation du téléphone, ou indiquez un point de repère précis.");
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 30_000 },
     );
+    const fin = setTimeout(() => navigator.geolocation.clearWatch(id), 30_000);
+    return () => {
+      clearTimeout(fin);
+      navigator.geolocation.clearWatch(id);
+    };
   }, [partager]);
 
+  // Position GPS précise (100 m au plus) : le point de repère devient facultatif ; sans GPS, il reste obligatoire (fiche 0038).
+  const positionPrecise = position !== null && precision !== null && precision <= 100;
   const valide =
     !enLigne ||
-    (telephone.replace(/\D/g, "").length >= 8 && (!sms || codeSms.trim().length === 4) && (type === "emporter" || (quartier.trim() && repere.trim())) && (mode !== "avance" || (operateur && reference.trim())));
+    (telephone.replace(/\D/g, "").length >= 8 && (!sms || codeSms.trim().length === 4) && (type === "emporter" || (quartier.trim() && (repere.trim() || positionPrecise))) && (mode !== "avance" || (operateur && reference.trim())));
 
   const envoyer = async () => {
     setEnvoi(true);
@@ -420,11 +445,25 @@ function Validation({
               ) : (
                 <Champ libelle="Quartier" valeur={quartier} changer={setQuartier} obligatoire />
               )}
-              <Champ libelle="Point de repère" valeur={repere} changer={setRepere} placeholder="Derrière la mosquée, portail bleu…" obligatoire />
+              <Champ
+                libelle={positionPrecise ? "Point de repère (facultatif : votre position est partagée)" : "Point de repère"}
+                valeur={repere}
+                changer={setRepere}
+                placeholder="Derrière la mosquée, portail bleu…"
+                obligatoire={!positionPrecise}
+              />
               <Case libelle="Partager ma position pour le livreur" valeur={partager} changer={setPartager} />
+              {partager && !position && <p className="aide">Recherche de votre position…</p>}
               {position && (
-                <p className="aide">
+                <p className={precision !== null && precision > 100 ? "attention-texte" : "aide"}>
                   <MapPin size={16} className="icone-texte" aria-hidden /> Position enregistrée
+                  {precision !== null && ` (à ${precision} m près)`}
+                  {precision !== null &&
+                    precision > 100 &&
+                    " : approximative. Activez la localisation précise (GPS) du téléphone, ou indiquez un point de repère."}{" "}
+                  <a href={lienCarte(position[0], position[1])} target="_blank" rel="noreferrer">
+                    Vérifier sur la carte
+                  </a>
                 </p>
               )}
             </>

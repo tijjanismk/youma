@@ -157,7 +157,13 @@ fn rg_jou_01_02_04_journee() {
     b.ouvrir_journee();
     let c = b.caissier();
     assert_eq!(journee::ouvrir(&mut b.db, &c).unwrap_err().regle_code(), Some("RG-JOU-02"));
+    let j = journee::ouverte(b.db.conn()).unwrap().unwrap();
+    assert!(journee::blocages_cloture(b.db.conn(), &j.id).unwrap().is_empty());
     commandes::ouvrir(&mut b.db, &a, &n).unwrap();
+    // La raison est donnée avant de toucher le bouton, la même que celle du refus.
+    let raisons = journee::blocages_cloture(b.db.conn(), &j.id).unwrap();
+    assert_eq!(raisons.len(), 1, "{raisons:?}");
+    assert!(raisons[0].contains("addition(s) encore ouverte(s)"));
     assert_eq!(journee::cloturer(&mut b.db, &c).unwrap_err().regle_code(), Some("RG-JOU-04"));
 }
 
@@ -356,10 +362,31 @@ fn rg_cai_08_10_11_13_mouvements_de_caisse() {
     let ch = youma_core::rapports::chiffres(b.db.conn(), &j.date_exploitation, &j.date_exploitation).unwrap();
     assert_eq!(ch.depenses, 3_000, "le retrait propriétaire n'est pas une dépense");
     // RG-CAI-08 : fond compté différent du théorique → motif.
-    let fin = caisse::ClotureSession { compte_final: 12_000, billetage: vec![caisse::LigneBilletage { coupure: 10_000, nombre: 1 }, caisse::LigneBilletage { coupure: 1_000, nombre: 2 }], motif_ecart: String::new() };
+    let fin = caisse::ClotureSession { compte_final: 12_000, billetage: vec![caisse::LigneBilletage { coupure: 10_000, nombre: 1 }, caisse::LigneBilletage { coupure: 1_000, nombre: 2 }], motif_ecart: String::new(), fond_garde: None };
     caisse::cloturer_session(&mut b.db, &a, &s, &fin).unwrap();
     let e = caisse::ouvrir_session(&mut b.db, &a, &OuvertureSession { compte_id: None, fond_compte: 2_000, billetage: vec![], motif_ecart: String::new() }).unwrap_err();
     assert_eq!(e.regle_code(), Some("RG-CAI-08"));
+}
+
+#[test]
+fn rg_cai_15_remise_au_coffre_a_la_cloture() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let s = b.ouvrir_caisse(20_000);
+    let a = b.caissier();
+    // Fond gardé supérieur à l'argent compté : refusé.
+    let trop = caisse::ClotureSession { compte_final: 20_000, billetage: vec![], motif_ecart: String::new(), fond_garde: Some(25_000) };
+    assert_eq!(caisse::cloturer_session(&mut b.db, &a, &s, &trop).unwrap_err().regle_code(), Some("RG-CAI-15"));
+    // On garde 5 000 pour la monnaie : 15 000 partent au coffre.
+    let fin = caisse::ClotureSession { compte_final: 20_000, billetage: vec![], motif_ecart: String::new(), fond_garde: Some(5_000) };
+    let r = caisse::cloturer_session(&mut b.db, &a, &s, &fin).unwrap();
+    assert_eq!(r.ecart, Some(0));
+    assert_eq!(b.solde("Caisse principale"), 5_000);
+    assert_eq!(b.solde("Coffre / propriétaire"), 15_000);
+    let z = youma_core::rapports::rapport_z(b.db.conn(), &s).unwrap();
+    assert!(z.contains("Remis au coffre") && z.contains("Fond laissé en caisse"), "{z}");
+    // La réouverture n'attend plus que le fond laissé : pas d'écart.
+    caisse::ouvrir_session(&mut b.db, &a, &OuvertureSession { compte_id: None, fond_compte: 5_000, billetage: vec![], motif_ecart: String::new() }).unwrap();
 }
 
 // ───────────── Employés et paie : réalités maliennes ─────────────
@@ -460,6 +487,10 @@ fn rg_pai_05_06_paiement_partiel_et_periode_figee() {
     assert_eq!(b.compter("SELECT COUNT(*) FROM mouvements_tresorerie WHERE type = 'paiement_salaire' AND session_id IS NOT NULL"), 0);
     // Période chevauchante refusée ; correction par régularisation sur la suivante.
     assert_eq!(paie::cloturer(&mut b.db, &g, &awa, "2026-03-15", "2026-04-14").unwrap_err().regle_code(), Some("RG-PAI-06"));
+    // L'aperçu dit pourquoi, pour que l'écran remplace le bouton « Clôturer » par la raison.
+    let bloque = paie::apercu(b.db.conn(), &awa, "2026-03-15", "2026-04-14").unwrap().cloture_bloquee.unwrap();
+    assert!(bloque.contains("déjà clôturée jusqu'au 31/03/2026"), "{bloque}");
+    assert!(paie::apercu(b.db.conn(), &awa, "2026-04-01", "2026-04-30").unwrap().cloture_bloquee.is_none());
     employes::evenement(&mut b.db, &g, &Evenement { employe_id: awa.clone(), type_: "regularisation".into(), montant: 2_000, quantite: None, motif: "Oubli prime mars".into() }).unwrap();
     let avril = paie::cloturer(&mut b.db, &g, &awa, "2026-04-01", "2026-04-30").unwrap();
     assert_eq!(avril.report_precedent, 0, "mars soldé");

@@ -347,6 +347,10 @@ pub struct ClotureSession {
     pub billetage: Vec<LigneBilletage>,
     #[serde(default)]
     pub motif_ecart: String,
+    /// RG-CAI-15 : fond laissé dans le tiroir pour la monnaie ; le reste de l'argent compté part au coffre.
+    /// Absent : tout reste dans le tiroir (comportement d'avant).
+    #[serde(default)]
+    pub fond_garde: Option<i64>,
 }
 
 /// RG-CAI-09 : comptage, écart, mouvement d'alignement.
@@ -380,6 +384,21 @@ pub fn cloturer_session(db: &mut Db, acteur: &Acteur, session_id: &str, c: &Clot
             mouvement(op, &s.compte_id, Some(session_id), "ecart_cloture", ecart, Some(("session_caisse", session_id)), c.motif_ecart.trim(), autorise_par.as_deref())?;
         }
         enregistrer_billetage(op, session_id, "cloture", &c.billetage)?;
+        let remise = match c.fond_garde {
+            Some(g) if g < 0 || g > c.compte_final => {
+                return Err(Erreur::regle("RG-CAI-15", "Le fond gardé doit être entre 0 et l'argent compté"));
+            }
+            Some(g) => c.compte_final - g,
+            None => 0,
+        };
+        if remise > 0 {
+            let coffre: String = op
+                .query_row("SELECT id FROM comptes_tresorerie WHERE type = 'coffre' AND actif = 1 ORDER BY ordre LIMIT 1", [], |r| r.get(0))
+                .optional()?
+                .ok_or_else(|| Erreur::regle("RG-CAI-15", "Aucun compte coffre actif : créez-le dans l'administration"))?;
+            let sortie = mouvement(op, &s.compte_id, Some(session_id), "remise_coffre", -remise, Some(("session_caisse", session_id)), "Remise de clôture", None)?;
+            mouvement(op, &coffre, None, "remise_coffre", remise, Some(("mouvement_tresorerie", &sortie)), "Remise de clôture", None)?;
+        }
         op.execute(
             "UPDATE sessions_caisse SET statut = 'fermee', fermee_le = ?1, compte_final = ?2, theorique_cloture = ?3,
                 ecart = ?4, motif_ecart = ?5 WHERE id = ?6",
@@ -390,7 +409,7 @@ pub fn cloturer_session(db: &mut Db, acteur: &Acteur, session_id: &str, c: &Clot
             "session_caisse",
             Some(session_id),
             None,
-            Some(json!({ "compte": c.compte_final, "theorique": theorique, "ecart": ecart })),
+            Some(json!({ "compte": c.compte_final, "theorique": theorique, "ecart": ecart, "remise_coffre": remise })),
             Some(c.motif_ecart.trim()).filter(|m| !m.is_empty()),
             autorise_par.as_deref(),
         )?;

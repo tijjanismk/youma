@@ -111,6 +111,7 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAI-12** Transfert entre comptes = deux mouvements liés ; frais éventuels = dépense séparée.
 * **RG-CAI-13** Une dépense est catégorisée, liée à un compte et à la journée ; elle crée un mouvement de trésorerie négatif.
 * **RG-CAI-14** Chaque paiement conserve les espèces reçues du client et la monnaie rendue (rendu = reçu − part en espèces). Ils figurent sur le ticket, l'écran de reçu, le rapport Z (total reçu, rendu, gardé) et le rapport d'activité. Sans part en espèces, reçu = rendu = 0.
+* **RG-CAI-15** À la clôture, le caissier indique le fond gardé dans le tiroir pour la monnaie (par défaut le fond d'ouverture) ; le reste de l'argent compté part au coffre par deux mouvements liés « remise_coffre ». La session suivante n'attend que ce fond. Le rapport Z affiche « Remis au coffre » et « Fond laissé en caisse ».
 
 ### Relevés Mobile Money (RMM) — fiche 0016
 * **RG-RMM-01** Import d'un relevé CSV d'opérateur sur un compte Mobile Money : séparateur et colonnes reconnus par
