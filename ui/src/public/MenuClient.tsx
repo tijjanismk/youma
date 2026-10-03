@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
@@ -7,6 +7,7 @@ import { fcfa, lienCarte, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante, Suivi } from "../types";
 import { cleOptions, ETAPES_EN_COURS, lirePanierClient, lireSuivis, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
 import { messageErreurPosition, positionPossible } from "./position";
+import { APPLI, baseApi } from "../appli";
 
 type Produit = MenuPublic["produits"][number];
 
@@ -18,7 +19,7 @@ export default function MenuClient() {
   const table = new URLSearchParams(location.search).get("table");
   // RG-CAN-06 : modification d'une commande pas encore prise par le restaurant (code de suivi).
   const modifier = new URLSearchParams(location.search).get("modifier");
-  const clePanier = modifier ? `youma.panier-client.modification.${modifier}` : `youma.panier-client.${table ?? "en-ligne"}`;
+  const clePanier = modifier ? `youma.panier-client.modification.${modifier}` : `youma.panier-client.${baseApi()}${table ?? "en-ligne"}`;
   const [menu, setMenu] = useState<MenuPublic | null>(null);
   const [erreur, setErreur] = useState("");
   const [categorie, setCategorie] = useState("");
@@ -263,6 +264,11 @@ export function Page({ titre, sousTitre, children }: { titre: string; sousTitre?
   return (
     <div className="public">
       <header className="public-entete">
+        {APPLI && location.pathname !== "/" && (
+          <a href="/" className="retour-appli">
+            <ArrowLeft size={18} aria-hidden /> {APPLI === "livreur" ? "Mes courses" : "Mes restaurants"}
+          </a>
+        )}
         <h1>{titre}</h1>
         {sousTitre && <p className="aide">{sousTitre}</p>}
       </header>

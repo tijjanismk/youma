@@ -1,5 +1,7 @@
 /** Panier du client (menu QR ou en ligne), conservé sur son téléphone. */
 
+import { APPLI, associerSuivi, baseApi, relaisDuSuivi } from "../appli";
+
 export type LigneClient = { produit_id: string; quantite: number; options: string[]; commentaire: string };
 export type PanierClient = LigneClient[];
 
@@ -34,20 +36,26 @@ const CLE_SUIVIS = "youma.suivis";
 export function retenirSuivi(code: string) {
   try {
     const l: string[] = JSON.parse(localStorage.getItem(CLE_SUIVIS) ?? "[]");
-    localStorage.setItem(CLE_SUIVIS, JSON.stringify([code, ...l.filter((c) => c !== code)].slice(0, 5)));
+    localStorage.setItem(CLE_SUIVIS, JSON.stringify([code, ...l.filter((c) => c !== code)].slice(0, APPLI ? 30 : 5)));
+    associerSuivi(code);
   } catch {
     /* stockage indisponible */
   }
 }
 
-/** Codes de suivi retenus, du plus récent au plus ancien. */
-export function lireSuivis(): string[] {
+/** Codes de suivi retenus, du plus récent au plus ancien, tous restaurants confondus. */
+export function codesSuivis(): string[] {
   try {
     const l = JSON.parse(localStorage.getItem(CLE_SUIVIS) ?? "[]");
     return Array.isArray(l) ? l.filter((c) => typeof c === "string") : [];
   } catch {
     return [];
   }
+}
+
+/** Codes de suivi du restaurant ouvert (application : un client peut commander dans plusieurs restaurants). */
+export function lireSuivis(): string[] {
+  return APPLI ? codesSuivis().filter((c) => relaisDuSuivi(c) === baseApi()) : codesSuivis();
 }
 
 /** Étapes d'une commande encore en cours (ni servie, ni livrée, ni refusée ou annulée). */

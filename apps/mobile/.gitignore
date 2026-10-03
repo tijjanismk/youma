@@ -1,0 +1,6 @@
+node_modules/
+# Clés de signature : jamais dans le dépôt (secrets de la CI, fiche 0041).
+*.jks
+*.keystore
+*.p12
+*.mobileprovision

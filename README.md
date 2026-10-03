@@ -32,6 +32,7 @@ Le pilote en conditions réelles reste à faire. Ce qui reste : [`docs/REPRISE.m
 | Zones à risque (quartier ou cercle GPS × heure × jours), liste noire de numéros | ✅ |
 | Suivi en direct pour le client, position du livreur | ✅ (position : via relais HTTPS) |
 | Serveur relais Internet facultatif (menu en ligne, code SMS Orange Mali ou simulé, suivi et position du livreur en HTTPS) | ✅ (SMS simulé tant que le contrat Orange n'est pas signé) |
+| Applications Youma Client et Youma Livreur (Android ; iPhone prêt, compte Apple à ouvrir), position du livreur écran verrouillé (fiche 0041) | ✅ (APK construits par la CI, essais sur téléphone à faire) |
 | Installateur Windows (Tauri) | code prêt, à construire sous Windows |
 | Recettes (ingrédients en g/ml/pièce), consommation théorique, coût matière | ✅ |
 | Consignes : bouteilles et casiers, vides, consigne versée au dépôt, retours | ✅ |

@@ -3,6 +3,7 @@
  * Tout est facultatif : sans HTTPS ni service worker, l'application marche comme un site ordinaire.
  */
 import { useEffect, useState } from "react";
+import { APPLI } from "./appli";
 
 type InvitationInstallation = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -26,7 +27,8 @@ if (typeof window !== "undefined") {
 
 /** Enregistre le service worker (version compilée seulement : pas de cache pendant le développement). */
 export function enregistrerServiceWorker() {
-  if (!import.meta.env.PROD || !("serviceWorker" in navigator) || !window.isSecureContext) return;
+  // Applications Android : les fichiers sont dans l'APK, pas de service worker (fiche 0041).
+  if (APPLI || !import.meta.env.PROD || !("serviceWorker" in navigator) || !window.isSecureContext) return;
   let rechargement = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (rechargement) location.reload();

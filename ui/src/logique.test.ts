@@ -6,6 +6,7 @@ import { contenanceSuggeree } from "./listesStock";
 import { ajouter, changerQuantite, chargerPanier, definirQuantite, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
 import { billetsProposes, rendu, sommeParts, verifierPaiement } from "./paiement";
 import { messageErreurPosition } from "./public/position";
+import { adresseRelais, lireLien } from "./appli";
 import type { Produit } from "./types";
 
 const produit = (p: Partial<Produit>): Produit => ({
@@ -328,5 +329,22 @@ describe("position des pages publiques (fiche 0040)", () => {
     expect(messageErreurPosition(1, "Repère.")).toMatch(/refusée.*cadenas.*Repère\.$/);
     expect(messageErreurPosition(2, "Repère.")).toMatch(/GPS.*Repère\.$/);
     expect(messageErreurPosition(3, "Repère.")).toMatch(/trop longue.*Repère\.$/);
+  });
+});
+
+describe("applications : liens du restaurant (fiche 0041)", () => {
+  it("retrouve l'adresse du relais, toujours en https", () => {
+    expect(adresseRelais("resto.up.railway.app")).toBe("https://resto.up.railway.app");
+    expect(adresseRelais("https://resto.up.railway.app/menu?x=1")).toBe("https://resto.up.railway.app");
+    expect(adresseRelais("http://resto.up.railway.app")).toBeNull();
+    expect(adresseRelais("bonjour")).toBeNull();
+  });
+  it("lit les liens d'ouverture et les liens web", () => {
+    expect(lireLien("youma-livreur://course?relais=https%3A%2F%2Fr.example.ml&code=ABC123")).toEqual({ relais: "https://r.example.ml", code: "ABC123", page: "course" });
+    expect(lireLien("https://r.example.ml/livreur/XYZ")).toEqual({ relais: "https://r.example.ml", code: "XYZ", page: "course" });
+    expect(lireLien("https://r.example.ml/suivi/K7")).toEqual({ relais: "https://r.example.ml", code: "K7", page: "suivi" });
+    expect(lireLien("https://r.example.ml/menu")).toEqual({ relais: "https://r.example.ml", page: "menu" });
+    expect(lireLien("youma-client://menu?relais=https://r.example.ml")).toEqual({ relais: "https://r.example.ml", page: "menu" });
+    expect(lireLien("youma-livreur://course?relais=https://r.example.ml")).toBeNull();
   });
 });

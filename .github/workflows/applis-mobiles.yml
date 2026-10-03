@@ -1,0 +1,139 @@
+name: Applications mobiles
+
+# Youma Client et Youma Livreur (fiche 0041) : APK Android signés (clé en secret) et compilation iPhone.
+# Android : sur main, les étiquettes v*, à la demande, et les pull requests qui touchent les applications.
+# iPhone (macOS, minutes plus chères) : à la demande, sur les étiquettes v* et les pull requests des applications.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "ui/**"
+      - "apps/mobile/**"
+      - ".github/workflows/applis-mobiles.yml"
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "ui/src/appli.ts"
+      - "ui/src/appli/**"
+      - "ui/package.json"
+      - ".github/workflows/applis-mobiles.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        appli: [client, livreur]
+    env:
+      YOUMA_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            ui/package-lock.json
+            apps/mobile/${{ matrix.appli }}/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Interface de l'application
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build:${{ matrix.appli }}
+      - name: Projet Android
+        working-directory: apps/mobile/${{ matrix.appli }}
+        run: |
+          npm ci
+          npx cap sync android
+
+      # Clé de signature : secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_MDP, ANDROID_CLE_ALIAS, ANDROID_CLE_MDP.
+      # Sans eux : APK de DÉBOGAGE (essais seulement : il ne pourra pas être mis à jour par la version signée).
+      - name: Signature
+        shell: bash
+        env:
+          CLE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          MDP: ${{ secrets.ANDROID_KEYSTORE_MDP }}
+          ALIAS: ${{ secrets.ANDROID_CLE_ALIAS }}
+          MDP_CLE: ${{ secrets.ANDROID_CLE_MDP }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then NOM="${GITHUB_REF#refs/tags/v}"; else NOM="0.1.${GITHUB_RUN_NUMBER}"; fi
+          echo "YOUMA_VERSION_NOM=$NOM" >> "$GITHUB_ENV"
+          if [ -n "$CLE" ]; then
+            echo "$CLE" | base64 -d > "$RUNNER_TEMP/youma.jks"
+            {
+              echo "ANDROID_KEYSTORE=$RUNNER_TEMP/youma.jks"
+              echo "ANDROID_KEYSTORE_MDP=$MDP"
+              echo "ANDROID_CLE_ALIAS=$ALIAS"
+              echo "ANDROID_CLE_MDP=$MDP_CLE"
+              echo "TACHE=assembleRelease"
+              echo "SORTIE=release/app-release.apk"
+              echo "SUFFIXE="
+            } >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "::error::Secret ANDROID_KEYSTORE_BASE64 absent : une version publiée doit être signée."
+            exit 1
+          else
+            echo "::warning::Clé de signature absente : APK de débogage (essais seulement)."
+            { echo "TACHE=assembleDebug"; echo "SORTIE=debug/app-debug.apk"; echo "SUFFIXE=-essai"; } >> "$GITHUB_ENV"
+          fi
+      - name: Construire l'APK
+        working-directory: apps/mobile/${{ matrix.appli }}/android
+        run: ./gradlew "$TACHE" --no-daemon
+      - name: Renommer
+        shell: bash
+        run: |
+          mkdir -p sortie
+          cp "apps/mobile/${{ matrix.appli }}/android/app/build/outputs/apk/$SORTIE" "sortie/youma-${{ matrix.appli }}-${YOUMA_VERSION_NOM}${SUFFIXE}.apk"
+          ls -l sortie
+      - uses: actions/upload-artifact@v4
+        with:
+          name: youma-${{ matrix.appli }}-android${{ env.SUFFIXE }}
+          path: sortie/*.apk
+          retention-days: 30
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sortie/*.apk
+
+  # Compilation iPhone sans signature (simulateur) : vérifie le projet. La diffusion (TestFlight, App Store) demande
+  # un compte développeur Apple et ses certificats en secrets (docs/guides/applications-mobiles.md).
+  ios:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        appli: [client, livreur]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            ui/package-lock.json
+            apps/mobile/${{ matrix.appli }}/package-lock.json
+      - name: Interface de l'application
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build:${{ matrix.appli }}
+      - name: Projet iPhone
+        working-directory: apps/mobile/${{ matrix.appli }}
+        run: |
+          npm ci
+          npx cap sync ios
+      - name: Compiler pour le simulateur
+        working-directory: apps/mobile/${{ matrix.appli }}/ios/App
+        shell: bash
+        run: xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO build | tail -40

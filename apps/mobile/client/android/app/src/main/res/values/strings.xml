@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Youma Client</string>
+    <string name="title_activity_main">Youma Client</string>
+    <string name="package_name">ml.youma.client</string>
+    <string name="custom_url_scheme">youma-client</string>
+</resources>

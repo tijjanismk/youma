@@ -1,0 +1,19 @@
+{
+  "name": "youma-client",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Application Youma Client (fiche 0041) : coquille Capacitor autour de ui/dist-client.",
+  "scripts": {
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2",
+    "@capacitor/local-notifications": "8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  }
+}

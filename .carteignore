@@ -1,0 +1,6 @@
+# Copies de l'interface compilée dans les projets mobiles (déjà ignorées par apps/mobile/*/android|ios/.gitignore)
+apps/mobile/*/android/app/src/main/assets/
+apps/mobile/*/ios/App/App/public/
+apps/mobile/*/node_modules/
+ui/dist-client/
+ui/dist-livreur/

@@ -87,6 +87,11 @@ directement le repère (correspond au correctif L1).
 6. L3 : transmettre la précision au poste (nouveau champ `livraison.precision_m`) ?
 7. Option 3 si jamais retenue : React Native/Expo (recommandé, même langage) ou Flutter ?
 
+## 5 ter. Décision du 03/10 (fiche 0041)
+
+Deux applications Capacitor, Youma Client et Youma Livreur (Android + iOS), pages web gardées ; voir `modules/mobile.md`.
+L4 traité dans l'application livreur (position en arrière-plan). iPhone : projet prêt, compte Apple à ouvrir.
+
 ## 6. Reste à faire
 
 1. C3, C4, `cargo audit` en CI, échec de compilation release sans clé (C2).
