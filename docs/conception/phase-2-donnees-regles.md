@@ -57,6 +57,9 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   un nouveau en donnant le **code de secours** (remis à l'installation, renouvelable dans l'administration) ou la
   **réponse du fournisseur** (code de demande signé avec la clé des licences). Chaque code sert une fois ; les échecs
   comptent pour le verrouillage (RG-AUT-02). Les autres utilisateurs font redéfinir leur mot de passe par le propriétaire.
+* **RG-AUT-08** PIN d'autorisation ponctuelle (RG-AUT-03) : 5 PIN faux en 15 minutes bloquent 5 minutes les
+  autorisations demandées par l'utilisateur qui les saisit (pas le responsable visé). Un PIN juste n'efface pas les
+  échecs. Blocage journalisé (fiche 0040).
 
 ### Journée (JOU)
 * **RG-JOU-01** Vente, dépense, session de caisse exigent une journée ouverte.

@@ -673,6 +673,42 @@ fn rg_aut_06_administration_par_mot_de_passe() {
 }
 
 #[test]
+fn rg_aut_08_pin_d_autorisation_bloque_apres_5_essais() {
+    let mut b = banc();
+    let u = NouvelUtilisateur { nom: "Test".into(), role_code: "serveur".into(), pin: "8765".into(), mot_de_passe: None, employe_id: None };
+    // Le PIN juste est accepté (l'administration reste refusée : mot de passe exigé, RG-AUT-06).
+    let essai = |b: &mut Banc, pin: &str| {
+        let a = b.serveur().avec_autorisation(Some(pin.into()));
+        auth::creer_utilisateur(&mut b.db, &a, &u).unwrap_err()
+    };
+    for _ in 0..4 {
+        assert_eq!(essai(&mut b, "0000").code(), "PIN_INCORRECT");
+    }
+    assert_eq!(essai(&mut b, "0000").regle_code(), Some("RG-AUT-08"));
+    // Bloqué même avec le bon PIN : c'est le demandeur qui est bloqué, pas le propriétaire.
+    assert_eq!(essai(&mut b, "1234").regle_code(), Some("RG-AUT-08"));
+    let pid = b.demo.proprietaire.clone();
+    auth::connexion_pin(&mut b.db, &pid, "1234", None).unwrap();
+    assert_eq!(b.compter("SELECT COUNT(*) FROM journal_audit WHERE action = 'autorisation.bloquee'"), 1);
+    b.horloge.avancer_minutes(6);
+    assert_eq!(essai(&mut b, "1234").code(), "INTERDIT");
+    // Glisser son propre PIN entre deux essais n'efface pas les échecs.
+    for _ in 0..4 {
+        assert_eq!(essai(&mut b, "0000").code(), "PIN_INCORRECT");
+    }
+    assert_eq!(essai(&mut b, "4444").code(), "INTERDIT");
+    assert_eq!(essai(&mut b, "0000").regle_code(), Some("RG-AUT-08"));
+    // Échecs espacés de plus de 15 minutes : on repart de zéro.
+    b.horloge.avancer_minutes(6);
+    for _ in 0..4 {
+        assert_eq!(essai(&mut b, "0000").code(), "PIN_INCORRECT");
+    }
+    b.horloge.avancer_minutes(16);
+    assert_eq!(essai(&mut b, "0000").code(), "PIN_INCORRECT");
+    assert_eq!(essai(&mut b, "1234").code(), "INTERDIT");
+}
+
+#[test]
 fn rg_sor_bon_de_sortie() {
     let mut b = banc();
     b.ouvrir_journee();
@@ -740,6 +776,8 @@ fn migration_0010_garde_les_paiements() {
              CREATE TRIGGER ajout_seul_parts_d BEFORE DELETE ON parts_paiement BEGIN SELECT RAISE(ABORT, 'x'); END;
              DROP TABLE contrats_societe;
              ALTER TABLE clients DROP COLUMN vip; ALTER TABLE clients DROP COLUMN vip_jusqu_au;
+             ALTER TABLE utilisateurs DROP COLUMN echecs_autorisation; ALTER TABLE utilisateurs DROP COLUMN premier_echec_autorisation;
+             ALTER TABLE utilisateurs DROP COLUMN autorisation_bloquee_jusqu_a;
              DROP INDEX IF EXISTS idx_parts_paiement; DROP INDEX IF EXISTS idx_parts_reference_mm; DROP INDEX IF EXISTS idx_parts_contrat;
              PRAGMA user_version = 9;",
         )
@@ -747,7 +785,7 @@ fn migration_0010_garde_les_paiements() {
     }
     let db = Db::ouvrir(&chemin, h).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 10);
+    assert_eq!(v, 11);
     let n: i64 = db.conn().query_row("SELECT COUNT(*) FROM parts_paiement WHERE moyen = 'especes' AND montant = 2000", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 1, "le paiement d'avant la migration est conservé");
     let fk: i64 = db.conn().pragma_query_value(None, "foreign_keys", |r| r.get(0)).unwrap();
@@ -776,7 +814,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 10);
+    assert_eq!(v, 11);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);

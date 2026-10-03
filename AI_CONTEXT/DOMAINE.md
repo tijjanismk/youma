@@ -22,7 +22,7 @@ cite. Ici : où chaque famille est appliquée. Chemins relatifs à `crates/youma
 
 | Famille | Sujet | Où |
 | --- | --- | --- |
-| AUT 01–07 | PIN Argon2, verrouillage 5 échecs (02), autorisation ponctuelle par PIN (03), dernier propriétaire (05), élévation par mot de passe (06), secours (07) | `auth.rs:20,50,107,201,265`, `secours.rs` |
+| AUT 01–08 | PIN Argon2, verrouillage 5 échecs (02), autorisation ponctuelle par PIN (03), dernier propriétaire (05), élévation par mot de passe (06), secours (07), PIN d'autorisation : 5 faux en 15 min bloquent le demandeur 5 min (08) | `auth.rs` (`autoriser_par_pin`), `db.rs::executer_interne`, `secours.rs` |
 | SYS 01–06 | horloge, transaction, ajout seul, séquences, audit, licence | `db.rs`, `erreur.rs`, `licence.rs` |
 | JOU 01–04 | journée d'exploitation, clôture | `journee.rs`, `db.rs:414` |
 | CMD 01–12 | commandes, envoi par poste (03), article envoyé non modifiable (04), parts égales (12) | `commandes.rs:145,593,607,1092`, `entrantes.rs:512,664` |

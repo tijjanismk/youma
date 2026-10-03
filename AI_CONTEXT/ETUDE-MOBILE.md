@@ -41,7 +41,7 @@ plages privées. Numérotation : l'étude propose la fiche **0039**, déjà pris
 
 | Id | Constat | État | Preuve |
 | --- | --- | --- | --- |
-| C1 | PIN d'autorisation ponctuelle sans verrouillage (force brute de 10 000 PIN par un employé connecté) | **Ouvert** — seule faille jugée exploitable | `crates/youma-core/src/auth.rs:107` n'utilise ni `echecs_pin` ni `verrouille_jusqu_a` (utilisés l. 323–346 et 416–437) |
+| C1 | PIN d'autorisation ponctuelle sans verrouillage (force brute de 10 000 PIN par un employé connecté) | **Corrigé** (RG-AUT-08, fiche 0040, migration 0011) : 5 PIN faux en 15 min bloquent 5 min le demandeur ; un PIN juste n'efface pas les échecs | `auth.rs::autoriser_par_pin`, appelé par `db.rs::executer_interne` avant la transaction ; test `rg_aut_08_…` |
 | C2 | Repli sur `CLE_DEV` si `YOUMA_CLE_PUBLIQUE` absente ; `outils/cle-dev.txt` dans le dépôt | **Atténué** : le workflow Windows échoue pour une version `v*` sans le secret ; une compilation release locale retombe encore sur la clé de dev | `licence.rs:18–21`, `.github/workflows/installateur-windows.yml:35–48` |
 | C3 | `/public/suivi/{code}` et `/public/position/{code}` sans limiteur sur le poste | **Ouvert** (risque faible) | `crates/youma-server/src/api.rs:256–258` |
 | C4 | Export/restauration de sauvegarde avec chemin libre fourni par le client | **Ouvert** (réservé SAUVEGARDE_GERER + session élevée) | `api.rs:1341–1350` |
@@ -60,15 +60,24 @@ appels bloquants en async (`api.rs:1310`, `server/cloud.rs:124,177`, `relais/clo
 
 | Id | Problème | État | Preuve |
 | --- | --- | --- | --- |
-| L1 | Page en HTTP : géolocalisation refusée, message générique trompeur | **Ouvert** : `MenuClient.tsx` ne teste pas `isSecureContext` (le livreur oui) | `ui/src/public/MenuClient.tsx:376`, `Livreur.tsx:15` |
-| L2 | Permission refusée mémorisée, même message pour toutes les erreurs | **Ouvert** : le gestionnaire d'erreur ignore le code (`PERMISSION_DENIED`/`TIMEOUT`…) | `MenuClient.tsx:374–378` |
+| L1 | Page en HTTP : géolocalisation refusée, message générique trompeur | **Corrigé** (fiche 0040) : case remplacée par une demande de repère hors contexte sécurisé | `ui/src/public/position.ts::positionPossible` |
+| L2 | Permission refusée mémorisée, même message pour toutes les erreurs | **Corrigé** (fiche 0040) : message selon le code (refus, GPS coupé, délai) | `position.ts::messageErreurPosition` |
 | L3 | Position imprécise | **En partie traité** (fiche 0038) : GPS haute précision, meilleure mesure sur 30 s, arrêt ≤ 25 m, précision affichée, repère facultatif si ≤ 100 m. **Reste** : précision non envoyée au poste ; `zones_risque::evaluer` applique le cercle GPS sans elle | `MenuClient.tsx:355–390`, `zones_risque.rs` |
-| L4 | Position du livreur coupée écran verrouillé | Limite du navigateur ; relève des options 2b/4 | — |
+| L4 | Position du livreur coupée écran verrouillé | **Atténué** (fiche 0040) : écran gardé allumé (Wake Lock) pendant la course + rappel ; mini-app livreur (option 4) si le pilote montre encore des coupures | `ui/src/public/Livreur.tsx` |
 
 Proposition déjà faite au porteur et non confirmée : cacher « Partager ma position » sur une page HTTP et demander
 directement le repère (correspond au correctif L1).
 
-## 5. Questions ouvertes pour le porteur (reprises de l'étude)
+## 5. Réponses du porteur (03/10) et décisions (fiche 0040)
+
+1. Raccourci navigateur essayé par le personnel : **oui** → personnel sur le navigateur (option 1).
+2. iPhone : réponse « majeure partie », **à préciser** (Android ou iPhone ?).
+3. Livreurs : surtout occasionnels, mais connus → mini-app livreur possible plus tard (APK par WhatsApp).
+4. C1 : bloquer celui qui se trompe → fait (demandeur bloqué, responsable jamais).
+5. La position sert à **rassurer le client** sans que le restaurant suive chaque commande → priorité au suivi du
+   livreur côté client (Wake Lock) ; [HYPOTHÈSE] L3 (précision envoyée au poste) non demandé.
+
+## 5 bis. Questions de l'étude (texte d'origine)
 
 1. Le raccourci navigateur a-t-il été essayé par du personnel réel ? Qu'est-ce qui gêne ?
 2. Nombre de téléphones par restaurant, versions d'Android, iPhones en service ?
@@ -78,8 +87,7 @@ directement le repère (correspond au correctif L1).
 6. L3 : transmettre la précision au poste (nouveau champ `livraison.precision_m`) ?
 7. Option 3 si jamais retenue : React Native/Expo (recommandé, même langage) ou Flutter ?
 
-## 6. Ordre suggéré (si le porteur valide)
+## 6. Reste à faire
 
-1. C1 (fiche + test dans `regles.rs`), L1 + L2 (faible coût, interface seulement).
-2. C3, C4, `cargo audit` en CI, échec de compilation release sans clé (C2).
-3. Décision mobile (fiche 0040) après retour du pilote ; L3 avec la décision sur la précision.
+1. C3, C4, `cargo audit` en CI, échec de compilation release sans clé (C2).
+2. Après le pilote : mini-app livreur (option 4) si le suivi se coupe encore ; L3 si une zone GPS se trompe.

@@ -9,7 +9,7 @@ Rôle : écrans du personnel et pages publiques ; aucune logique métier ni acc�
 - `pwa.ts` — service worker seulement si `isSecureContext` (l. 29).
 - `types.ts`, `paiement.ts` (validation des parts), `panier.ts`, `format.ts`, `i18n.ts`, `whatsapp.ts`, `listesStock.ts`, `theme.ts`.
 - `pages/` — PriseCommande (713 l.), Administration (1335 l., onglet Fidélité), Caisse, Encaissement (carte cadeau, société, points), Clients (+ `CartesSocietes.tsx`), Entrantes, Cuisine, Livraisons, Stock, Achats, Paie…
-- `public/` — `MenuClient.tsx` (position GPS haute précision l. 355–390, bandeau « déjà envoyée »), `Suivi`, `Livreur.tsx` (garde `isSecureContext` l. 15), propriétaire.
+- `public/` — `MenuClient.tsx` (position GPS haute précision, case « Partager ma position » seulement en contexte sécurisé, bandeau « déjà envoyée »), `position.ts` (`positionPossible`, `messageErreurPosition`), `Suivi`, `Livreur.tsx` (Wake Lock pendant la course), propriétaire.
 - `composants/` — Base, Chiffres, Ticket, Plat, IconeCategorie, MenuDuJour, Secours, Installation.
 
 ## Entrant

@@ -7,7 +7,7 @@ Rôle : transaction métier, migrations, audit, permissions, sessions, appareils
 - `erreur.rs` (113 l.) — `Erreur` (Regle, Validation, NonTrouve, PinIncorrect, HorlogeIncoherente…), `ErreurApi` (codes `AUTORISATION_REQUISE`, `MOT_DE_PASSE_REQUIS`…).
 - `horloge.rs` (120 l.) — `Horloge`, `HorlogeFixe` (tests), `date_exploitation`, `date_locale`, `plage_active`.
 - `permissions.rs` (94 l.) — constantes `perm::*` (CAISSE_ENCAISSER, CLIENT_CREDIT, COMMANDE_OFFRIR…).
-- `auth.rs` (579 l.) — Argon2, `connexion_pin` (verrouillage l. 323–346), `verifier_pin_autorisation` (107), `elever_session` (416–437), rôles, utilisateurs.
+- `auth.rs` (579 l.) — Argon2, `connexion_pin` (verrouillage l. 323–346), `autoriser_par_pin` (RG-AUT-03/08, transaction à part, appelée par `executer_interne` avant la transaction principale), `elever_session` (416–437), rôles, utilisateurs.
 - `appareils.rs` (98 l.) — appairage par code, jeton haché, révocation.
 - `secours.rs` (169 l.) — réinitialisation par code signé du fournisseur.
 - `licence.rs` (181 l.) — Ed25519 ; `cle_publique` = `YOUMA_CLE_PUBLIQUE` sinon `CLE_DEV` (l. 18–21).
@@ -24,4 +24,4 @@ Rôle : transaction métier, migrations, audit, permissions, sessions, appareils
 
 ## Règles métier
 - [CONFIRMÉ] RG-SYS-01/02 : `db.rs:204`. RG-SYS-04 : `db.rs:356`. RG-SYS-06 : `licence.rs:2`.
-- [CONFIRMÉ] RG-AUT-03 : l'autorisation ponctuelle par PIN ne lit ni n'incrémente `echecs_pin` — `auth.rs:107` (constat C1, voir `ETUDE-MOBILE.md`).
+- [CONFIRMÉ] RG-AUT-08 : échecs du PIN d'autorisation comptés pour le demandeur (`utilisateurs.echecs_autorisation`, fenêtre 15 min), jamais effacés par un PIN juste — `auth.rs::autoriser_par_pin` (constat C1 corrigé, fiche 0040).

@@ -23,6 +23,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (8, include_str!("../migrations/0008_reference_carte.sql")),
     (9, include_str!("../migrations/0009_menu_du_jour_suivi.sql")),
     (10, include_str!("../migrations/0010_fidelite_cartes_contrats_vip.sql")),
+    (11, include_str!("../migrations/0011_verrou_autorisation.sql")),
 ];
 
 /// Migration qui reconstruit une table référencée : clés étrangères coupées le temps de la migration (procédure
@@ -221,6 +222,12 @@ impl Db {
         f: impl FnOnce(&mut Op) -> Resultat<T>,
     ) -> Resultat<T> {
         let maintenant = self.horloge.maintenant_ms();
+        // RG-AUT-03/08 : le PIN d'autorisation est vérifié dans sa propre transaction, pour que les échecs restent
+        // comptés même quand l'opération demandée est refusée.
+        let autorisateur = match &acteur.autorisation_pin {
+            Some(pin) if !acteur.systeme => Some(auth::autoriser_par_pin(self, acteur.utilisateur_id.as_deref(), pin)?),
+            _ => None,
+        };
         let tx = self.conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let dernier = dernier_horodatage(&tx)?;
         if garde_horloge && maintenant + TOLERANCE_RECUL_MS < dernier {
@@ -237,10 +244,6 @@ impl Db {
             auth::permissions_utilisateur(&tx, uid)?
         } else {
             return Err(Erreur::NonAuthentifie);
-        };
-        let autorisateur = match &acteur.autorisation_pin {
-            Some(pin) => Some(auth::verifier_pin_autorisation(&tx, pin, maintenant)?),
-            None => None,
         };
         let mut op = Op {
             tx,

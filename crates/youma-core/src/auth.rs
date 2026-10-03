@@ -15,6 +15,7 @@ use crate::permissions as perm;
 
 const ECHECS_MAX: i64 = 5;
 const VERROUILLAGE_MS: i64 = 5 * 60_000;
+const FENETRE_AUTORISATION_MS: i64 = 15 * 60_000;
 
 fn argon() -> Argon2<'static> {
     // Réglage léger : PC anciens, et le PIN est protégé par le verrouillage (RG-AUT-02).
@@ -104,10 +105,51 @@ fn utilisateur_par_pin(conn: &Connection, pin: &str) -> Resultat<Option<String>>
 }
 
 /// RG-AUT-03 : autorisation ponctuelle par le PIN d'un responsable présent.
-pub fn verifier_pin_autorisation(conn: &Connection, pin: &str, _maintenant: i64) -> Resultat<Autorisateur> {
-    let id = utilisateur_par_pin(conn, pin)?.ok_or(Erreur::PinIncorrect)?;
-    let (permissions, plafond) = permissions_utilisateur(conn, &id)?;
-    Ok(Autorisateur { utilisateur_id: id, permissions, plafond_remise_pct: plafond })
+/// RG-AUT-08 : 5 PIN faux en 15 minutes bloquent 5 minutes les autorisations demandées par `demandeur` (celui qui
+/// essaie, pas le responsable visé, qu'on pourrait sinon bloquer exprès). Un PIN juste n'efface pas les échecs :
+/// sinon il suffirait de glisser son propre PIN entre deux essais. Transaction à part : les échecs restent comptés
+/// quand l'opération demandée est refusée.
+pub(crate) fn autoriser_par_pin(db: &mut Db, demandeur: Option<&str>, pin: &str) -> Resultat<Autorisateur> {
+    db.executer_sans_garde(&Acteur::systeme(), |op| {
+        let etat: Option<(i64, Option<i64>, Option<i64>)> = match demandeur {
+            Some(d) => op
+                .query_row(
+                    "SELECT echecs_autorisation, premier_echec_autorisation, autorisation_bloquee_jusqu_a FROM utilisateurs WHERE id = ?1",
+                    params![d],
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                )
+                .optional()?,
+            None => None,
+        };
+        if etat.is_some_and(|(_, _, v)| v.is_some_and(|v| v > op.maintenant)) {
+            return Ok(Err(bloque()));
+        }
+        if let Some(id) = utilisateur_par_pin(op, pin)? {
+            let (permissions, plafond) = permissions_utilisateur(op, &id)?;
+            return Ok(Ok(Autorisateur { utilisateur_id: id, permissions, plafond_remise_pct: plafond }));
+        }
+        if let (Some(d), Some((echecs, premier, _))) = (demandeur, etat) {
+            // Fenêtre de 15 minutes depuis le premier échec ; au-delà, on repart de zéro.
+            let (echecs, premier) = match premier {
+                Some(p) if op.maintenant - p < FENETRE_AUTORISATION_MS => (echecs + 1, p),
+                _ => (1, op.maintenant),
+            };
+            let verrou = (echecs >= ECHECS_MAX).then_some(op.maintenant + VERROUILLAGE_MS);
+            op.execute(
+                "UPDATE utilisateurs SET echecs_autorisation = ?1, premier_echec_autorisation = ?2, autorisation_bloquee_jusqu_a = ?3 WHERE id = ?4",
+                params![if verrou.is_some() { 0 } else { echecs }, if verrou.is_some() { None } else { Some(premier) }, verrou, d],
+            )?;
+            if verrou.is_some() {
+                op.audit("autorisation.bloquee", "utilisateur", Some(d), None, None, Some("5 PIN faux en 15 minutes"), None)?;
+                return Ok(Err(bloque()));
+            }
+        }
+        Ok(Err(Erreur::PinIncorrect))
+    })?
+}
+
+fn bloque() -> Erreur {
+    Erreur::regle("RG-AUT-08", "Trop de PIN faux : autorisation bloquée 5 minutes. Le responsable peut se connecter lui-même.")
 }
 
 #[derive(Debug, Serialize, Clone)]

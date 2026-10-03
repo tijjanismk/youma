@@ -1,19 +1,19 @@
 [
  {
   "date": "2026-10-03",
-  "texte": "verifier_pin_autorisation (RG-AUT-03) ne compte pas les échecs : force brute possible (constat C1, ouvert)",
+  "texte": "Échecs du PIN d'autorisation comptés dans une transaction à part (autoriser_par_pin) ; un PIN juste ne les efface pas, sinon on glisse son propre PIN entre deux essais (C1 corrigé)",
   "fichier": "crates/youma-core/src/auth.rs",
-  "ligne": 107,
-  "statut": "piege",
-  "empreinte": "21dccf57e73a5d1d"
+  "ligne": null,
+  "statut": "corrige",
+  "empreinte": "af4ecf6288f0461c"
  },
  {
   "date": "2026-10-03",
-  "texte": "MenuClient ne teste pas isSecureContext : en HTTP la géolocalisation échoue avec un message générique (L1/L2, ouverts)",
+  "texte": "positionPossible() masque le partage de position hors contexte sécurisé ; messages par code d'erreur dans position.ts (L1/L2 corrigés)",
   "fichier": "ui/src/public/MenuClient.tsx",
-  "ligne": 374,
-  "statut": "piege",
-  "empreinte": "97393a471582ab0f"
+  "ligne": null,
+  "statut": "corrige",
+  "empreinte": "6fd52aa2bccf6a3d"
  },
  {
   "date": "2026-10-03",
@@ -27,8 +27,8 @@
   "date": "2026-10-03",
   "texte": "Migration qui reconstruit une table référencée : commencer par le marqueur -- youma:cles-etrangeres-coupees",
   "fichier": "crates/youma-core/src/db.rs",
-  "ligne": 30,
+  "ligne": 31,
   "statut": "confirme",
-  "empreinte": "99d4079d940ff747"
+  "empreinte": "b281f69af29ab1e2"
  }
 ]

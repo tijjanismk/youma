@@ -129,6 +129,8 @@ ordre d'arrivée.
 
 **Ce qui demande le PIN du gérant** : annuler un article envoyé, une remise au-delà du plafond, certains retraits.
 Le gérant tape son PIN **lui-même** sur l'écran : ne jamais le donner au personnel.
+Après **5 PIN faux en 15 minutes**, les autorisations sont bloquées 5 minutes sur ce compte (le gérant, lui, n'est pas
+bloqué : il peut faire l'action depuis sa propre session).
 
 **Chaque jour**
 - **Ma journée** : chiffre d'affaires, dépenses, bénéfice estimé, annulations, remises, stock critique ;
