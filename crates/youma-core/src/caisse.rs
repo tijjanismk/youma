@@ -347,7 +347,7 @@ pub struct ClotureSession {
     pub billetage: Vec<LigneBilletage>,
     #[serde(default)]
     pub motif_ecart: String,
-    /// RG-CAI-15 : fond laissé dans le tiroir pour la monnaie ; le reste de l'argent compté part au coffre.
+    /// RG-CAI-16 : fond laissé dans le tiroir pour la monnaie ; le reste de l'argent compté part au coffre.
     /// Absent : tout reste dans le tiroir (comportement d'avant).
     #[serde(default)]
     pub fond_garde: Option<i64>,
@@ -386,7 +386,7 @@ pub fn cloturer_session(db: &mut Db, acteur: &Acteur, session_id: &str, c: &Clot
         enregistrer_billetage(op, session_id, "cloture", &c.billetage)?;
         let remise = match c.fond_garde {
             Some(g) if g < 0 || g > c.compte_final => {
-                return Err(Erreur::regle("RG-CAI-15", "Le fond gardé doit être entre 0 et l'argent compté"));
+                return Err(Erreur::regle("RG-CAI-16", "Le fond gardé doit être entre 0 et l'argent compté"));
             }
             Some(g) => c.compte_final - g,
             None => 0,
@@ -395,7 +395,7 @@ pub fn cloturer_session(db: &mut Db, acteur: &Acteur, session_id: &str, c: &Clot
             let coffre: String = op
                 .query_row("SELECT id FROM comptes_tresorerie WHERE type = 'coffre' AND actif = 1 ORDER BY ordre LIMIT 1", [], |r| r.get(0))
                 .optional()?
-                .ok_or_else(|| Erreur::regle("RG-CAI-15", "Aucun compte coffre actif : créez-le dans l'administration"))?;
+                .ok_or_else(|| Erreur::regle("RG-CAI-16", "Aucun compte coffre actif : créez-le dans l'administration"))?;
             let sortie = mouvement(op, &s.compte_id, Some(session_id), "remise_coffre", -remise, Some(("session_caisse", session_id)), "Remise de clôture", None)?;
             mouvement(op, &coffre, None, "remise_coffre", remise, Some(("mouvement_tresorerie", &sortie)), "Remise de clôture", None)?;
         }
@@ -440,7 +440,7 @@ fn session_requise(op: &Op) -> Resultat<Session> {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PartSaisie {
-    /// especes | mobile_money | virement | carte | credit
+    /// especes | mobile_money | virement | carte | credit | carte_cadeau (code dans `reference`)
     pub moyen: String,
     pub montant: i64,
     #[serde(default)]
@@ -454,6 +454,9 @@ pub struct PartSaisie {
     /// RG-LIV-02 : espèces encaissées par le livreur.
     #[serde(default)]
     pub par_livreur: bool,
+    /// RG-SOC-02 : part payée par une société sous contrat (moyen « credit », employé dans `reference`).
+    #[serde(default)]
+    pub contrat_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -526,6 +529,10 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
     let libelle = format!("Commande n°{}", etat.numero);
     for p in &e.parts {
         let part_id = op.nouvel_id();
+        let mut reference_carte = None;
+        if p.contrat_id.is_some() && p.moyen != "credit" {
+            return Err(Erreur::regle("RG-SOC-02", "La part d'une société se paie à crédit sur son compte"));
+        }
         let (compte, client) = match p.moyen.as_str() {
             "especes" if p.par_livreur => (Some(compte_livreur(op, &e.commande_id)?), None),
             "especes" => (Some(session.compte_id.clone()), None),
@@ -580,6 +587,18 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
                 }
                 (Some(c), None)
             }
+            // RG-SOC-02 : part de la société sous contrat, sur le compte de la société.
+            "credit" if p.contrat_id.is_some() => {
+                let contrat = p.contrat_id.as_deref().unwrap_or_default();
+                let employe = p.reference.as_deref().unwrap_or("");
+                (None, Some(crate::contrats::controler_part_op(op, contrat, &e.commande_id, p.montant, employe)?))
+            }
+            // RG-CAD-02 : carte cadeau ou bon d'avoir, débité de son solde ; pas de mouvement de trésorerie.
+            "carte_cadeau" => {
+                let code = p.reference.as_deref().unwrap_or("");
+                reference_carte = Some(crate::cartes::debiter_op(op, code, p.montant, &paiement_id)?);
+                (None, None)
+            }
             "credit" => {
                 let client = p
                     .client_id
@@ -594,11 +613,11 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
             }
             _ => return Err(Erreur::validation(format!("Moyen de paiement inconnu : {}", p.moyen))),
         };
-        let reference = p.reference.as_deref().map(str::trim).filter(|r| !r.is_empty());
+        let reference = reference_carte.as_deref().or(p.reference.as_deref().map(str::trim).filter(|r| !r.is_empty()));
         op.execute(
-            "INSERT INTO parts_paiement(id, paiement_id, moyen, compte_id, client_id, montant, reference, numero_payeur)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![part_id, paiement_id, p.moyen, compte, client, p.montant, reference, p.numero_payeur],
+            "INSERT INTO parts_paiement(id, paiement_id, moyen, compte_id, client_id, montant, reference, numero_payeur, contrat_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![part_id, paiement_id, p.moyen, compte, client, p.montant, reference, p.numero_payeur, p.contrat_id],
         )?;
         if let Some(c) = &compte {
             mouvement(op, c, Some(&session.id), "vente", p.montant, Some(("paiement", &paiement_id)), &libelle, None)?;
@@ -621,6 +640,8 @@ pub(crate) fn encaisser_op(op: &mut Op, e: &Encaissement) -> Resultat<ResultatEn
             "UPDATE commandes SET statut = 'payee', payee_le = ?1, modifie_le = ?1, version = version + 1 WHERE id = ?2",
             params![op.maintenant, e.commande_id],
         )?;
+        // RG-FID-02 : points gagnés par le client de l'addition.
+        crate::fidelite::gagner_op(op, &e.commande_id)?;
         // RG-CMD-11 : payer d'abord → l'envoi part dès que tout est payé.
         if etat.ordre_paiement == "avant" {
             commandes::envoyer_op(op, &e.commande_id)?;
@@ -672,16 +693,20 @@ pub fn annuler_paiement(db: &mut Db, acteur: &Acteur, paiement_id: &str, motif: 
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![id, numero, commande_id, journee.id, session.id, -montant, paiement_id, motif.trim(), op.maintenant, op.utilisateur(), autorise_par],
         )?;
-        let parts: Vec<(String, Option<String>, Option<String>, i64, Option<String>)> = op
-            .prepare("SELECT moyen, compte_id, client_id, montant, reference FROM parts_paiement WHERE paiement_id = ?1")?
-            .query_map(params![paiement_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+        let parts: Vec<(String, Option<String>, Option<String>, i64, Option<String>, Option<String>)> = op
+            .prepare("SELECT moyen, compte_id, client_id, montant, reference, contrat_id FROM parts_paiement WHERE paiement_id = ?1")?
+            .query_map(params![paiement_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?
             .collect::<Result<_, _>>()?;
-        for (moyen, compte, client, m, reference) in parts {
+        for (moyen, compte, client, m, reference, contrat) in parts {
             op.execute(
-                "INSERT INTO parts_paiement(id, paiement_id, moyen, compte_id, client_id, montant, reference)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![op.nouvel_id(), id, moyen, compte, client, -m, reference],
+                "INSERT INTO parts_paiement(id, paiement_id, moyen, compte_id, client_id, montant, reference, contrat_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![op.nouvel_id(), id, moyen, compte, client, -m, reference, contrat],
             )?;
+            // RG-CAD-05 : la carte retrouve son solde.
+            if moyen == "carte_cadeau" {
+                crate::cartes::recrediter_op(op, reference.as_deref().unwrap_or(""), m, &id)?;
+            }
             if let Some(c) = compte {
                 // Les espèces sortent de la caisse de la session courante.
                 let c = if moyen == "especes" && type_compte(op, &c)? == "especes" { session.compte_id.clone() } else { c };
@@ -697,6 +722,8 @@ pub fn annuler_paiement(db: &mut Db, acteur: &Acteur, paiement_id: &str, motif: 
                  WHERE id = ?2 AND statut IN ('payee','cloturee')",
                 params![op.maintenant, cid],
             )?;
+            // RG-FID-04 : les points gagnés sur cette addition sont retirés.
+            crate::fidelite::annuler_gain_op(op, cid, motif.trim())?;
             op.evenement("commande", Some(cid));
         }
         op.audit(

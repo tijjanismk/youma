@@ -1,13 +1,15 @@
 /** Calculs de l'écran d'encaissement (le serveur revalide tout : RG-CAI-02). */
 
 export type Part = {
-  moyen: "especes" | "mobile_money" | "virement" | "carte" | "credit";
+  moyen: "especes" | "mobile_money" | "virement" | "carte" | "credit" | "carte_cadeau";
   montant: number;
   compte_id?: string;
   reference?: string;
   numero_payeur?: string;
   client_id?: string;
   par_livreur?: boolean;
+  /** RG-SOC-02 : part payée par une société sous contrat (employé dans `reference`). */
+  contrat_id?: string;
 };
 
 export function sommeParts(parts: Part[]): number {
@@ -32,7 +34,9 @@ export function verifierPaiement(parts: Part[], aPayer: number, especesRecues: n
     if (p.moyen === "mobile_money" && referenceObligatoire && !p.reference?.trim()) return "Saisissez la référence de la transaction Mobile Money";
     if (p.moyen === "carte" && !p.compte_id) return "Choisissez le compte bancaire du TPE";
     if (p.moyen === "carte" && !p.reference?.trim()) return "Saisissez le numéro d'autorisation imprimé par le TPE";
-    if (p.moyen === "credit" && !p.client_id) return "Choisissez le client pour le crédit";
+    if (p.moyen === "credit" && p.contrat_id && !p.reference?.trim()) return "Indiquez le nom de l'employé de la société";
+    if (p.moyen === "credit" && !p.contrat_id && !p.client_id) return "Choisissez le client pour le crédit";
+    if (p.moyen === "carte_cadeau" && !p.reference?.trim()) return "Saisissez le code de la carte cadeau";
   }
   return null;
 }

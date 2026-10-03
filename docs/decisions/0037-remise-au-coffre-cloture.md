@@ -10,7 +10,7 @@ donc dans le tiroir pour Youma, et la réouverture réclamait un motif d'écart.
 
 ## Décision
 
-RG-CAI-15 : l'écran de clôture propose, cochée par défaut s'il existe un compte coffre actif, « Remettre l'argent au
+RG-CAI-16 : l'écran de clôture propose, cochée par défaut s'il existe un compte coffre actif, « Remettre l'argent au
 coffre en gardant un fond pour la monnaie ». Fond gardé par défaut : le fond d'ouverture de la session. Le reste de
 l'argent compté part au coffre dans la même transaction que la clôture : deux mouvements liés `remise_coffre`
 (sortie du tiroir rattachée à la session, entrée au coffre). Le rapport Z affiche « Remis au coffre » et « Fond

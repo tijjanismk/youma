@@ -43,6 +43,27 @@ pub struct Parametres {
     pub canaux: Canaux,
     /// Cloud facultatif : résumés, sauvegardes chiffrées, consultation à distance (fiche 0018).
     pub cloud: Cloud,
+    /// Fidélité par points, règles choisies par le restaurant (fiche 0039).
+    pub fidelite: Fidelite,
+}
+
+/// RG-FID-01 : le restaurant fixe ce qu'il faut dépenser pour un point et ce que vaut un point.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct Fidelite {
+    pub active: bool,
+    /// FCFA dépensés pour gagner 1 point.
+    pub fcfa_par_point: i64,
+    /// Valeur d'un point en FCFA, à l'utilisation.
+    pub valeur_point: i64,
+    /// Points minimum pour pouvoir les utiliser.
+    pub minimum_points: i64,
+}
+
+impl Default for Fidelite {
+    fn default() -> Self {
+        Fidelite { active: false, fcfa_par_point: 1_000, valeur_point: 50, minimum_points: 100 }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
@@ -156,6 +177,7 @@ impl Default for Parametres {
             intervalle_sauvegarde_minutes: 30,
             canaux: Canaux::default(),
             cloud: Cloud::default(),
+            fidelite: Fidelite::default(),
         }
     }
 }
@@ -299,6 +321,11 @@ pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> R
         }
         if (c.inps_active && c.inps_salarie_bp == 0) || (c.amo_active && c.amo_salarie_bp == 0) {
             return Err(crate::Erreur::regle("RG-PAI-07", "Saisissez le taux de cotisation avant de l'activer"));
+        }
+        // RG-FID-01 : règles de fidélité cohérentes.
+        let f = &p.fidelite;
+        if f.fcfa_par_point < 1 || f.valeur_point < 1 || f.minimum_points < 0 {
+            return Err(crate::Erreur::regle("RG-FID-01", "Fidélité : montant pour un point et valeur d'un point au moins 1 FCFA"));
         }
         // Le journal d'audit ne garde aucun secret.
         let masquer = |mut v: serde_json::Value| {

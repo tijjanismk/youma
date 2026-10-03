@@ -22,7 +22,12 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (7, include_str!("../migrations/0007_promotions.sql")),
     (8, include_str!("../migrations/0008_reference_carte.sql")),
     (9, include_str!("../migrations/0009_menu_du_jour_suivi.sql")),
+    (10, include_str!("../migrations/0010_fidelite_cartes_contrats_vip.sql")),
 ];
+
+/// Migration qui reconstruit une table référencée : clés étrangères coupées le temps de la migration (procédure
+/// SQLite en 12 étapes), puis vérifiées avant d'être rétablies.
+const MARQUE_SANS_CLES: &str = "-- youma:cles-etrangeres-coupees";
 
 pub fn version_schema() -> i64 {
     MIGRATIONS.last().map(|m| m.0).unwrap_or(0)
@@ -113,10 +118,29 @@ impl Db {
         }
         for (version, sql) in MIGRATIONS {
             if *version > actuelle {
+                let sans_cles = sql.starts_with(MARQUE_SANS_CLES);
+                if sans_cles {
+                    self.conn.pragma_update(None, "foreign_keys", "OFF")?;
+                }
                 let tx = self.conn.transaction()?;
                 tx.execute_batch(sql)?;
+                if sans_cles {
+                    // Contrôle limité aux tables reconstruites et à celles qui les référencent.
+                    let violations: i64 = tx.query_row(
+                        "SELECT (SELECT COUNT(*) FROM pragma_foreign_key_check('parts_paiement'))
+                              + (SELECT COUNT(*) FROM pragma_foreign_key_check('verifications_mm'))",
+                        [],
+                        |r| r.get(0),
+                    )?;
+                    if violations > 0 {
+                        return Err(Erreur::validation(format!("Migration {version} : {violations} référence(s) cassée(s)")));
+                    }
+                }
                 tx.pragma_update(None, "user_version", version)?;
                 tx.commit()?;
+                if sans_cles {
+                    self.conn.pragma_update(None, "foreign_keys", "ON")?;
+                }
             }
         }
         let maintenant = self.horloge.maintenant_ms();

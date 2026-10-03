@@ -503,3 +503,54 @@ fn rg_can_06_le_client_modifie_avant_acceptation_deux_fois_au_plus() {
     assert_eq!(refus.statut, "refusee");
     assert!(refus.message.contains("déjà pris"));
 }
+
+/// RG-VIP-02/03 : la commande en ligne d'un client privilégié passe en tête de la file, même arrivée après ; en
+/// cuisine, son envoi passe avant celui d'une table arrivée plus tôt.
+#[test]
+fn rg_vip_02_03_priorite_des_commandes_a_distance() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    activer(&mut b, |c| c.en_ligne = true);
+    let ordinaire = recu(&mut b, "Hamdallaye", "76111111", "a_la_livraison");
+    b.horloge.avancer_minutes(1);
+    let salif = b.client("Salif Konaté");
+    let vip = youma_core::fidelite::Privilege { vip: true, jusqu_au: None, motif: String::new() };
+    let c = b.caissier();
+    youma_core::fidelite::definir_privilege(&mut b.db, &c, &salif, &vip).unwrap();
+    let privilegie = recu(&mut b, "Hamdallaye", "66000002", "a_la_livraison");
+    let file = entrantes::file(b.db.conn()).unwrap();
+    assert_eq!(file.iter().map(|e| (e.commande.numero, e.vip)).collect::<Vec<_>>(), vec![(privilegie.numero.unwrap(), true), (ordinaire.numero.unwrap(), false)]);
+
+    // Cuisine : une table envoyée d'abord, puis la livraison du client privilégié acceptée : la livraison passe devant.
+    b.commande_table("1", &[("Poulet braisé", 1)]);
+    b.horloge.avancer_minutes(1);
+    let id = id_par_numero(&b, privilegie.numero.unwrap());
+    entrantes::valider(&mut b.db, &c, &id, true, "").unwrap();
+    let envois = commandes::envois_actifs(b.db.conn(), None).unwrap();
+    assert!(envois.len() >= 2, "table et livraison en cuisine");
+    let premier = &envois[0];
+    assert_eq!(premier.commande_id, id, "{:?}", envois.iter().map(|e| (&e.titre, e.vip)).collect::<Vec<_>>());
+    assert!(premier.vip);
+}
+
+/// RG-CAN-07 : page rechargée ou bouton touché deux fois : la même commande (même numéro, même panier, moins de
+/// 5 minutes) n'est créée qu'une fois ; un autre panier ou plus tard, c'est une nouvelle commande.
+#[test]
+fn rg_can_07_commande_renvoyee_une_seule_fois() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    activer(&mut b, |c| c.en_ligne = true);
+    let premiere = recu(&mut b, "Hamdallaye", "76 22 33 44", "a_la_livraison");
+    b.horloge.avancer_minutes(1);
+    let renvoi = recu(&mut b, "Hamdallaye", "76223344", "a_la_livraison");
+    assert_eq!((renvoi.numero, renvoi.code_suivi.clone()), (premiere.numero, premiere.code_suivi.clone()));
+    assert!(renvoi.message.contains("déjà été reçue"));
+    assert_eq!(b.compter("SELECT COUNT(*) FROM commandes WHERE canal = 'en_ligne'"), 1);
+    // Autre panier : nouvelle commande.
+    let mut autre = en_ligne(&b, "Hamdallaye", "76223344", "a_la_livraison");
+    autre.lignes = vec![b.ligne("Brochettes (3)", 3)];
+    assert_ne!(entrantes::recevoir(&mut b.db, &autre).unwrap().numero, premiere.numero);
+    // Même panier, 6 minutes plus tard : nouvelle commande (le client recommande vraiment).
+    b.horloge.avancer_minutes(6);
+    assert_ne!(recu(&mut b, "Hamdallaye", "76223344", "a_la_livraison").numero, premiere.numero);
+}

@@ -53,6 +53,8 @@ export type Parametres = {
   intervalle_sauvegarde_minutes: number;
   canaux: Canaux;
   cloud: CloudParams;
+  /** Fidélité par points (fiche 0039). */
+  fidelite: { active: boolean; fcfa_par_point: number; valeur_point: number; minimum_points: number };
 };
 
 /** Cloud facultatif (fiche 0018). Les secrets arrivent masqués (« ******** ») depuis /etat. */
@@ -108,6 +110,8 @@ export type Entrante = {
   /** RG-CAN-06 : fois où le client a modifié sa commande avant acceptation. */
   modifications_client: number;
   verification_numero: string;
+  /** RG-VIP-02 : client privilégié. */
+  vip?: boolean;
 };
 
 export type ZoneRisque = {
@@ -302,6 +306,43 @@ export type Client = {
   reperes: string;
   credit_autorise: boolean;
   limite_credit: number;
+  actif: boolean;
+  dette: number;
+  /** RG-VIP-01 : client privilégié, éventuellement jusqu'à une date. */
+  vip?: boolean;
+  vip_jusqu_au?: string | null;
+  /** RG-FID-01 : solde de points. */
+  points?: number;
+};
+
+/** Fidélité d'un client (RG-FID-01 à 04). */
+export type EtatFidelite = { active: boolean; points: number; valeur: number; minimum_points: number; valeur_point: number; fcfa_par_point: number };
+export type MouvementPoints = { type_: string; points: number; commande_numero: number | null; motif: string; horodatage: number };
+
+/** Carte cadeau ou bon d'avoir (RG-CAD-01 à 05). */
+export type Carte = {
+  id: string;
+  code: string;
+  type: "cadeau" | "avoir";
+  montant_initial: number;
+  solde: number;
+  client_id: string | null;
+  client_nom: string | null;
+  beneficiaire: string;
+  motif: string;
+  expire_le: string | null;
+  cree_le: number;
+};
+
+/** Contrat société (RG-SOC-01 à 04). */
+export type Contrat = {
+  id: string;
+  client_id: string;
+  client_nom: string;
+  nom: string;
+  type_prise: "pourcentage" | "montant";
+  valeur: number;
+  plafond_repas: number;
   actif: boolean;
   dette: number;
 };

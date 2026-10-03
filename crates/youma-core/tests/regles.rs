@@ -369,14 +369,14 @@ fn rg_cai_08_10_11_13_mouvements_de_caisse() {
 }
 
 #[test]
-fn rg_cai_15_remise_au_coffre_a_la_cloture() {
+fn rg_cai_16_remise_au_coffre_a_la_cloture() {
     let mut b = banc();
     b.ouvrir_journee();
     let s = b.ouvrir_caisse(20_000);
     let a = b.caissier();
     // Fond gardé supérieur à l'argent compté : refusé.
     let trop = caisse::ClotureSession { compte_final: 20_000, billetage: vec![], motif_ecart: String::new(), fond_garde: Some(25_000) };
-    assert_eq!(caisse::cloturer_session(&mut b.db, &a, &s, &trop).unwrap_err().regle_code(), Some("RG-CAI-15"));
+    assert_eq!(caisse::cloturer_session(&mut b.db, &a, &s, &trop).unwrap_err().regle_code(), Some("RG-CAI-16"));
     // On garde 5 000 pour la monnaie : 15 000 partent au coffre.
     let fin = caisse::ClotureSession { compte_final: 20_000, billetage: vec![], motif_ecart: String::new(), fond_garde: Some(5_000) };
     let r = caisse::cloturer_session(&mut b.db, &a, &s, &fin).unwrap();
@@ -715,6 +715,46 @@ fn operateurs_mobile_money_par_defaut() {
     assert_eq!(noms, ["Orange Money", "Moov Money", "Wave", "Sama Money"]);
 }
 
+/// Migration 0010 : parts_paiement reconstruite sans perdre les paiements ni leurs vérifications Mobile Money.
+#[test]
+fn migration_0010_garde_les_paiements() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    b.ouvrir_caisse(10_000);
+    let c = b.commande_table("1", &[("Bière blonde", 2)]);
+    b.payer_especes(&c, 2_000);
+    let chemin = b.dossier.path().join("youma.db");
+    let Banc { db, horloge: h, dossier: _dossier, .. } = b;
+    drop(db);
+    // Retour artificiel en version 9 : la migration 0010 doit repasser sur une base remplie.
+    {
+        let c = rusqlite::Connection::open(&chemin).unwrap();
+        c.execute_batch(
+            "DROP TABLE mouvements_carte; DROP TABLE cartes_cadeaux; DROP TABLE mouvements_fidelite;
+             CREATE TABLE p AS SELECT id, paiement_id, moyen, compte_id, client_id, montant, reference, numero_payeur FROM parts_paiement;
+             DROP TABLE parts_paiement;
+             CREATE TABLE parts_paiement (id TEXT PRIMARY KEY, paiement_id TEXT NOT NULL REFERENCES paiements(id),
+               moyen TEXT NOT NULL, compte_id TEXT, client_id TEXT, montant INTEGER NOT NULL, reference TEXT, numero_payeur TEXT);
+             INSERT INTO parts_paiement SELECT * FROM p; DROP TABLE p;
+             CREATE TRIGGER ajout_seul_parts_u BEFORE UPDATE ON parts_paiement BEGIN SELECT RAISE(ABORT, 'x'); END;
+             CREATE TRIGGER ajout_seul_parts_d BEFORE DELETE ON parts_paiement BEGIN SELECT RAISE(ABORT, 'x'); END;
+             DROP TABLE contrats_societe;
+             ALTER TABLE clients DROP COLUMN vip; ALTER TABLE clients DROP COLUMN vip_jusqu_au;
+             DROP INDEX IF EXISTS idx_parts_paiement; DROP INDEX IF EXISTS idx_parts_reference_mm; DROP INDEX IF EXISTS idx_parts_contrat;
+             PRAGMA user_version = 9;",
+        )
+        .unwrap();
+    }
+    let db = Db::ouvrir(&chemin, h).unwrap();
+    let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+    assert_eq!(v, 10);
+    let n: i64 = db.conn().query_row("SELECT COUNT(*) FROM parts_paiement WHERE moyen = 'especes' AND montant = 2000", [], |r| r.get(0)).unwrap();
+    assert_eq!(n, 1, "le paiement d'avant la migration est conservé");
+    let fk: i64 = db.conn().pragma_query_value(None, "foreign_keys", |r| r.get(0)).unwrap();
+    assert_eq!(fk, 1, "clés étrangères rétablies");
+    assert!(db.conn().execute("DELETE FROM parts_paiement", []).is_err(), "ajout seul rétabli");
+}
+
 /// Mise à jour d'une base existante (v1 → dernière version) : sauvegarde avant migration, opérateurs et permissions ajoutés.
 #[test]
 fn migration_v1_vers_derniere_version() {
@@ -736,7 +776,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 9);
+    assert_eq!(v, 10);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);

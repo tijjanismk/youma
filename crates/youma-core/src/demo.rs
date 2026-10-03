@@ -94,6 +94,8 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
         QuartierLivraison { nom: "Badalabougou".into(), frais: 1_000 },
         QuartierLivraison { nom: "Kalaban Coura".into(), frais: 1_500 },
     ];
+    // Fidélité de démonstration (fiche 0039) : 1 point par 1 000 FCFA, un point vaut 50 FCFA, dès 20 points.
+    p.fidelite = parametres::Fidelite { active: true, fcfa_par_point: 1_000, valeur_point: 50, minimum_points: 20 };
     parametres::ecrire(db.conn(), &p)?;
     // Compte bancaire du TPE (paiement par carte, RG-CAI-15).
     crate::caisse::enregistrer_compte(
@@ -273,6 +275,9 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
             limite_credit: 20_000,
             actif: true,
             dette: 0,
+            vip: false,
+            vip_jusqu_au: None,
+            points: 0,
         },
     )?;
     clients::enregistrer(
@@ -286,6 +291,43 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
             reperes: String::new(),
             credit_autorise: false,
             limite_credit: 0,
+            actif: true,
+            dette: 0,
+            vip: false,
+            vip_jusqu_au: None,
+            points: 0,
+        },
+    )?;
+    // Société sous contrat (fiche 0039) : elle paie la moitié des repas de ses employés, 2 500 FCFA au plus.
+    let societe = clients::enregistrer(
+        db,
+        &sys,
+        &Client {
+            id: String::new(),
+            nom: "Société Bamako Transit".into(),
+            telephone: Some("20220000".into()),
+            adresse: "ACI 2000".into(),
+            reperes: String::new(),
+            credit_autorise: true,
+            limite_credit: 500_000,
+            actif: true,
+            dette: 0,
+            vip: false,
+            vip_jusqu_au: None,
+            points: 0,
+        },
+    )?;
+    crate::contrats::enregistrer(
+        db,
+        &sys,
+        &crate::contrats::Contrat {
+            id: String::new(),
+            client_id: societe,
+            client_nom: String::new(),
+            nom: "Bamako Transit — repas du personnel".into(),
+            type_prise: "pourcentage".into(),
+            valeur: 50,
+            plafond_repas: 2_500,
             actif: true,
             dette: 0,
         },

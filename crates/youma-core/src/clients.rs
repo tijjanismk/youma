@@ -27,6 +27,14 @@ pub struct Client {
     pub actif: bool,
     #[serde(default)]
     pub dette: i64,
+    /// RG-VIP-01 : client privilégié (modifié seulement par `fidelite::definir_privilege`).
+    #[serde(default)]
+    pub vip: bool,
+    #[serde(default)]
+    pub vip_jusqu_au: Option<String>,
+    /// RG-FID-01 : solde de points (lecture seule).
+    #[serde(default)]
+    pub points: i64,
 }
 
 fn vrai() -> bool {
@@ -52,11 +60,15 @@ fn client_depuis(r: &rusqlite::Row) -> rusqlite::Result<Client> {
         limite_credit: r.get(6)?,
         actif: r.get(7)?,
         dette: r.get(8)?,
+        vip: r.get(9)?,
+        vip_jusqu_au: r.get(10)?,
+        points: r.get(11)?,
     })
 }
 
 const COLS: &str = "c.id, c.nom, c.telephone, c.adresse, c.reperes, c.credit_autorise, c.limite_credit, c.actif,
-    (SELECT COALESCE(SUM(m.montant), 0) FROM mouvements_client m WHERE m.client_id = c.id)";
+    (SELECT COALESCE(SUM(m.montant), 0) FROM mouvements_client m WHERE m.client_id = c.id), c.vip, c.vip_jusqu_au,
+    (SELECT COALESCE(SUM(f.points), 0) FROM mouvements_fidelite f WHERE f.client_id = c.id)";
 
 /// Recherche par nom ou téléphone (clé principale).
 pub fn rechercher(conn: &Connection, texte: &str) -> Resultat<Vec<Client>> {

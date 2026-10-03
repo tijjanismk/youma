@@ -219,7 +219,7 @@ test("clôture de caisse avec billetage et écart motivé", async ({ page }) => 
   const cloturer = page.getByRole("button", { name: "Clôturer", exact: true });
   await expect(cloturer).toBeDisabled();
   await page.getByLabel("Motif de l'écart (obligatoire)").fill("Erreur de rendu");
-  // RG-CAI-15 : fond de 10 000 gardé pour la monnaie, le reste part au coffre.
+  // RG-CAI-16 : fond de 10 000 gardé pour la monnaie, le reste part au coffre.
   await expect(page.getByRole("dialog").getByText("Remis au coffre")).toBeVisible();
   await cloturer.click();
   const z = page.getByRole("dialog", { name: "Rapport de clôture (Z)" });
@@ -758,4 +758,63 @@ test("clôture impossible expliquée, historique de paie (RG-JOU-04, RG-PAI-06)"
   await expect(page.getByRole("list", { name: "Clôture impossible" })).toContainText("addition(s) encore ouverte(s)");
   await page.goto("/paie");
   await expect(page.getByRole("heading", { name: "Historique de paie" })).toBeVisible();
+});
+
+test("bon d'avoir offert par le gérant, payé avec son code (RG-CAD-02, RG-CAD-04)", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/clients");
+  await page.getByRole("tab", { name: "Cartes cadeaux" }).click();
+  await page.getByRole("button", { name: "Offrir un bon d'avoir" }).click();
+  const offre = page.getByRole("dialog", { name: "Offrir un bon d'avoir" });
+  await offre.getByRole("button", { name: /Modibo Diallo/ }).click();
+  await offre.getByLabel("Montant du bon").fill("2000");
+  await expect(offre.getByRole("button", { name: "Offrir le bon" })).toBeDisabled();
+  await offre.getByLabel("Motif").fill("Plat arrivé froid");
+  await offre.getByRole("button", { name: "Offrir le bon" }).click();
+  const code = (await page.getByRole("dialog", { name: "Bon d'avoir" }).getByLabel("Code de la carte").textContent()) ?? "";
+  expect(code).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+
+  // Société sous contrat visible avec sa part.
+  await page.goto("/clients");
+  await page.getByRole("tab", { name: "Sociétés" }).click();
+  await expect(page.getByRole("row").filter({ hasText: "Bamako Transit" })).toContainText("50 %");
+
+  // La caissière encaisse avec le code du bon.
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/caisse");
+  const ouvrir = page.getByRole("button", { name: "Ouvrir la caisse" });
+  const session = page.getByText("Session de Kadi (caisse)");
+  await expect(ouvrir.or(session)).toBeVisible();
+  if (await ouvrir.isVisible()) await ouvrir.click();
+  await expect(session).toBeVisible();
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Encaisser/ }).click();
+  await page.getByRole("button", { name: /Carte cadeau/ }).click();
+  await page.getByLabel("Code de la carte").fill(code.toLowerCase().replace("-", ""));
+  await page.getByRole("button", { name: "Vérifier le solde" }).click();
+  await expect(page.getByText(/solde\s*2 000 FCFA/)).toBeVisible();
+  await page.getByRole("button", { name: "Valider le paiement" }).click();
+  await expect(page.getByText(/Reçu n°\d+/)).toBeVisible();
+  await expect(page.getByText("Addition soldée.")).toBeVisible();
+});
+
+test("société sous contrat : sa part et celle de l'employé (RG-SOC-02)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Bières/ }).click();
+  await page.getByRole("button", { name: /^Bière blonde \d/ }).click();
+  await page.getByRole("button", { name: /^Encaisser/ }).click();
+  await page.getByRole("button", { name: /Société : Société Bamako Transit/ }).click();
+  // Nom de l'employé obligatoire ; la société prend 50 % de 1 000 FCFA.
+  await expect(page.getByText("Indiquez le nom de l'employé de la société")).toBeVisible();
+  await page.getByLabel("Nom de l'employé de la société").fill("Moussa Traoré");
+  await page.getByRole("button", { name: /^Espèces$/ }).click();
+  await page.getByRole("button", { name: "Valider le paiement" }).click();
+  await expect(page.getByText("Addition soldée.")).toBeVisible();
 });

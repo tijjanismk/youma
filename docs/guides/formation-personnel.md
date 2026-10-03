@@ -75,6 +75,14 @@ quartier et noter le téléphone du client.
 bénéficiaire. Jamais d'argent sorti du tiroir sans l'enregistrer. Les **achats de marchandises** se paient hors
 caisse (coffre) : payés par le tiroir, ils sont signalés au propriétaire.
 
+**Carte cadeau, société, points de fidélité**
+- **Carte cadeau ou bon d'avoir** : à l'encaissement, **Carte cadeau / bon d'avoir**, taper le code, **Vérifier le solde**.
+  Le solde baisse du montant payé ; le client peut compléter avec un autre moyen.
+- **Société sous contrat** : **Société : …**, taper le **nom de l'employé**. La société paie sa part (inscrite sur son
+  compte, à facturer), l'employé paie le reste.
+- **Points de fidélité** : choisir le client sur l'addition, puis **Points de fidélité** : les points deviennent une réduction.
+- **Vendre une carte cadeau** : Clients → Cartes cadeaux → **Vendre une carte cadeau**, puis remettre la carte imprimée.
+
 **En fin de service**
 1. Caisse → **Clôturer ma caisse**.
 2. Compter l'argent : **Compter billet par billet** (le plus sûr) ou taper le total.
@@ -114,6 +122,10 @@ Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.
   Si le bouton est grisé, la raison est écrite dessous (addition ouverte, caisse ouverte, commande à accepter).
 - Après l'ouverture : **Menu du jour** (carte de l'accueil) → cocher les plats du jour proposés aujourd'hui
   (« Reprendre le menu d'hier » si rien ne change). Boissons et eau restent toujours proposées.
+
+**Client mécontent, client privilégié** : Clients → Cartes cadeaux → **Offrir un bon d'avoir** (motif obligatoire, PIN du
+gérant). Fiche du client → **Rendre privilégié** : ses commandes à distance passent en tête ; les tables restent par
+ordre d'arrivée.
 
 **Ce qui demande le PIN du gérant** : annuler un article envoyé, une remise au-delà du plafond, certains retraits.
 Le gérant tape son PIN **lui-même** sur l'écran : ne jamais le donner au personnel.

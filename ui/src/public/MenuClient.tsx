@@ -5,7 +5,7 @@ import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
 import { VisuelPlat } from "../composants/Plat";
 import { fcfa, lienCarte, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante, Suivi } from "../types";
-import { cleOptions, lirePanierClient, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
+import { cleOptions, ETAPES_EN_COURS, lirePanierClient, lireSuivis, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
 
 type Produit = MenuPublic["produits"][number];
 
@@ -26,6 +26,17 @@ export default function MenuClient() {
   const [commander, setCommander] = useState(false);
   const [refus, setRefus] = useState("");
   const [modification, setModification] = useState<{ numero: number; restantes: number } | null>(null);
+  // RG-CAN-07 : page rechargée après l'envoi : on montre la commande déjà partie, pour ne pas la renvoyer.
+  const [enCours, setEnCours] = useState<{ code: string; numero: number } | null>(null);
+
+  useEffect(() => {
+    if (modifier) return;
+    const code = lireSuivis()[0];
+    if (!code) return;
+    get<Suivi>(`/public/suivi/${encodeURIComponent(code)}`)
+      .then((s) => ETAPES_EN_COURS.includes(s.etape) && setEnCours({ code, numero: s.numero }))
+      .catch(() => {});
+  }, [modifier]);
 
   useEffect(() => {
     if (!modifier) return;
@@ -85,6 +96,12 @@ export default function MenuClient() {
       {refus && (
         <p className="bandeau erreur" role="alert">
           {refus}
+        </p>
+      )}
+      {enCours && (
+        <p className="bandeau avertissement" role="status">
+          Votre commande{enCours.numero ? ` n°${enCours.numero}` : ""} est déjà envoyée au restaurant : inutile de la renvoyer.{" "}
+          <a href={`/suivi/${enCours.code}`}>Suivre ma commande</a>
         </p>
       )}
       {modification && (

@@ -663,7 +663,7 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
         if let Some(m) = s.motif_ecart.as_ref().filter(|m| !m.is_empty()) {
             t.push_str(&format!("Motif : {m}\n"));
         }
-        // RG-CAI-15 : ce qui part au coffre et le fond laissé pour la monnaie.
+        // RG-CAI-16 : ce qui part au coffre et le fond laissé pour la monnaie.
         let remise: i64 = par_type.iter().filter(|(typ, _, _)| typ == "remise_coffre").map(|(_, _, m)| -m).sum();
         if remise > 0 {
             t.push_str(&ligne_montant("Remis au coffre", &fcfa(remise), w));
@@ -734,6 +734,7 @@ pub fn libelle_mouvement(t: &str) -> &str {
         "transfert_entrant" => "Transferts entrants",
         "remise_livreur" => "Remises livreurs",
         "remise_coffre" => "Remises au coffre",
+        "vente_carte_cadeau" => "Cartes cadeaux vendues",
         "ecart_ouverture" => "Écart d'ouverture",
         "ecart_cloture" => "Écart de clôture",
         "ecart_livreur" => "Écart livreur",

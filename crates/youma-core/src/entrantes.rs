@@ -227,6 +227,49 @@ pub fn recevoir(db: &mut Db, e: &CommandeEntrante) -> Resultat<Reponse> {
     })
 }
 
+/// RG-CAN-07 : empreinte d'un panier (produits et quantités, dans un ordre fixe) pour reconnaître un renvoi.
+pub fn empreinte_panier<'a>(lignes: impl IntoIterator<Item = (&'a str, i64)>) -> String {
+    let mut m = std::collections::BTreeMap::<&str, i64>::new();
+    for (p, q) in lignes {
+        *m.entry(p).or_default() += q;
+    }
+    m.iter().map(|(p, q)| format!("{p}x{q}")).collect::<Vec<_>>().join(",")
+}
+
+/// Fenêtre dans laquelle une commande identique est un renvoi (5 minutes).
+pub const FENETRE_DOUBLON_MS: i64 = 5 * 60_000;
+
+fn doublon(op: &Op, telephone: &str, lignes: &[LigneSaisie]) -> Resultat<Option<Reponse>> {
+    if telephone.is_empty() {
+        return Ok(None);
+    }
+    let voulu = empreinte_panier(lignes.iter().map(|l| (l.produit_id.as_str(), l.quantite)));
+    let recentes: Vec<(String, i64, String)> = op
+        .prepare(
+            "SELECT id, numero, code_suivi FROM commandes WHERE canal = 'en_ligne' AND client_telephone = ?1 AND cree_le >= ?2
+               AND COALESCE(validation, '') <> 'refusee' AND code_suivi IS NOT NULL ORDER BY cree_le DESC",
+        )?
+        .query_map(params![telephone, op.maintenant - FENETRE_DOUBLON_MS], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .collect::<Result<_, _>>()?;
+    for (id, numero, code) in recentes {
+        let lignes: Vec<(String, i64)> = op
+            .prepare("SELECT produit_id, quantite - quantite_annulee FROM lignes_commande WHERE commande_id = ?1 OR origine_commande_id = ?1")?
+            .query_map(params![id], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        if empreinte_panier(lignes.iter().map(|(p, q)| (p.as_str(), *q))) == voulu {
+            let total = crate::commandes::totaux(op, &id)?.total;
+            return Ok(Some(Reponse {
+                statut: "en_attente".into(),
+                message: "Votre commande a déjà été reçue : inutile de la renvoyer.".into(),
+                numero: Some(numero),
+                code_suivi: Some(code),
+                total,
+            }));
+        }
+    }
+    Ok(None)
+}
+
 fn id_par_code(conn: &Connection, code: &str) -> Resultat<String> {
     trouver(conn.query_row("SELECT id FROM commandes WHERE code_suivi = ?1", params![code], |r| r.get(0)), "Commande")
 }
@@ -277,6 +320,13 @@ fn recevoir_op(op: &mut Op, e: &CommandeEntrante) -> Resultat<Reponse> {
     // RG-CAN-03 : liste noire.
     if !telephone.is_empty() && zones_risque::est_bloque(op, &telephone)?.is_some() {
         return Ok(refus("Commande impossible depuis ce numéro. Appelez le restaurant."));
+    }
+    // RG-CAN-07 : même téléphone, même panier, moins de 5 minutes après : c'est la même commande renvoyée (page
+    // rechargée, bouton touché deux fois). On renvoie la première au lieu d'en créer une seconde.
+    if e.origine_id.is_none() && e.canal == "en_ligne" {
+        if let Some(r) = doublon(op, &telephone, &e.lignes)? {
+            return Ok(r);
+        }
     }
     let mut validation_responsable = false;
     let mut exige_avance = false;
@@ -503,16 +553,22 @@ pub struct Entrante {
     pub verification_numero: String,
     /// RG-CAN-06 : fois où le client a modifié sa commande avant acceptation.
     pub modifications_client: i64,
+    /// RG-VIP-02 : client privilégié, sa commande passe en tête de la file.
+    pub vip: bool,
 }
 
 pub fn file(conn: &Connection) -> Resultat<Vec<Entrante>> {
-    let ids: Vec<String> = conn
-        .prepare("SELECT id FROM commandes WHERE validation = 'en_attente' ORDER BY cree_le")?
-        .query_map([], |r| r.get(0))?
+    // RG-VIP-02 : les clients privilégiés d'abord, puis par ordre d'arrivée.
+    let ids: Vec<(String, bool)> = conn
+        .prepare(&format!(
+            "SELECT c.id, {vip} FROM commandes c WHERE c.validation = 'en_attente' ORDER BY {vip} DESC, c.cree_le",
+            vip = crate::fidelite::SQL_COMMANDE_VIP
+        ))?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
         .collect::<Result<_, _>>()?;
     let verif = crate::parametres::lire(conn)?.canaux.verification_numero;
     let mut v = Vec::new();
-    for id in ids {
+    for (id, vip) in ids {
         let (canal, table, nom, tel, mode, op_mm, reference, resp, motif, modifications): (
             String,
             Option<String>,
@@ -553,6 +609,7 @@ pub fn file(conn: &Connection) -> Resultat<Vec<Entrante>> {
             commandes_precedentes: precedentes,
             verification_numero: verif.clone(),
             modifications_client: modifications,
+            vip,
         });
     }
     Ok(v)
@@ -650,6 +707,7 @@ pub fn valider(db: &mut Db, acteur: &Acteur, commande_id: &str, accepter: bool, 
                 numero_payeur: None,
                 client_id: None,
                 par_livreur: false,
+                contrat_id: None,
             };
             crate::caisse::encaisser_op(op, &crate::caisse::Encaissement { commande_id: cible.clone(), parts: vec![part], especes_recues: None })?;
         } else {

@@ -14,6 +14,7 @@ fn carte(compte_id: &str, montant: i64, autorisation: &str) -> PartSaisie {
         numero_payeur: None,
         client_id: None,
         par_livreur: false,
+        contrat_id: None,
     }
 }
 
