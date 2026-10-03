@@ -274,6 +274,8 @@ Extension demandée après les essais ; le cahier des charges n'en parle pas (au
   acceptée, **deux fois au plus**, après un avertissement ; mêmes contrôles qu'à la commande. Le restaurant voit « modifiée
   par le client (n fois) » ; ensuite, seul un serveur change la commande (fiche 0036).
 * **RG-CAN-07** Commande renvoyée (page rechargée, bouton touché deux fois) : même numéro de téléphone et même panier moins de 5 minutes après, ce n'est pas une nouvelle commande ; le restaurant (et le relais) renvoie la première avec le message « déjà reçue ». Un autre panier, ou plus de 5 minutes, crée une nouvelle commande. La page du client affiche aussi sa commande en cours.
+* **RG-CAN-08** Routes publiques du suivi et de la position du livreur (poste et relais) : 15 codes inconnus en
+  15 minutes depuis une adresse bloquent les essais suivants ; les réponses justes ne comptent pas (fiche 0042).
 
 ### Zones à risque (ZON) — fiche 0013
 * **RG-ZON-01** Une zone à risque est un quartier et/ou un cercle GPS (centre, rayon), une plage horaire (qui peut

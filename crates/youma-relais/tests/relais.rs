@@ -328,3 +328,17 @@ async fn commande_renvoyee_une_seule_fois() {
     let (_, sync) = r.synchroniser(CLE, json!({ "config": { "verification_numero": "rappel" } })).await;
     assert_eq!(sync["commandes"].as_array().unwrap().len(), 2, "{sync}");
 }
+
+/// RG-CAN-08 : 15 codes inconnus en 15 minutes depuis une adresse, puis refus (même pour un vrai code).
+#[tokio::test]
+async fn codes_inconnus_limites_a_15_essais() {
+    let r = relais().await;
+    for i in 0..15 {
+        assert_eq!(r.get(&format!("/public/suivi/INCONNU{i}")).await.0, 404);
+    }
+    let (statut, v) = r.get("/public/suivi/INCONNU99").await;
+    assert_eq!(statut, 429, "{v}");
+    assert_eq!(v["code"], "TROP_D_ESSAIS");
+    let (statut, _) = r.post("/public/position/LIVREURX", json!({ "lat": 12_640_000, "lon": -8_000_000 })).await;
+    assert_eq!(statut, 429);
+}

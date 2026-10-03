@@ -24,6 +24,9 @@ cargo install tauri-cli --version "^2" --locked
 cargo tauri build
 ```
 
+Sans `YOUMA_CLE_PUBLIQUE`, la construction est refusée (constat C2, fiche 0042) ; pour une version d'essai avec la clé de
+développement : `$env:YOUMA_CLE_DEV = "1"`. Fabriquer les clés et les licences : `docs/guides/licences.md`.
+
 L'installateur NSIS (`target/release/bundle/nsis/`) :
 
 * embarque WebView2 (installation **sans Internet**) ;

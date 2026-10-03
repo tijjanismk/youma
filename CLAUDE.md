@@ -14,7 +14,7 @@ avec le skill project-map (`carte.py . --sortie AI_CONTEXT --md`), puis `carte.p
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0041.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0042.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
@@ -43,6 +43,8 @@ avec le skill project-map (`carte.py . --sortie AI_CONTEXT --md`), puis `carte.p
 - `crates/youma-server` : poste central axum (API `/api`, WebSocket, sert `ui/dist`). Macros `ecrire!`/`lire!`,
   extracteurs `Auth`/`Poste`. `tls.rs` : HTTPS du réseau local (autorité du restaurant bridée aux adresses
   privées, port HTTP + 1, `--port-https 0` pour couper). `relais.rs`/`cloud.rs` : tâches de fond facultatives.
+- `crates/youma-server/build.rs` : compilation `release` refusée sans `YOUMA_CLE_PUBLIQUE` (sauf `YOUMA_CLE_DEV=1`, fiche 0042) ;
+  licences : `docs/guides/licences.md`.
 - `crates/youma-relais` : serveur Internet facultatif (relais des commandes en ligne + cloud multi-restaurants,
   SMS Orange Mali ou simulation). `crates/youma-licence` : licences hors ligne.
 - `docs/guides/` : installation sur la caisse (`installation-caisse.md`), formation du personnel (`formation-personnel.md` ; version illustrée

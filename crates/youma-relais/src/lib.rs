@@ -163,6 +163,20 @@ impl Etat {
         true
     }
 
+    /// RG-CAN-08 : 15 codes de suivi ou de livreur inconnus en 15 minutes depuis une adresse : refus suivants.
+    fn essais_epuises(&self, adresse: &str) -> bool {
+        let t = maintenant();
+        let mut l = self.limites.lock().unwrap_or_else(|e| e.into_inner());
+        let v = l.entry(format!("essai:{adresse}")).or_default();
+        v.retain(|x| t - x < ESSAIS_FENETRE_MS);
+        v.len() >= ESSAIS_MAX
+    }
+
+    fn compter_essai(&self, adresse: &str) {
+        let t = maintenant();
+        self.limites.lock().unwrap_or_else(|e| e.into_inner()).entry(format!("essai:{adresse}")).or_default().push(t);
+    }
+
     fn adresse(&self, entetes: &HeaderMap, ip: SocketAddr) -> String {
         if self.derriere_proxy {
             if let Some(v) = entetes.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
@@ -464,7 +478,32 @@ async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr
     })))
 }
 
-async fn suivi(State(e): State<Etat>, Path(code): Path<String>) -> Rep {
+const ESSAIS_MAX: usize = 15;
+const ESSAIS_FENETRE_MS: i64 = 15 * 60_000;
+
+/// RG-CAN-08 : refus après 15 codes inconnus en 15 minutes depuis la même adresse (énumération des codes).
+fn essais_publics(e: &Etat, adresse: &str) -> Result<(), Echec> {
+    if e.essais_epuises(adresse) {
+        return Err(erreur(StatusCode::TOO_MANY_REQUESTS, "TROP_D_ESSAIS", "Trop de codes inconnus essayés : réessayez dans 15 minutes"));
+    }
+    Ok(())
+}
+
+fn compter_si_inconnu(e: &Etat, adresse: &str, r: &Rep) {
+    if matches!(r, Err(echec) if echec.statut == StatusCode::NOT_FOUND) {
+        e.compter_essai(adresse);
+    }
+}
+
+async fn suivi(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>) -> Rep {
+    let adresse = e.adresse(&entetes, ip);
+    essais_publics(&e, &adresse)?;
+    let r = suivi_publie(&e, code);
+    compter_si_inconnu(&e, &adresse, &r);
+    r
+}
+
+fn suivi_publie(e: &Etat, code: String) -> Rep {
     let code = code.trim().to_uppercase();
     let publie: Option<(String, Option<String>)> =
         e.avec(|c| c.query_row("SELECT corps, code_livreur FROM suivis WHERE code_suivi = ?1", [&code], |r| Ok((r.get(0)?, r.get(1)?))).optional())?;
@@ -543,7 +582,15 @@ struct Position {
 }
 
 /// RG-LIV-04 : position du livreur (lien secret), pendant la course seulement. Le poste revérifie.
-async fn position(State(e): State<Etat>, Path(code): Path<String>, Json(p): Json<Position>) -> Rep {
+async fn position(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>, Json(p): Json<Position>) -> Rep {
+    let adresse = e.adresse(&entetes, ip);
+    essais_publics(&e, &adresse)?;
+    let r = enregistrer_position(&e, &code, p);
+    compter_si_inconnu(&e, &adresse, &r);
+    r
+}
+
+fn enregistrer_position(e: &Etat, code: &str, p: Position) -> Rep {
     if !(-90_000_000..=90_000_000).contains(&p.lat) || !(-180_000_000..=180_000_000).contains(&p.lon) {
         return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Position invalide"));
     }

@@ -53,9 +53,11 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Sécurité** (fiche 0042) : codes publics limités à 15 essais en 15 minutes (RG-CAN-08) ; poste de production
+  refusé sans la vraie clé des licences ; mode d'emploi des licences `docs/guides/licences.md`.
 - **Applications Youma Client et Youma Livreur** (fiche 0041, `docs/guides/applications-mobiles.md`) : Capacitor,
   Android et iPhone, pages web gardées ; APK construits par la CI. Reste : clé de signature en secrets GitHub, essais
-  sur vrais téléphones (position écran verrouillé), compte Apple pour les iPhone.
+  sur vrais téléphones (position écran verrouillé), compte Apple pour les iPhone (pas pour le moment, décision du 03/10).
 - **PIN d'autorisation bloqué après 5 essais** (RG-AUT-08, fiche 0040) ; messages de position du client selon la
   cause, écran du livreur gardé allumé pendant la course.
 
@@ -106,8 +108,8 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 - Téléphones en service : réponse « majeure partie » à la question des iPhone, à préciser (Android ou iPhone ?).
 - **[HYPOTHÈSE]** (fiche 0040) la position sert au client qui suit son livreur ; pas besoin d'envoyer au restaurant la
   précision de la position du client (constat L3).
-- Suites de sécurité (`AI_CONTEXT/ETUDE-MOBILE.md`) : C3 (limiteur sur `/api/public/*` du poste), C4 (sauvegardes
-  dans le dossier géré seulement), `cargo audit` en CI, compilation release refusée sans `YOUMA_CLE_PUBLIQUE` (C2).
+- Suites de sécurité (`AI_CONTEXT/ETUDE-MOBILE.md`) : C4 (sauvegardes dans le dossier géré seulement), `cargo audit` en CI.
+- Créer les clés des licences (`docs/guides/licences.md`) et le secret `YOUMA_CLE_PUBLIQUE`.
 
 
 - Modèles Xprinter précis (XP-58, XP-80…) et modèle des caisses POS du pack (pour les essais).
