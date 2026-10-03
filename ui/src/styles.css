@@ -1365,6 +1365,34 @@ span.raison-bloquee {
 .public-entete h1 {
   margin-bottom: 0;
 }
+/* Applications Android et iPhone (fiche 0041) : retour à l'accueil, listes des restaurants et des courses */
+.retour-appli {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tactile);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.liste-appli {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.liste-appli li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.liste-appli li > .grand {
+  flex: 1 1 220px;
+  min-width: 0;
+  justify-content: flex-start;
+}
 .produits-client {
   display: grid;
   gap: 8px;

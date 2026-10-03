@@ -14,6 +14,7 @@ SQLite et sert l'interface web aux téléphones du Wi-Fi ; un **relais Internet 
 | Licences | Ed25519 hors ligne (outil fournisseur) | `crates/youma-licence` |
 | Interface | React 19 + TS, Vite 8, React Router 7, lucide, Poppins embarquée | `ui/src` |
 | Bureau | Coquille Tauri autour du serveur | `apps/desktop` (hors workspace) |
+| Mobiles | Capacitor 8 : Youma Client, Youma Livreur (Android + iOS), relais seulement | `apps/mobile/*`, `ui/src/appli*` |
 
 ## Découpage (communautés de la carte)
 
@@ -27,7 +28,7 @@ graph LR
 ```
 
 Fiches par module : `modules/socle.md`, `ventes.md`, `caisse-clients.md`, `stock-achats.md`, `personnel-paie.md`,
-`canaux-distance.md`, `rapports.md`, `serveur.md`, `relais.md`, `interface.md`. Règles métier : `DOMAINE.md`.
+`canaux-distance.md`, `rapports.md`, `serveur.md`, `relais.md`, `interface.md`, `mobile.md`. Règles métier : `DOMAINE.md`.
 Étude mobile (documents du 30/09) confrontée au code : `ETUDE-MOBILE.md`.
 
 ## Points d'entrée

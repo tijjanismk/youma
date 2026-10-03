@@ -34,7 +34,7 @@ Réponses du porteur de projet (03/10/2026) :
    à suivre pour la réautoriser), GPS coupé, ou recherche trop longue (`ui/src/public/position.ts`).
 3. **Page du livreur** : pendant la course, l'écran reste allumé (Screen Wake Lock, repris au retour sur la page)
    et un message rappelle de ne pas verrouiller l'écran. Les erreurs de position sont expliquées comme pour le client.
-4. **Application mobile** : pas pour l'instant. Le personnel reste sur le navigateur (option 1 de l'étude). Si
+4. **Application mobile** (remplacé le même jour par la fiche 0041 : applications Youma Client et Youma Livreur) : pas pour l'instant. Le personnel reste sur le navigateur (option 1 de l'étude). Si
    le pilote montre que le suivi du livreur se coupe encore, on fera une petite application Android pour le
    livreur seul (option 4). Les livreurs étant connus du restaurant, on peut leur envoyer l'APK par WhatsApp.
 

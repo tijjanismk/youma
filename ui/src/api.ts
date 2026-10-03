@@ -1,7 +1,9 @@
 /**
  * Client de l'API du poste central. L'interface ne parle jamais à la base :
- * tout passe par ici (cahier §4).
+ * tout passe par ici (cahier §4). Applications Android : vers le relais du restaurant (fiche 0041).
  */
+
+import { APPLI, baseApi } from "./appli";
 
 export class ErreurApi extends Error {
   constructor(
@@ -102,7 +104,7 @@ export async function appel<T>(chemin: string, o: Options = {}): Promise<T> {
   }
   let r: Response;
   try {
-    r = await fetch(`/api${chemin}`, {
+    r = await fetch(`${baseApi()}/api${chemin}`, {
       method: o.methode ?? (corps !== undefined ? "POST" : "GET"),
       headers: entetes,
       body: corps,
@@ -110,7 +112,7 @@ export async function appel<T>(chemin: string, o: Options = {}): Promise<T> {
   } catch {
     // Scénario 13 : poste central injoignable. Rien n'est perdu : l'appelant garde la saisie.
     signalerReseau(false);
-    throw new ErreurApi("HORS_LIGNE", "Poste central injoignable. Votre saisie est conservée.");
+    throw new ErreurApi("HORS_LIGNE", APPLI ? "Pas de connexion Internet. Réessayez." : "Poste central injoignable. Votre saisie est conservée.");
   }
   signalerReseau(true);
   const type = r.headers.get("content-type") ?? "";
@@ -138,7 +140,7 @@ function evenementDeconnexion() {
 
 /** Téléchargement d'un export (CSV) avec le jeton. */
 export async function telecharger(chemin: string, nom: string) {
-  const r = await fetch(`/api${chemin}`, { headers: { Authorization: `Bearer ${jeton() ?? ""}` } });
+  const r = await fetch(`${baseApi()}/api${chemin}`, { headers: { Authorization: `Bearer ${jeton() ?? ""}` } });
   if (!r.ok) throw new ErreurApi("ERREUR", "Export impossible");
   const url = URL.createObjectURL(await r.blob());
   const a = document.createElement("a");

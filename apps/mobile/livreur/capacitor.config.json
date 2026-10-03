@@ -1,0 +1,9 @@
+{
+  "appId": "ml.youma.livreur",
+  "appName": "Youma Livreur",
+  "webDir": "../../../ui/dist-livreur",
+  "android": { "useLegacyBridge": true },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

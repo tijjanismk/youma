@@ -1,0 +1,8 @@
+{
+  "appId": "ml.youma.client",
+  "appName": "Youma Client",
+  "webDir": "../../../ui/dist-client",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

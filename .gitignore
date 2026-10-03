@@ -15,3 +15,5 @@ apps/desktop/src-tauri/gen/
 AI_CONTEXT/carte.json
 AI_CONTEXT/ALERTES.md
 AI_CONTEXT/architecture.mmd
+ui/dist-client/
+ui/dist-livreur/

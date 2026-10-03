@@ -13,7 +13,7 @@
   "fichier": "ui/src/public/MenuClient.tsx",
   "ligne": null,
   "statut": "corrige",
-  "empreinte": "6fd52aa2bccf6a3d"
+  "empreinte": "b8a0ce72022282d1"
  },
  {
   "date": "2026-10-03",
@@ -30,5 +30,13 @@
   "ligne": 31,
   "statut": "confirme",
   "empreinte": "b281f69af29ab1e2"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "Les applications (VITE_APPLI) appellent le relais via baseApi() : tout nouvel appel public doit passer par api.ts, jamais fetch('/api…') direct",
+  "fichier": "ui/src/appli.ts",
+  "ligne": null,
+  "statut": "piege",
+  "empreinte": "6918d19e00bffb3c"
  }
 ]

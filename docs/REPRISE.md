@@ -53,6 +53,9 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Applications Youma Client et Youma Livreur** (fiche 0041, `docs/guides/applications-mobiles.md`) : Capacitor,
+  Android et iPhone, pages web gardées ; APK construits par la CI. Reste : clé de signature en secrets GitHub, essais
+  sur vrais téléphones (position écran verrouillé), compte Apple pour les iPhone.
 - **PIN d'autorisation bloqué après 5 essais** (RG-AUT-08, fiche 0040) ; messages de position du client selon la
   cause, écran du livreur gardé allumé pendant la course.
 
@@ -80,7 +83,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
    cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
    des tableaux en cartes et du thème).
 8. **Plus tard** : relais partagé par plusieurs restaurants pour les commandes en ligne (base du SaaS) ;
-   petite application Android pour le livreur si le suivi se coupe encore malgré l'écran gardé allumé (fiche 0040) ; interface en bambara
+   notifications poussées aux clients écran éteint si demandé (fiche 0041) ; interface en bambara
    (`ui/src/i18n.ts` est prêt pour la traduction).
 9. **PI-SPI** (paiement instantané interopérable de la BCEAO, QR ou numéro de téléphone) :
    - sans code, dès qu'un restaurant a son QR marchand PI-SPI : moyen de paiement « PI-SPI » créé comme un compte

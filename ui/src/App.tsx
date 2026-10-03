@@ -2,6 +2,7 @@ import { ArrowLeftRight, House, Menu as MenuIcone, Moon, PanelLeftClose, PanelLe
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { definirJetonAppareil, get, post } from "./api";
+import { APPLI } from "./appli";
 import { BandeauMiseAJour } from "./composants/Installation";
 import { Fournisseur, useApp } from "./contexte";
 import { dateFr, dateHeure } from "./format";
@@ -35,6 +36,8 @@ const MenuClient = lazy(() => import("./public/MenuClient"));
 const SuiviClient = lazy(() => import("./public/Suivi"));
 const Livreur = lazy(() => import("./public/Livreur"));
 const Proprietaire = lazy(() => import("./public/Proprietaire"));
+// Applications Android « Youma Client » et « Youma Livreur » (fiche 0041).
+const Appli = lazy(() => import("./appli/Appli"));
 
 /** Pages ouvertes par un QR ou un lien envoyé au client : hors de l'application du personnel. */
 function PagePublique() {
@@ -61,6 +64,12 @@ export function estPagePublique(chemin: string) {
 }
 
 export default function App() {
+  if (APPLI)
+    return (
+      <Suspense fallback={<p className="aide">Chargement…</p>}>
+        <Appli />
+      </Suspense>
+    );
   if (estPagePublique(location.pathname)) return <PagePublique />;
   return (
     <Fournisseur>

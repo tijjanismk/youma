@@ -1,6 +1,7 @@
 import { Check, MapPin, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get } from "../api";
+import { APPLI } from "../appli";
 import { dateHeure, distanceTexte, fcfa, lienCarte, minutesDepuis } from "../format";
 import type { Suivi as SuiviT } from "../types";
 import { Page } from "./MenuClient";
@@ -24,10 +25,17 @@ export default function Suivi({ code }: { code: string }) {
   useEffect(() => {
     let arret = false;
     let minuterie: ReturnType<typeof setTimeout>;
+    let etape = "";
     const charger = async () => {
       try {
         const v = await get<SuiviT>(`/public/suivi/${encodeURIComponent(code)}`);
         if (arret) return;
+        // Application Youma Client : prévenir le client quand l'étape change (fiche 0041).
+        if (APPLI === "client" && etape && v.etape !== etape) {
+          const libelle = ETAPES.find((e) => e.cle === v.etape)?.libelle ?? "Commande mise à jour";
+          void import("../appli/notifier").then(({ notifier }) => notifier(`Commande${v.numero ? ` n°${v.numero}` : ""}`, libelle));
+        }
+        etape = v.etape;
         setS(v);
         setErreur("");
         if (FINALES.includes(v.etape)) return;
@@ -107,6 +115,12 @@ export default function Suivi({ code }: { code: string }) {
           {s.reste === 0 && s.total > 0 ? " — payé" : s.paiement_mode === "a_la_livraison" ? " — à payer à la livraison" : ""}
         </p>
         <p className="aide">Mis à jour le {dateHeure(s.mis_a_jour)} · cette page s'actualise toute seule.</p>
+        {!APPLI && location.protocol === "https:" && (
+          <p className="aide">
+            Prévenu à chaque étape avec l'application Youma Client :{" "}
+            <a href={`youma-client://suivi?relais=${encodeURIComponent(location.origin)}&code=${encodeURIComponent(code)}`}>ouvrir dans l'application</a>.
+          </p>
+        )}
       </div>
     </Page>
   );
