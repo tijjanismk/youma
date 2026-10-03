@@ -53,6 +53,9 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **PIN d'autorisation bloqué après 5 essais** (RG-AUT-08, fiche 0040) ; messages de position du client selon la
+  cause, écran du livreur gardé allumé pendant la course.
+
 ## Ce qui reste (par ordre conseillé)
 
 1. **Installateur Windows** : construit par la CI (`.github/workflows/installateur-windows.yml`, artefact dans
@@ -77,7 +80,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
    cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
    des tableaux en cartes et du thème).
 8. **Plus tard** : relais partagé par plusieurs restaurants pour les commandes en ligne (base du SaaS) ;
-   application Android si le raccourci du navigateur ne suffit pas (fiche 0023) ; interface en bambara
+   petite application Android pour le livreur si le suivi se coupe encore malgré l'écran gardé allumé (fiche 0040) ; interface en bambara
    (`ui/src/i18n.ts` est prêt pour la traduction).
 9. **PI-SPI** (paiement instantané interopérable de la BCEAO, QR ou numéro de téléphone) :
    - sans code, dès qu'un restaurant a son QR marchand PI-SPI : moyen de paiement « PI-SPI » créé comme un compte
@@ -96,6 +99,12 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
   partout ; suggestions dans `ui/src/quartiers.ts`).
 
 ## Questions ouvertes (réponses du porteur de projet attendues)
+
+- Téléphones en service : réponse « majeure partie » à la question des iPhone, à préciser (Android ou iPhone ?).
+- **[HYPOTHÈSE]** (fiche 0040) la position sert au client qui suit son livreur ; pas besoin d'envoyer au restaurant la
+  précision de la position du client (constat L3).
+- Suites de sécurité (`AI_CONTEXT/ETUDE-MOBILE.md`) : C3 (limiteur sur `/api/public/*` du poste), C4 (sauvegardes
+  dans le dossier géré seulement), `cargo audit` en CI, compilation release refusée sans `YOUMA_CLE_PUBLIQUE` (C2).
 
 
 - Modèles Xprinter précis (XP-58, XP-80…) et modèle des caisses POS du pack (pour les essais).

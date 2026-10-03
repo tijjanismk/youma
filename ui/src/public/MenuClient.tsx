@@ -6,6 +6,7 @@ import { VisuelPlat } from "../composants/Plat";
 import { fcfa, lienCarte, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante, Suivi } from "../types";
 import { cleOptions, ETAPES_EN_COURS, lirePanierClient, lireSuivis, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
+import { messageErreurPosition, positionPossible } from "./position";
 
 type Produit = MenuPublic["produits"][number];
 
@@ -372,10 +373,10 @@ function Validation({
         setPrecision(Math.round(p.coords.accuracy));
         if (meilleure <= 25) navigator.geolocation.clearWatch(id);
       },
-      () => {
+      (e) => {
         if (meilleure < Infinity) return;
         setPartager(false);
-        setErreur("Position indisponible : activez la localisation du téléphone, ou indiquez un point de repère précis.");
+        setErreur(messageErreurPosition(e.code, "Sinon, indiquez un point de repère précis."));
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 30_000 },
     );
@@ -469,7 +470,11 @@ function Validation({
                 placeholder="Derrière la mosquée, portail bleu…"
                 obligatoire={!positionPrecise}
               />
-              <Case libelle="Partager ma position pour le livreur" valeur={partager} changer={setPartager} />
+              {positionPossible() ? (
+                <Case libelle="Partager ma position pour le livreur" valeur={partager} changer={setPartager} />
+              ) : (
+                <p className="aide">La position ne peut être partagée que depuis le lien Internet du restaurant : indiquez un point de repère précis.</p>
+              )}
               {partager && !position && <p className="aide">Recherche de votre position…</p>}
               {position && (
                 <p className={precision !== null && precision > 100 ? "attention-texte" : "aide"}>

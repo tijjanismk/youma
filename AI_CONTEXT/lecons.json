@@ -1,0 +1,34 @@
+[
+ {
+  "date": "2026-10-03",
+  "texte": "Échecs du PIN d'autorisation comptés dans une transaction à part (autoriser_par_pin) ; un PIN juste ne les efface pas, sinon on glisse son propre PIN entre deux essais (C1 corrigé)",
+  "fichier": "crates/youma-core/src/auth.rs",
+  "ligne": null,
+  "statut": "corrige",
+  "empreinte": "af4ecf6288f0461c"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "positionPossible() masque le partage de position hors contexte sécurisé ; messages par code d'erreur dans position.ts (L1/L2 corrigés)",
+  "fichier": "ui/src/public/MenuClient.tsx",
+  "ligne": null,
+  "statut": "corrige",
+  "empreinte": "6fd52aa2bccf6a3d"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "Contrôle des doublons RG-CAN-07 placé APRÈS la liste noire RG-CAN-03, sinon un numéro bloqué reçoit 'déjà reçue'",
+  "fichier": "crates/youma-core/src/entrantes.rs",
+  "ligne": 230,
+  "statut": "confirme",
+  "empreinte": "aa5677ba07285906"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "Migration qui reconstruit une table référencée : commencer par le marqueur -- youma:cles-etrangeres-coupees",
+  "fichier": "crates/youma-core/src/db.rs",
+  "ligne": 31,
+  "statut": "confirme",
+  "empreinte": "b281f69af29ab1e2"
+ }
+]

@@ -10,3 +10,8 @@ ui/playwright-report/
 /donnees/
 *.tsbuildinfo
 apps/desktop/src-tauri/gen/
+
+# Carte du projet : fichiers régénérés par carte.py
+AI_CONTEXT/carte.json
+AI_CONTEXT/ALERTES.md
+AI_CONTEXT/architecture.mmd

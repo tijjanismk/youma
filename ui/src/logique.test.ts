@@ -5,6 +5,7 @@ import { cleIcone } from "./composants/IconeCategorie";
 import { contenanceSuggeree } from "./listesStock";
 import { ajouter, changerQuantite, chargerPanier, definirQuantite, optionsValides, prixZone, sauverPanier, totalPanier, versLignes } from "./panier";
 import { billetsProposes, rendu, sommeParts, verifierPaiement } from "./paiement";
+import { messageErreurPosition } from "./public/position";
 import type { Produit } from "./types";
 
 const produit = (p: Partial<Produit>): Produit => ({
@@ -319,5 +320,13 @@ describe("icônes des catégories (fiche 0035)", () => {
     expect(cleIcone("🍽️")).toBe("autre");
     expect(cleIcone("")).toBe("autre");
     expect(cleIcone("n'importe quoi")).toBe("autre");
+  });
+});
+
+describe("position des pages publiques (fiche 0040)", () => {
+  it("explique la cause de l'échec, avec le repli", () => {
+    expect(messageErreurPosition(1, "Repère.")).toMatch(/refusée.*cadenas.*Repère\.$/);
+    expect(messageErreurPosition(2, "Repère.")).toMatch(/GPS.*Repère\.$/);
+    expect(messageErreurPosition(3, "Repère.")).toMatch(/trop longue.*Repère\.$/);
   });
 });
