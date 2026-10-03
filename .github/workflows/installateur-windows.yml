@@ -47,6 +47,8 @@ jobs:
           else
             echo "::warning::Secret YOUMA_CLE_PUBLIQUE absent : installateur construit avec la clé de DÉVELOPPEMENT (essais seulement)."
             echo "SUFFIXE=-dev" >> "$GITHUB_ENV"
+            # Accord explicite : sans lui, crates/youma-server/build.rs refuse la compilation (constat C2, fiche 0042).
+            echo "YOUMA_CLE_DEV=1" >> "$GITHUB_ENV"
           fi
 
       - name: Outil Tauri

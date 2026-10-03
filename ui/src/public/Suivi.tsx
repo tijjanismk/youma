@@ -1,6 +1,6 @@
 import { Check, MapPin, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { get } from "../api";
+import { ErreurApi, get } from "../api";
 import { APPLI } from "../appli";
 import { dateHeure, distanceTexte, fcfa, lienCarte, minutesDepuis } from "../format";
 import type { Suivi as SuiviT } from "../types";
@@ -43,6 +43,8 @@ export default function Suivi({ code }: { code: string }) {
       } catch (e) {
         if (arret) return;
         setErreur(e instanceof Error ? e.message : String(e));
+        // Code inconnu ou trop d'essais (RG-CAN-08) : réessayer ne servirait qu'à se faire bloquer.
+        if (e instanceof ErreurApi && ["NON_TROUVE", "TROP_D_ESSAIS", "INTERDIT"].includes(e.code)) return;
         minuterie = setTimeout(charger, 30_000);
       }
     };

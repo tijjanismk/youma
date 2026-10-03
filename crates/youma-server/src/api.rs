@@ -22,7 +22,7 @@ use youma_core::{
 };
 
 use crate::erreurs::{ApiErreur, Rep};
-use crate::{Auth, Etat, Poste};
+use crate::{AdresseClient, Auth, Etat, Poste};
 
 type Q = Query<HashMap<String, String>>;
 
@@ -1469,8 +1469,25 @@ async fn public_commande(State(e): State<Etat>, Json(c): Json<entrantes::Command
     Ok(Json(e.avec_db(move |db| entrantes::recevoir(db, &c)).await?))
 }
 
-async fn public_suivi(State(e): State<Etat>, Path(code): Path<String>) -> Rep<entrantes::Suivi> {
-    Ok(Json(e.avec_db(move |db| entrantes::suivi(db.conn(), &code)).await?))
+/// RG-CAN-08 : refus après 15 codes inconnus en 15 minutes depuis la même adresse (énumération des codes).
+async fn public_suivi(State(e): State<Etat>, AdresseClient(ip): AdresseClient, Path(code): Path<String>) -> Rep<entrantes::Suivi> {
+    essais_publics(&e, ip)?;
+    let r = e.avec_db(move |db| entrantes::suivi(db.conn(), &code)).await;
+    compter_si_inconnu(&e, ip, &r);
+    Ok(Json(r?))
+}
+
+fn essais_publics(e: &Etat, ip: Option<std::net::IpAddr>) -> Result<(), ApiErreur> {
+    if e.essais_epuises(ip) {
+        return Err(ApiErreur(Erreur::Interdit("Trop de codes inconnus essayés : réessayez dans 15 minutes".into())));
+    }
+    Ok(())
+}
+
+fn compter_si_inconnu<T>(e: &Etat, ip: Option<std::net::IpAddr>, r: &Result<T, ApiErreur>) {
+    if matches!(r, Err(ApiErreur(Erreur::NonTrouve(_)))) {
+        e.compter_essai(ip);
+    }
 }
 
 #[derive(Deserialize)]
@@ -1479,8 +1496,11 @@ struct Position {
     lon: i64,
 }
 
-async fn public_position(State(e): State<Etat>, Path(code): Path<String>, Json(p): Json<Position>) -> Rep<()> {
-    Ok(Json(e.avec_db(move |db| entrantes::ajouter_position(db, &code, p.lat, p.lon)).await?))
+async fn public_position(State(e): State<Etat>, AdresseClient(ip): AdresseClient, Path(code): Path<String>, Json(p): Json<Position>) -> Rep<()> {
+    essais_publics(&e, ip)?;
+    let r = e.avec_db(move |db| entrantes::ajouter_position(db, &code, p.lat, p.lon)).await;
+    compter_si_inconnu(&e, ip, &r);
+    Ok(Json(r?))
 }
 
 // ───────────── Recettes (fiche 0014) ─────────────

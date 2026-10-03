@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { post } from "../api";
+import { ErreurApi, post } from "../api";
 import { heure, versMicro } from "../format";
 import { APPLI } from "../appli";
 import { Page } from "./MenuClient";
@@ -31,7 +31,8 @@ export default function Livreur({ code }: { code: string }) {
       } catch (e) {
         const m = e instanceof Error ? e.message : String(e);
         setMessage(m);
-        if (m.includes("course")) setActif(false);
+        // Course finie, lien inconnu ou trop d'essais (RG-CAN-08) : on arrête d'envoyer.
+        if (m.includes("course") || (e instanceof ErreurApi && ["NON_TROUVE", "TROP_D_ESSAIS", "INTERDIT"].includes(e.code))) setActif(false);
       }
     };
     // Application Youma Livreur : position en arrière-plan, écran verrouillé compris (fiche 0041).

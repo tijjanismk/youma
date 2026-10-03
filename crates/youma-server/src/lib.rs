@@ -11,9 +11,11 @@ pub mod taches;
 pub mod tls;
 pub mod ws;
 
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use axum::extract::{ConnectInfo, FromRequestParts};
 use axum::http::request::Parts;
@@ -60,7 +62,13 @@ pub struct Etat {
     pub cloud: Arc<Mutex<cloud::EtatCloud>>,
     /// Autorité de certification locale, si l'HTTPS est actif.
     pub autorite: Option<Arc<tls::Autorite>>,
+    /// RG-CAN-08 : codes inconnus essayés sur les routes publiques, par adresse (fiche 0042).
+    pub essais_publics: Arc<Mutex<HashMap<IpAddr, Vec<Instant>>>>,
 }
+
+/// RG-CAN-08 : 15 codes de suivi ou de livreur inconnus en 15 minutes depuis une adresse : refus suivants.
+pub const ESSAIS_PUBLICS_MAX: usize = 15;
+pub const FENETRE_ESSAIS_PUBLICS: Duration = Duration::from_secs(15 * 60);
 
 impl Etat {
     pub fn ouvrir(config: Config) -> Resultat<Etat> {
@@ -86,7 +94,15 @@ impl Etat {
             Some(_) => Some(Arc::new(tls::Autorite::charger_ou_creer(&db)?)),
             None => None,
         };
-        Ok(Etat { db: Arc::new(Mutex::new(db)), evenements: tx, config: Arc::new(config), relais: Arc::default(), cloud: Arc::default(), autorite })
+        Ok(Etat {
+            db: Arc::new(Mutex::new(db)),
+            evenements: tx,
+            config: Arc::new(config),
+            relais: Arc::default(),
+            cloud: Arc::default(),
+            autorite,
+            essais_publics: Arc::default(),
+        })
     }
 
     /// Exécute une fonction bloquante sur la base (un seul écrivain, cf. fiche 0003).
@@ -158,6 +174,38 @@ impl FromRequestParts<Etat> for Auth {
             .avec_autorisation(pin)
             .avec_eleve(s.eleve);
         Ok(Auth { acteur, jeton, utilisateur_id: s.utilisateur_id })
+    }
+}
+
+impl Etat {
+    /// RG-CAN-08 : l'adresse a-t-elle épuisé ses essais de codes inconnus ?
+    pub fn essais_epuises(&self, ip: Option<IpAddr>) -> bool {
+        let Some(ip) = ip else { return false };
+        let mut m = self.essais_publics.lock().unwrap_or_else(|e| e.into_inner());
+        let v = m.entry(ip).or_default();
+        v.retain(|t| t.elapsed() < FENETRE_ESSAIS_PUBLICS);
+        v.len() >= ESSAIS_PUBLICS_MAX
+    }
+
+    /// RG-CAN-08 : un code inconnu de plus pour cette adresse.
+    pub fn compter_essai(&self, ip: Option<IpAddr>) {
+        let Some(ip) = ip else { return };
+        let mut m = self.essais_publics.lock().unwrap_or_else(|e| e.into_inner());
+        if m.len() > 10_000 {
+            m.retain(|_, v| v.iter().any(|t| t.elapsed() < FENETRE_ESSAIS_PUBLICS));
+        }
+        m.entry(ip).or_default().push(Instant::now());
+    }
+}
+
+/// Adresse de l'appelant (absente dans les tests sans connexion réelle).
+pub struct AdresseClient(pub Option<IpAddr>);
+
+impl FromRequestParts<Etat> for AdresseClient {
+    type Rejection = ApiErreur;
+
+    async fn from_request_parts(parts: &mut Parts, etat: &Etat) -> Result<Self, Self::Rejection> {
+        Ok(AdresseClient(ConnectInfo::<SocketAddr>::from_request_parts(parts, etat).await.ok().map(|c| c.0.ip())))
     }
 }
 

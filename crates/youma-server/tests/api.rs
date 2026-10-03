@@ -715,3 +715,19 @@ async fn interrupteur_mode_reseau() {
     let (_, audit) = s.get(&proprio, "/audit").await;
     assert!(audit.as_array().unwrap().iter().any(|l| l["entite"] == "mode_reseau"));
 }
+
+/// RG-CAN-08 : 15 codes de suivi ou de livreur inconnus en 15 minutes depuis une adresse, puis refus.
+#[tokio::test]
+async fn codes_publics_inconnus_limites_a_15_essais() {
+    let s = serveur().await;
+    for i in 0..14 {
+        let r = s.client.get(format!("{}/public/suivi/INCONNU{i}", s.url)).send().await.unwrap();
+        assert_eq!(r.status(), 404);
+    }
+    let r = s.client.post(format!("{}/public/position/LIVREURX", s.url)).json(&json!({ "lat": 12_640_000, "lon": -8_000_000 })).send().await.unwrap();
+    assert_eq!(r.status(), 404, "le quinzième essai est encore traité");
+    let r = s.client.get(format!("{}/public/suivi/INCONNU99", s.url)).send().await.unwrap();
+    assert_eq!(r.status(), 403);
+    let v: Value = r.json().await.unwrap();
+    assert!(v["message"].as_str().unwrap().contains("15 minutes"), "{v}");
+}
