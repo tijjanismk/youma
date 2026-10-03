@@ -40,6 +40,19 @@ export function retenirSuivi(code: string) {
   }
 }
 
+/** Codes de suivi retenus, du plus récent au plus ancien. */
+export function lireSuivis(): string[] {
+  try {
+    const l = JSON.parse(localStorage.getItem(CLE_SUIVIS) ?? "[]");
+    return Array.isArray(l) ? l.filter((c) => typeof c === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Étapes d'une commande encore en cours (ni servie, ni livrée, ni refusée ou annulée). */
+export const ETAPES_EN_COURS = ["recue", "acceptee", "en_preparation", "prete", "en_route"];
+
 /** Distance approximative en mètres entre deux points en microdegrés. */
 export function distanceMetres(a: [number, number], b: [number, number]): number {
   const r = 6_371_000;

@@ -16,7 +16,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
-    achats, appareils, auth, caisse, catalogue, clients, cloud, commandes, consignes, demo, employes, entrantes, horloge, impression, journee,
+    achats, appareils, auth, caisse, cartes, catalogue, clients, cloud, commandes, consignes, contrats, demo, employes, entrantes, fidelite, horloge,
+    impression, journee,
     licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, secours, stock, zones_risque, Db,
 };
 
@@ -181,6 +182,15 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/clients", get(clients_rechercher).post(client_enregistrer))
         .route("/clients/{id}", get(client_detail))
         .route("/clients/reglement", post(client_reglement))
+        // Fidélité, cartes cadeaux, contrats société, clients privilégiés (fiche 0039)
+        .route("/clients/{id}/privilege", post(client_privilege))
+        .route("/commandes/{id}/fidelite", post(commande_fidelite))
+        .route("/cartes", get(cartes_lister))
+        .route("/cartes/code/{code}", get(carte_par_code))
+        .route("/cartes/vendre", post(carte_vendre))
+        .route("/cartes/avoir", post(carte_avoir))
+        .route("/contrats", get(contrats_lister).post(contrat_enregistrer))
+        .route("/contrats/{id}/releve", get(contrat_releve))
         // Employés et paie
         .route("/employes", get(employes_lister).post(employe_enregistrer))
         .route("/employes/references", get(employes_references))
@@ -894,7 +904,58 @@ async fn client_enregistrer(State(e): State<Etat>, a: Auth, Json(c): Json<client
 }
 
 async fn client_detail(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Value> {
-    lire!(e, a, AUCUNE, |db| Ok(json!({ "client": clients::client(db.conn(), &id)?, "releve": clients::releve(db.conn(), &id)? })))
+    lire!(e, a, AUCUNE, |db| Ok(json!({
+        "client": clients::client(db.conn(), &id)?,
+        "releve": clients::releve(db.conn(), &id)?,
+        "fidelite": fidelite::etat(db.conn(), &id)?,
+        "points": fidelite::historique(db.conn(), &id)?,
+        "cartes": cartes::du_client(db.conn(), &id)?,
+    })))
+}
+
+async fn client_privilege(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(p): Json<fidelite::Privilege>) -> Rep<()> {
+    ecrire!(e, a, |db| fidelite::definir_privilege(db, &a, &id, &p))
+}
+
+#[derive(Deserialize)]
+struct Points {
+    points: i64,
+}
+
+async fn commande_fidelite(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(p): Json<Points>) -> Rep<i64> {
+    ecrire!(e, a, |db| fidelite::utiliser(db, &a, &id, p.points))
+}
+
+async fn cartes_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<cartes::Carte>> {
+    lire!(e, a, Some(perm::CAISSE_ENCAISSER), |db| cartes::lister(db.conn()))
+}
+
+async fn carte_par_code(State(e): State<Etat>, a: Auth, Path(code): Path<String>) -> Rep<cartes::Carte> {
+    lire!(e, a, Some(perm::CAISSE_ENCAISSER), |db| cartes::par_code(db.conn(), &code))
+}
+
+async fn carte_vendre(State(e): State<Etat>, a: Auth, Json(v): Json<cartes::VenteCarte>) -> Rep<cartes::Carte> {
+    ecrire!(e, a, |db| cartes::vendre(db, &a, &v))
+}
+
+async fn carte_avoir(State(e): State<Etat>, a: Auth, Json(v): Json<cartes::NouvelAvoir>) -> Rep<cartes::Carte> {
+    ecrire!(e, a, |db| cartes::offrir_avoir(db, &a, &v))
+}
+
+async fn contrats_lister(State(e): State<Etat>, a: Auth) -> Rep<Vec<contrats::Contrat>> {
+    lire!(e, a, AUCUNE, |db| contrats::lister(db.conn()))
+}
+
+async fn contrat_enregistrer(State(e): State<Etat>, a: Auth, Json(c): Json<contrats::Contrat>) -> Rep<String> {
+    ecrire!(e, a, |db| contrats::enregistrer(db, &a, &c))
+}
+
+async fn contrat_releve(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Query(p): Q) -> Rep<Value> {
+    let (debut, fin) = (q(&p, "debut").unwrap_or("0000-00-00").to_owned(), q(&p, "fin").unwrap_or("9999-12-31").to_owned());
+    lire!(e, a, Some(perm::CLIENT_CREDIT), |db| Ok(json!({
+        "contrat": contrats::contrat(db.conn(), &id)?,
+        "lignes": contrats::releve(db.conn(), &id, &debut, &fin)?,
+    })))
 }
 
 async fn client_reglement(State(e): State<Etat>, a: Auth, Json(r): Json<clients::Reglement>) -> Rep<String> {

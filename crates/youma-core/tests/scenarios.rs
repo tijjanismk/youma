@@ -445,5 +445,5 @@ fn cloture_caisse_avec_ecart() {
     let p = b.proprietaire();
     caisse::ouvrir_session(&mut b.db, &p, &caisse::OuvertureSession { compte_id: None, fond_compte: 14_000, billetage: vec![], motif_ecart: String::new() }).unwrap();
     // Paiement partiel puis division.
-    let _ = PartSaisie { moyen: "especes".into(), montant: 1, compte_id: None, reference: None, numero_payeur: None, client_id: None, par_livreur: false };
+    let _ = PartSaisie { moyen: "especes".into(), montant: 1, compte_id: None, reference: None, numero_payeur: None, client_id: None, par_livreur: false, contrat_id: None };
 }

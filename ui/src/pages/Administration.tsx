@@ -22,6 +22,7 @@ type Onglet =
   | "promotions"
   | "distance"
   | "restaurant"
+  | "fidelite"
   | "paiements"
   | "catalogue"
   | "salle"
@@ -44,6 +45,7 @@ export default function Administration() {
     { cle: "salle", libelle: "Salle et tables", p: "salle.gerer" },
     { cle: "postes", libelle: "Postes et imprimantes", p: "catalogue.gerer" },
     { cle: "restaurant", libelle: "Restaurant et règles", p: "parametre.gerer" },
+    { cle: "fidelite", libelle: "Fidélité", p: "parametre.gerer" },
     { cle: "paiements", libelle: "Moyens de paiement", p: "parametre.gerer" },
     { cle: "distance", libelle: "Commandes à distance", p: "zone.outrepasser" },
     { cle: "utilisateurs", libelle: "Utilisateurs", p: "utilisateur.gerer" },
@@ -82,6 +84,7 @@ function OngletAdmin({ onglet }: { onglet: Onglet }) {
       {onglet === "salle" && <SalleAdmin />}
       {onglet === "postes" && <PostesAdmin />}
       {onglet === "restaurant" && <RestaurantAdmin />}
+      {onglet === "fidelite" && <FideliteAdmin />}
       {onglet === "utilisateurs" && <UtilisateursAdmin />}
       {onglet === "roles" && <RolesAdmin />}
       {onglet === "appareils" && <AppareilsAdmin />}
@@ -622,6 +625,49 @@ function PostesAdmin() {
 // ───────────── Restaurant et règles ─────────────
 
 type Restaurant = { nom: string; adresse: string; telephone: string; ville: string; nif: string; pied_ticket: string };
+
+/** RG-FID-01 : le restaurant définit lui-même ses règles de points. */
+function FideliteAdmin() {
+  const { agir, rechargerEtat } = useApp();
+  const { donnees: p } = useDonnees(() => get<Parametres>("/parametres"), []);
+  const [params, setParams] = useState<Parametres | null>(null);
+  useEffect(() => {
+    if (p) setParams(p);
+  }, [p]);
+  if (!params) return null;
+  const f = params.fidelite;
+  const maj = (x: Partial<Parametres["fidelite"]>) => setParams({ ...params, fidelite: { ...f, ...x } });
+  // Exemple concret pour que la règle se comprenne sans calcul.
+  const exemple = 10_000;
+  const gagnes = Math.floor(exemple / Math.max(1, f.fcfa_par_point));
+  return (
+    <div className="carte">
+      <h2>Fidélité par points</h2>
+      <Case libelle="Activer la fidélité" valeur={f.active} changer={(v) => maj({ active: v })} />
+      <ChampMontant
+        libelle="Le client gagne 1 point par tranche de (FCFA dépensés)"
+        valeur={f.fcfa_par_point}
+        changer={(v) => maj({ fcfa_par_point: v || 1 })}
+      />
+      <ChampMontant libelle="Un point vaut (FCFA de réduction)" valeur={f.valeur_point} changer={(v) => maj({ valeur_point: v || 1 })} />
+      <label className="champ">
+        <span>Points minimum pour les utiliser</span>
+        <input type="number" min={0} value={f.minimum_points} onChange={(e) => maj({ minimum_points: Number(e.target.value) })} />
+      </label>
+      <p className="aide">
+        Exemple : une addition de {fcfa(exemple)} rapporte {gagnes} points, qui valent {fcfa(gagnes * f.valeur_point)} de réduction (
+        {((gagnes * f.valeur_point * 100) / exemple).toFixed(1).replace(".", ",")} % de ce que le client a dépensé). Les points se gagnent sur ce que le client
+        paie lui-même, pas sur la part d'une société ni sur un bon d'avoir. Le client doit être choisi sur l'addition.
+      </p>
+      <button
+        className="principal"
+        onClick={() => agir((pin) => appel("/parametres", { methode: "PUT", corps: params, pin }), "Fidélité enregistrée").then(rechargerEtat)}
+      >
+        Enregistrer
+      </button>
+    </div>
+  );
+}
 
 function RestaurantAdmin() {
   const { agir, rechargerEtat } = useApp();

@@ -372,7 +372,7 @@ pub(crate) fn etat(conn: &Connection, id: &str) -> Resultat<EtatCommande> {
 }
 
 /// RG-CMD-08 : seule une commande ouverte se modifie.
-fn exiger_ouverte(e: &EtatCommande) -> Resultat<()> {
+pub(crate) fn exiger_ouverte(e: &EtatCommande) -> Resultat<()> {
     if e.statut != "ouverte" {
         return Err(Erreur::regle(
             "RG-CMD-08",
@@ -567,7 +567,7 @@ pub(crate) fn ajouter_lignes_op(op: &mut Op, commande_id: &str, lignes: &[LigneS
     Ok(ids)
 }
 
-fn toucher(op: &mut Op, commande_id: &str) -> Resultat<()> {
+pub(crate) fn toucher(op: &mut Op, commande_id: &str) -> Resultat<()> {
     op.execute(
         "UPDATE commandes SET modifie_le = ?1, version = version + 1 WHERE id = ?2",
         params![op.maintenant, commande_id],
@@ -1014,18 +1014,23 @@ pub struct EnvoiCuisine {
     pub cree_le: i64,
     pub serveur: Option<String>,
     pub lignes: Vec<Ligne>,
+    /// RG-VIP-03 : commande à distance d'un client privilégié, préparée en priorité.
+    pub vip: bool,
 }
 
 /// Envois en cours pour l'écran cuisine / bar.
 pub fn envois_actifs(conn: &Connection, poste_id: Option<&str>) -> Resultat<Vec<EnvoiCuisine>> {
-    let mut s = conn.prepare(
-        "SELECT e.id, e.commande_id, e.numero, e.poste_id, e.statut, e.message, e.cree_le, u.nom
+    // RG-VIP-03 : les commandes à distance (livraison, à emporter) des clients privilégiés passent en tête ; les
+    // tables restent dans l'ordre d'arrivée.
+    let mut s = conn.prepare(&format!(
+        "SELECT e.id, e.commande_id, e.numero, e.poste_id, e.statut, e.message, e.cree_le, u.nom, {vip}
          FROM envois e JOIN commandes c ON c.id = e.commande_id
          LEFT JOIN utilisateurs u ON u.id = e.cree_par
          WHERE e.statut IN ('recu','en_preparation','pret','probleme') AND (?1 IS NULL OR e.poste_id = ?1)
            AND e.poste_id IS NOT NULL
-         ORDER BY e.cree_le",
-    )?;
+         ORDER BY {vip} DESC, e.cree_le",
+        vip = format!("(c.type IN ('livraison','emporter') AND {})", crate::fidelite::SQL_COMMANDE_VIP)
+    ))?;
     let base = s
         .query_map(params![poste_id], |r| {
             Ok((
@@ -1037,14 +1042,15 @@ pub fn envois_actifs(conn: &Connection, poste_id: Option<&str>) -> Resultat<Vec<
                 r.get::<_, String>(5)?,
                 r.get::<_, i64>(6)?,
                 r.get::<_, Option<String>>(7)?,
+                r.get::<_, bool>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     let mut v = Vec::new();
-    for (id, cid, numero, poste, statut, message, cree_le, serveur) in base {
+    for (id, cid, numero, poste, statut, message, cree_le, serveur, vip) in base {
         let e = etat(conn, &cid)?;
         let lignes = detail(conn, &cid)?.lignes.into_iter().filter(|l| l.envoi_id.as_deref() == Some(&id)).collect();
-        v.push(EnvoiCuisine { id, commande_id: cid, titre: titre_commande(&e), numero, poste_id: poste, statut, message, cree_le, serveur, lignes });
+        v.push(EnvoiCuisine { id, commande_id: cid, titre: titre_commande(&e), numero, poste_id: poste, statut, message, cree_le, serveur, lignes, vip });
     }
     Ok(v)
 }

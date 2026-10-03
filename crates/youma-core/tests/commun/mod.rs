@@ -114,15 +114,15 @@ impl Banc {
 }
 
 pub fn especes(montant: i64) -> PartSaisie {
-    PartSaisie { moyen: "especes".into(), montant, compte_id: None, reference: None, numero_payeur: None, client_id: None, par_livreur: false }
+    PartSaisie { moyen: "especes".into(), montant, compte_id: None, reference: None, numero_payeur: None, client_id: None, par_livreur: false, contrat_id: None }
 }
 
 pub fn mobile_money(compte_id: &str, montant: i64, reference: &str) -> PartSaisie {
-    PartSaisie { moyen: "mobile_money".into(), montant, compte_id: Some(compte_id.into()), reference: Some(reference.into()), numero_payeur: Some("70112233".into()), client_id: None, par_livreur: false }
+    PartSaisie { moyen: "mobile_money".into(), montant, compte_id: Some(compte_id.into()), reference: Some(reference.into()), numero_payeur: Some("70112233".into()), client_id: None, par_livreur: false, contrat_id: None }
 }
 
 pub fn credit(client_id: &str, montant: i64) -> PartSaisie {
-    PartSaisie { moyen: "credit".into(), montant, compte_id: None, reference: None, numero_payeur: None, client_id: Some(client_id.into()), par_livreur: false }
+    PartSaisie { moyen: "credit".into(), montant, compte_id: None, reference: None, numero_payeur: None, client_id: Some(client_id.into()), par_livreur: false, contrat_id: None }
 }
 
 pub fn code(e: &youma_core::Erreur) -> &'static str {

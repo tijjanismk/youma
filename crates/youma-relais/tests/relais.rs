@@ -309,3 +309,22 @@ async fn menu_renvoye_seulement_s_il_change() {
     assert_eq!(s["menu_empreinte"], "e2");
     assert_eq!(r.get("/public/menu").await.1["restaurant"], "Maquis Le Fromager");
 }
+
+/// RG-CAN-07 : page rechargée ou double appui : même numéro et même panier → la commande déjà transmise.
+#[tokio::test]
+async fn commande_renvoyee_une_seule_fois() {
+    let r = relais().await;
+    let (code, s) = r.synchroniser(CLE, json!({ "menu": menu(), "config": { "verification_numero": "rappel" } })).await;
+    assert_eq!(code, 200, "{s}");
+    let (_, a) = r.post("/public/commandes", commande("")).await;
+    assert_eq!(a["statut"], "en_attente", "{a}");
+    let (_, b) = r.post("/public/commandes", commande("")).await;
+    assert_eq!(b["code_suivi"], a["code_suivi"]);
+    assert!(b["message"].as_str().unwrap().contains("déjà été reçue"));
+    let mut autre = commande("");
+    autre["lignes"][0]["quantite"] = json!(2);
+    let (_, c) = r.post("/public/commandes", autre).await;
+    assert_ne!(c["code_suivi"], a["code_suivi"], "autre panier, autre commande");
+    let (_, sync) = r.synchroniser(CLE, json!({ "config": { "verification_numero": "rappel" } })).await;
+    assert_eq!(sync["commandes"].as_array().unwrap().len(), 2, "{sync}");
+}

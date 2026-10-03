@@ -111,7 +111,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAI-12** Transfert entre comptes = deux mouvements liés ; frais éventuels = dépense séparée.
 * **RG-CAI-13** Une dépense est catégorisée, liée à un compte et à la journée ; elle crée un mouvement de trésorerie négatif.
 * **RG-CAI-14** Chaque paiement conserve les espèces reçues du client et la monnaie rendue (rendu = reçu − part en espèces). Ils figurent sur le ticket, l'écran de reçu, le rapport Z (total reçu, rendu, gardé) et le rapport d'activité. Sans part en espèces, reçu = rendu = 0.
-* **RG-CAI-15** À la clôture, le caissier indique le fond gardé dans le tiroir pour la monnaie (par défaut le fond d'ouverture) ; le reste de l'argent compté part au coffre par deux mouvements liés « remise_coffre ». La session suivante n'attend que ce fond. Le rapport Z affiche « Remis au coffre » et « Fond laissé en caisse ».
+* **RG-CAI-15** Paiement par carte sur un TPE non relié : part sur un compte **banque**, numéro d'autorisation du ticket TPE obligatoire, jamais deux fois dans la journée (fiche 0026).
+* **RG-CAI-16** À la clôture, le caissier indique le fond gardé dans le tiroir pour la monnaie (par défaut le fond d'ouverture) ; le reste de l'argent compté part au coffre par deux mouvements liés « remise_coffre ». La session suivante n'attend que ce fond. Le rapport Z affiche « Remis au coffre » et « Fond laissé en caisse ».
 
 ### Relevés Mobile Money (RMM) — fiche 0016
 * **RG-RMM-01** Import d'un relevé CSV d'opérateur sur un compte Mobile Money : séparateur et colonnes reconnus par
@@ -230,6 +231,27 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   pendant la course (livraison assignée ou en route) et avec le lien secret du livreur, distinct du code de
   suivi du client. Le client ne voit la position que pendant la course.
 
+### Fidélité, cartes cadeaux, sociétés, privilèges (FID, CAD, SOC, VIP) — fiche 0039
+
+Extension demandée après les essais ; le cahier des charges n'en parle pas (aucune contradiction).
+
+* **RG-FID-01** Le restaurant fixe ses règles (Administration → Fidélité) : FCFA dépensés pour 1 point, valeur d'un point en FCFA, points minimum pour les utiliser. Désactivée par défaut. Le solde d'un client est la somme de ses mouvements de points (ajout seul).
+* **RG-FID-02** À l'addition soldée, le client rattaché gagne 1 point par tranche payée **par lui** : la part d'une société sous contrat et les bons d'avoir offerts ne comptent pas.
+* **RG-FID-03** Utiliser des points = une remise (motif « Fidélité ») sur l'addition du client, au plus le reste à payer, au moins le minimum de points ; pas de plafond de remise du rôle (c'est un droit du client).
+* **RG-FID-04** Paiement annulé (l'addition se rouvre) : les points gagnés sur cette addition sont retirés (mouvement négatif) ; ils sont regagnés au nouveau paiement, sans doublon.
+* **RG-CAD-01** Vente d'une carte cadeau (espèces dans la session, ou Mobile Money avec référence) : code unique « AAAA-BBBB », montant > 0, date de fin facultative non passée. L'argent entre en caisse (mouvement « vente_carte_cadeau ») mais n'est **pas** du chiffre d'affaires : la vente est comptée quand la carte paie une addition.
+* **RG-CAD-02** Une carte paie une addition (moyen « carte cadeau », code saisi sans tiret ni casse) : code connu, solde suffisant ; aucun mouvement de trésorerie. Le solde est la somme des mouvements de la carte (ajout seul).
+* **RG-CAD-03** Une carte expirée est refusée.
+* **RG-CAD-04** Bon d'avoir (client mécontent) : carte offerte par le restaurant, **sans argent entrant**, motif obligatoire, accord du gérant (`commande.offrir`, PIN), rattaché à un client ; tracé.
+* **RG-CAD-05** Paiement par carte annulé : la carte retrouve son solde.
+* **RG-SOC-01** Contrat société : une société cliente **à crédit** (sa part est inscrite sur son compte) ; part prise en charge = pourcentage (1 à 100) ou montant par repas, plafond par repas facultatif ; créé et modifié par un gérant (`client.depasser_limite`).
+* **RG-SOC-02** À l'encaissement, la part de la société est une part « crédit » rattachée au contrat : contrat actif, **nom de l'employé obligatoire**, part au plus égale à la part prévue par le contrat pour ce repas ; jamais en espèces. L'employé paie le reste avec un autre moyen.
+* **RG-SOC-03** La part de la société ne donne pas de points de fidélité.
+* **RG-SOC-04** Relevé d'un contrat sur une période : repas, employé, part de la société, total à facturer ; un paiement annulé apparaît en négatif.
+* **RG-VIP-01** Un caissier ou un gérant (`client.credit`) rend un client privilégié, sans fin ou jusqu'à une date (non passée), avec motif facultatif ; tracé.
+* **RG-VIP-02** Dans la file « Commandes reçues », les commandes à distance des clients privilégiés passent en tête, puis par ordre d'arrivée.
+* **RG-VIP-03** En cuisine, l'envoi d'une livraison ou d'un à-emporter d'un client privilégié passe devant ; les **tables restent par ordre d'arrivée**.
+
 ### Canaux de commande (CAN) — fiche 0013
 * **RG-CAN-01** Le menu papier (commande saisie par le serveur) est toujours possible. Les autres canaux sont
   indépendants et facultatifs : téléphone (saisi par le personnel), QR sur la table, en ligne.
@@ -248,6 +270,7 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAN-06** Le client (QR ou en ligne) modifie sa commande depuis sa page de suivi tant que le restaurant ne l'a pas
   acceptée, **deux fois au plus**, après un avertissement ; mêmes contrôles qu'à la commande. Le restaurant voit « modifiée
   par le client (n fois) » ; ensuite, seul un serveur change la commande (fiche 0036).
+* **RG-CAN-07** Commande renvoyée (page rechargée, bouton touché deux fois) : même numéro de téléphone et même panier moins de 5 minutes après, ce n'est pas une nouvelle commande ; le restaurant (et le relais) renvoie la première avec le message « déjà reçue ». Un autre panier, ou plus de 5 minutes, crée une nouvelle commande. La page du client affiche aussi sa commande en cours.
 
 ### Zones à risque (ZON) — fiche 0013
 * **RG-ZON-01** Une zone à risque est un quartier et/ou un cercle GPS (centre, rayon), une plage horaire (qui peut

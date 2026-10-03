@@ -245,7 +245,7 @@ function Cloture({
   const [montant, setMontant] = useState(0);
   const [detail, setDetail] = useState(true);
   const [motif, setMotif] = useState("");
-  // RG-CAI-15 : on garde un fond pour la monnaie, le reste part au coffre.
+  // RG-CAI-16 : on garde un fond pour la monnaie, le reste part au coffre.
   const [remettre, setRemettre] = useState(coffre);
   const [fond, setFond] = useState(s.fond_compte);
   const compte = detail ? billets.reduce((x, l) => x + l.coupure * l.nombre, 0) : montant;

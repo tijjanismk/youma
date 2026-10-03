@@ -27,7 +27,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tower_http::services::{ServeDir, ServeFile};
-use youma_core::entrantes::code_aleatoire;
+use youma_core::entrantes::{code_aleatoire, empreinte_panier, FENETRE_DOUBLON_MS};
 use youma_core::zones_risque::normaliser_telephone;
 
 pub mod cloud;
@@ -419,6 +419,29 @@ async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr
     } else {
         false
     };
+    // RG-CAN-07 : même numéro et même panier depuis moins de 5 minutes (page rechargée, double appui) : on renvoie
+    // la commande déjà transmise au lieu d'en créer une seconde.
+    let empreinte = |corps: &Value| {
+        empreinte_panier(corps["lignes"].as_array().into_iter().flatten().map(|l| (l["produit_id"].as_str().unwrap_or(""), l["quantite"].as_i64().unwrap_or(1))))
+    };
+    let voulu = empreinte(&c);
+    let recentes: Vec<(String, String)> = e.avec(|db| {
+        db.prepare("SELECT code_suivi, corps FROM commandes WHERE cree_le >= ?1 ORDER BY cree_le DESC")?
+            .query_map([maintenant() - FENETRE_DOUBLON_MS], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect()
+    })?;
+    for (code, corps) in recentes {
+        let corps: Value = serde_json::from_str(&corps).unwrap_or_default();
+        if !tel.is_empty() && normaliser_telephone(corps["telephone"].as_str().unwrap_or("")) == tel && empreinte(&corps) == voulu {
+            return Ok(Json(json!({
+                "statut": "en_attente",
+                "message": "Votre commande a déjà été reçue : inutile de la renvoyer.",
+                "numero": null,
+                "code_suivi": code,
+                "total": 0,
+            })));
+        }
+    }
     let origine = uuid::Uuid::now_v7().to_string();
     let code_suivi = code_aleatoire(8);
     let o = c.as_object_mut().ok_or_else(|| erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Commande invalide"))?;

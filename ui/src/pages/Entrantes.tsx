@@ -28,6 +28,7 @@ export default function Entrantes() {
               <h2>
                 n°{e.commande.numero} — {t(e.canal)}
                 {e.table_demandee && ` · Table ${e.table_demandee}`}
+                {e.vip && <span className="etiquette vip">Client privilégié</span>}
               </h2>
               <span className="aide">il y a {minutesDepuis(e.commande.cree_le)} min</span>
             </div>

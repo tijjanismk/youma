@@ -6,7 +6,7 @@ import { heure, minutesDepuis } from "../format";
 import { t } from "../i18n";
 import type { Catalogue, Ligne } from "../types";
 
-type EnvoiCuisine = { id: string; titre: string; numero: number; poste_id: string; statut: string; message: string; cree_le: number; serveur: string | null; lignes: Ligne[] };
+type EnvoiCuisine = { id: string; titre: string; numero: number; poste_id: string; statut: string; message: string; cree_le: number; serveur: string | null; lignes: Ligne[]; vip?: boolean };
 type Job = { id: string; poste_nom: string | null; destination: string; type: string; statut: string; tentatives: number; erreur: string | null; cree_le: number };
 
 /** Écran cuisine / bar : lisible à distance, un envoi = une carte. */
@@ -67,6 +67,7 @@ export default function Cuisine() {
             <div key={e.id} className={`carte-cuisine ${e.statut} ${attente >= 20 ? "retard" : ""}`}>
               <div className="carte-cuisine-entete">
                 <strong>{e.titre}</strong>
+                {e.vip && <span className="etiquette vip">Priorité</span>}
                 <span>
                   Envoi n°{e.numero} — {heure(e.cree_le)} — <b>{attente} min</b>
                 </span>

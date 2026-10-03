@@ -1158,6 +1158,26 @@ code {
 }
 
 /* ───── Téléphones et petites tablettes ───── */
+/* Client privilégié (RG-VIP-02) : repère discret sur la file des commandes et en cuisine. */
+.etiquette.vip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--sur-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.code-carte {
+  font-size: 2rem;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
 /* Raison pour laquelle un bouton de clôture ne peut pas servir (RG-JOU-04, RG-PAI-06). */
 .raison-bloquee {
   color: var(--doux);
