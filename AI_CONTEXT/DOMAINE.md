@@ -40,7 +40,8 @@ cite. Ici : où chaque famille est appliquée. Chemins relatifs à `crates/youma
 | ACH 01–05, CON 01–06 | achats (marché par défaut), consignes d'emballages | `achats.rs:88–209`, `consignes.rs` |
 | EMP 01–07, PAI 01–09 | employés, présences, avances, paie | `employes.rs`, `paie.rs:88,155,240,386` |
 | RMM 01–05 | relevés Mobile Money rapprochés | `releves_mm.rs:157,235,264` |
-| PRO, STA, RAP | promotions, statistiques, rapports | `promotions.rs`, `rapports.rs:745–862` |
+| PRO, STA, RAP | promotions, statistiques, rapports ; commandes non honorées (RAP-04) | `promotions.rs`, `rapports.rs` (`rapport_non_honorees`) |
+| AVI 01–03 | avis des clients : note 1–5 par code de suivi, une fois, commande terminée, 7 jours (01) ; avis ≤ 2 à traiter par le gérant (02) ; rapport (03) | `avis.rs`, relais `enregistrer_avis` |
 | SOR 01–03 | contrôle de sortie par code du ticket | `sortie.rs:39`, `impression.rs:399` |
 | CLO 01–05 | cloud facultatif chiffré | `cloud.rs`, `youma-relais/src/cloud.rs:222` |
 

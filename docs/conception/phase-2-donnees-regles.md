@@ -305,6 +305,19 @@ Extension demandée après les essais ; le cahier des charges n'en parle pas (au
 * **RG-STA-04** Comparaison avec la période précédente de même durée, juste avant ; évolution = (période − précédente)
   ÷ précédente, en points de base, 0 sans référence.
 * **RG-RAP-03** Bénéfice estimé = CA − coût d'achat estimé des produits vendus − dépenses − salaires dus de la période. Les retraits propriétaire n'y figurent pas.
+* **RG-RAP-04** Commandes non honorées (fiche 0043) : commande à distance refusée par le restaurant, livraison en échec
+  ou annulée, commande à distance acceptée puis abandonnée. Comptées une fois, avec leur montant (articles commandés +
+  frais de livraison), par raison, motif, canal, quartier, heure, livreur et numéro (2 fois ou plus : liste noire à
+  envisager). Le rapport montre aussi les articles annulés après envoi et les refus automatiques à la réception.
+
+### Avis des clients (AVI) — fiche 0043
+* **RG-AVI-01** Le client note sa commande de 1 à 5 (commentaire facultatif, 500 caractères au plus) depuis sa page de
+  suivi, avec son code de suivi, une seule fois, une fois la commande servie, livrée ou en échec, et dans les 7 jours.
+  L'avis ne se modifie ni ne s'efface.
+* **RG-AVI-02** Un avis de 2 sur 5 ou moins attend une suite : le gérant (permission d'offrir) rappelle le client et note
+  la suite (appel, bon d'avoir, explication), une seule fois. Le tableau de bord compte les avis faibles sans suite.
+* **RG-AVI-03** Rapport des avis par journées d'exploitation de la commande : note moyenne, répartition, par canal, type,
+  livreur et serveur, commentaires et avis faibles.
 
 ## 4. Diagrammes d'états
 

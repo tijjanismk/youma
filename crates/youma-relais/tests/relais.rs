@@ -342,3 +342,27 @@ async fn codes_inconnus_limites_a_15_essais() {
     let (statut, _) = r.post("/public/position/LIVREURX", json!({ "lat": 12_640_000, "lon": -8_000_000 })).await;
     assert_eq!(statut, 429);
 }
+
+/// RG-AVI-01 : avis donné sur le relais pour une commande terminée, une fois, transmis au poste à la synchronisation.
+#[tokio::test]
+async fn avis_du_client_transmis_au_poste() {
+    let r = relais().await;
+    let suivi = |possible: bool| json!({ "numero": 12, "restaurant": "Chez Mariam", "etape": if possible { "livree" } else { "en_route" },
+        "motif": null, "type": "livraison", "total": 3000, "reste": 0, "paiement_mode": null, "lignes": [], "livreur": null,
+        "destination": null, "mis_a_jour": 0, "avis": null, "avis_possible": possible });
+    let (code, s) = r.synchroniser(CLE, json!({ "menu": menu(), "suivis": [{ "code_suivi": "AVIS0001", "code_livreur": null, "suivi": suivi(false) }] })).await;
+    assert_eq!(code, 200, "{s}");
+    assert_eq!(r.post("/public/avis/AVIS0001", json!({ "note": 4 })).await.0, 422, "commande pas encore livrée");
+    r.synchroniser(CLE, json!({ "suivis": [{ "code_suivi": "AVIS0001", "code_livreur": null, "suivi": suivi(true) }] })).await;
+    assert_eq!(r.post("/public/avis/AVIS0001", json!({ "note": 9 })).await.0, 422);
+    assert_eq!(r.post("/public/avis/INCONNU1", json!({ "note": 4 })).await.0, 404);
+    let (statut, v) = r.post("/public/avis/AVIS0001", json!({ "note": 4, "commentaire": "Rapide, merci" })).await;
+    assert_eq!(statut, 200, "{v}");
+    assert_eq!(r.post("/public/avis/AVIS0001", json!({ "note": 1 })).await.0, 422, "un seul avis");
+    let (_, s) = r.get("/public/suivi/AVIS0001").await;
+    assert_eq!((s["avis"].as_i64(), s["avis_possible"].as_bool()), (Some(4), Some(false)));
+    let (_, sync) = r.synchroniser(CLE, json!({ "suivis": [{ "code_suivi": "AVIS0001", "code_livreur": null, "suivi": suivi(true) }] })).await;
+    assert_eq!(sync["avis"], json!([{ "code_suivi": "AVIS0001", "note": 4, "commentaire": "Rapide, merci" }]));
+    let (_, sync) = r.synchroniser(CLE, json!({})).await;
+    assert_eq!(sync["avis"], json!([]), "transmis une seule fois");
+}

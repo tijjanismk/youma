@@ -120,6 +120,12 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
             let _ = etat.avec_db(move |db| entrantes::modifier(db, &code, &modif)).await;
         }
     }
+    // RG-AVI-01 : avis donnés sur le relais ; le poste revérifie (commande terminée, un seul avis).
+    for a in reponse["avis"].as_array().cloned().unwrap_or_default() {
+        let code = a["code_suivi"].as_str().unwrap_or("").to_string();
+        let n = youma_core::avis::NouvelAvis { note: a["note"].as_i64().unwrap_or(0), commentaire: a["commentaire"].as_str().unwrap_or("").to_string() };
+        let _ = etat.avec_db(move |db| youma_core::avis::donner(db, &code, &n)).await;
+    }
     for p in reponse["positions"].as_array().cloned().unwrap_or_default() {
         let (Some(code), Some(lat), Some(lon)) = (p["code_livreur"].as_str().map(str::to_owned), p["lat"].as_i64(), p["lon"].as_i64()) else {
             continue;

@@ -88,7 +88,9 @@ export default function CloudAdmin() {
                 onClick={async () => {
                   const r = await agir((pin) => post<{ chemin: string }>(`/cloud/sauvegardes/${d.id}/recuperer`, {}, pin), "Sauvegarde récupérée et déchiffrée");
                   if (r && confirm("Restaurer maintenant cette sauvegarde ? Les données actuelles seront remplacées (une sauvegarde est faite avant).")) {
-                    await agir((pin) => post("/sauvegardes/restaurer", { chemin: r.chemin }, pin), "Restauration terminée");
+                    // Restauration par le nom du fichier récupéré, jamais par un chemin (fiche 0043).
+                    const nom = r.chemin.split(/[\\/]/).pop() ?? "";
+                    await agir((pin) => post("/sauvegardes/restaurer", { nom }, pin), "Restauration terminée");
                     location.reload();
                   }
                 }}

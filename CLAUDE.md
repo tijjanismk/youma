@@ -14,7 +14,7 @@ avec le skill project-map (`carte.py . --sortie AI_CONTEXT --md`), puis `carte.p
   tableau de `README.md`) : canaux à distance, recettes, consignes, relevés Mobile Money, promotions,
   statistiques, cloud facultatif, refonte de l'interface (0019), application installable (0020).
 - Toute nouvelle décision technique : une fiche dans `docs/decisions/NNNN-titre.md`
-  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0042.
+  (contexte, décision, alternatives écartées, conséquences). Dernière fiche : 0043.
 - Hypothèses marquées **[HYPOTHÈSE]**, contradictions du cahier des charges signalées, jamais tranchées en silence.
 - Avant de pousser (comme la CI, `.github/workflows/ci.yml`) : `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, `cd ui && npm test && npm run build && npx playwright test`
@@ -36,7 +36,7 @@ avec le skill project-map (`carte.py . --sortie AI_CONTEXT --md`), puis `carte.p
 
 ## Carte du code
 
-- `crates/youma-core` : tout le métier (rusqlite). Migrations `migrations/NNNN_*.sql` par `PRAGMA user_version` (0001 → 0011, le test
+- `crates/youma-core` : tout le métier (rusqlite). Migrations `migrations/NNNN_*.sql` par `PRAGMA user_version` (0001 → 0012, le test
   `regles.rs` vérifie la version). Écritures via `Db::executer(acteur, |op| …)` (transaction + audit +
   permissions `op.exiger(perm::…)`). Horloge injectable (`HorlogeFixe` en test), jamais l'heure système en dur.
   Valeurs techniques : `db::valeur_systeme` / `definir_valeur_systeme` (table `systeme`, incluse dans les sauvegardes).

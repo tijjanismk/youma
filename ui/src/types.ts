@@ -164,6 +164,9 @@ export type Suivi = {
   modifications_restantes?: number;
   panier?: { produit_id: string; quantite: number; options: string[]; commentaire: string }[];
   code_table?: string | null;
+  /** RG-AVI-01 : note donnée, et avis encore possible (commande terminée, fiche 0043). */
+  avis?: number | null;
+  avis_possible?: boolean;
 };
 
 export type Categorie = { id: string; nom: string; couleur: string; icone: string; ordre: number; actif: boolean };

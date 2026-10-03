@@ -818,3 +818,18 @@ test("société sous contrat : sa part et celle de l'employé (RG-SOC-02)", asyn
   await page.getByRole("button", { name: "Valider le paiement" }).click();
   await expect(page.getByText("Addition soldée.")).toBeVisible();
 });
+
+test("commandes non honorées et avis clients : rapports et suite des avis (fiche 0043)", async ({ page }) => {
+  await connexion(page, /Adama/, "2222");
+  await page.goto("/rapports");
+  await page.getByRole("tab", { name: "Non honorées" }).click();
+  await expect(page.getByRole("heading", { name: /Commandes non honorées/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Numéros revenant plusieurs fois" })).toBeVisible();
+  await expect(page.locator(".indicateur").filter({ hasText: "Part des commandes à distance" })).toContainText("%");
+  await page.getByRole("tab", { name: "Avis clients" }).click();
+  await expect(page.getByRole("heading", { name: /Avis des clients/ })).toBeVisible();
+  await expect(page.locator(".indicateur").filter({ hasText: "Note moyenne" })).toContainText("/ 5");
+  await page.goto("/clients");
+  await page.getByRole("tab", { name: "Avis" }).click();
+  await expect(page.getByRole("tab", { name: "Mécontents à rappeler" })).toBeVisible();
+});

@@ -6,7 +6,7 @@ import { aujourdhui, dateFr, fcfa, nombre, premierDuMois } from "../format";
 import { pourcentage } from "../recette";
 import type { CoutMatiere, Rapport } from "../types";
 
-const COLONNES_TEXTE = /^(Journée|Produit|Catégorie|Serveur|Type|Moyen|Compte|Heure|Article|Motif|Par|Autorisé|Perte|Date|Fournisseur|Mode|Libellé|Client|Téléphone|Ancienneté|Caissier|Employé|N°|Reçu n°|Commande|Unité|Nombre|Sessions|Quantité|Qté|Seuil)/;
+const COLONNES_TEXTE = /^(Note|Raison|Canal|Quartier|Livreur|Commentaire|Suite|Journée|Produit|Catégorie|Serveur|Type|Moyen|Compte|Heure|Article|Motif|Par|Autorisé|Perte|Date|Fournisseur|Mode|Libellé|Client|Téléphone|Ancienneté|Caissier|Employé|N°|Reçu n°|Commande|Unité|Nombre|Sessions|Quantité|Qté|Seuil)/;
 
 function cellule(colonne: string, v: string | number | null) {
   if (v === null) return "";
@@ -17,6 +17,9 @@ function cellule(colonne: string, v: string | number | null) {
 /** nb_… : nombre ; …_pct : évolution en points de base (RG-STA-04) ; sinon FCFA. */
 export function valeurIndicateur(cle: string, valeur: number): string {
   if (cle.startsWith("nb_")) return nombre(valeur);
+  // …_note : note sur 5 en dixièmes (43 → 4,3 / 5) ; …_taux : part en points de base, sans signe (fiche 0043).
+  if (cle.endsWith("_note")) return `${Math.floor(valeur / 10)},${valeur % 10} / 5`;
+  if (cle.endsWith("_taux")) return pourcentage(valeur);
   if (cle.endsWith("_pct")) return `${valeur > 0 ? "+" : valeur < 0 ? "−" : ""}${pourcentage(Math.abs(valeur))}`;
   return fcfa(valeur);
 }
@@ -54,10 +57,10 @@ export function AffichageRapport({ r }: { r: Rapport }) {
 
 export default function Rapports() {
   const { notifier } = useApp();
-  const [onglet, setOnglet] = useState<"periode" | "statistiques" | "stock" | "dettes" | "cout-matiere">("periode");
+  const [onglet, setOnglet] = useState<"periode" | "statistiques" | "non-honorees" | "avis" | "stock" | "dettes" | "cout-matiere">("periode");
   const [debut, setDebut] = useState(premierDuMois());
   const [fin, setFin] = useState(aujourdhui());
-  const surPeriode = onglet === "periode" || onglet === "statistiques";
+  const surPeriode = ["periode", "statistiques", "non-honorees", "avis"].includes(onglet);
   const chemin = surPeriode ? `/rapports/${onglet}?debut=${debut}&fin=${fin}` : `/rapports/${onglet}`;
   const { donnees } = useDonnees(() => (onglet === "cout-matiere" ? Promise.resolve(null) : get<Rapport>(chemin)), [], [chemin]);
   return (
@@ -67,6 +70,8 @@ export default function Rapports() {
         onglets={[
           { cle: "periode", libelle: "Activité" },
           { cle: "statistiques", libelle: "Statistiques" },
+          { cle: "non-honorees", libelle: "Non honorées" },
+          { cle: "avis", libelle: "Avis clients" },
           { cle: "stock", libelle: "Stock et valeur" },
           { cle: "dettes", libelle: "Dettes" },
           { cle: "cout-matiere", libelle: "Coût matière" },

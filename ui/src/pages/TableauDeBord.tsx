@@ -31,6 +31,7 @@ type Tdb = {
   mobile_money_a_verifier: [number, number];
   stock_critique: [string, number, string][];
   commandes_en_attente: number;
+  avis_a_traiter: number;
   annulations: [number, number];
   remises: [number, number];
   offerts: [number, number];
@@ -133,6 +134,12 @@ export default function TableauDeBord() {
           </div>
         </Bloc>
         <Bloc titre="Contrôle" Icone={ShieldCheck}>
+          {d.avis_a_traiter > 0 && (
+            <div className="ligne-valeur">
+              <span className="attention-texte">Clients mécontents à rappeler (Clients → Avis)</span>
+              <strong>{d.avis_a_traiter}</strong>
+            </div>
+          )}
           <div className="ligne-valeur">
             <span>Annulations après envoi ({d.annulations[0]})</span>
             <Montant valeur={d.annulations[1]} />

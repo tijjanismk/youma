@@ -3,6 +3,7 @@
 
 use rusqlite::{params, Connection};
 use serde::Serialize;
+use serde_json::json;
 
 use crate::erreur::Resultat;
 use crate::impression::{fcfa, ligne_montant, trait_ticket};
@@ -131,6 +132,8 @@ pub struct TableauDeBord {
     pub mobile_money_a_verifier: (i64, i64),
     pub stock_critique: Vec<(String, i64, String)>,
     pub commandes_en_attente: i64,
+    /// RG-AVI-02 : avis faibles sans suite (fiche 0043).
+    pub avis_a_traiter: i64,
     pub annulations: (i64, i64),
     pub remises: (i64, i64),
     pub offerts: (i64, i64),
@@ -156,6 +159,7 @@ pub fn tableau_de_bord(conn: &Connection) -> Resultat<TableauDeBord> {
             mobile_money_a_verifier: (0, 0),
             stock_critique: vec![],
             commandes_en_attente: 0,
+            avis_a_traiter: crate::avis::nombre_a_traiter(conn)?,
             annulations: (0, 0),
             remises: (0, 0),
             offerts: (0, 0),
@@ -253,6 +257,7 @@ pub fn tableau_de_bord(conn: &Connection) -> Resultat<TableauDeBord> {
         mobile_money_a_verifier: mm,
         stock_critique,
         commandes_en_attente,
+        avis_a_traiter: crate::avis::nombre_a_traiter(conn)?,
         annulations,
         remises,
         offerts,
@@ -901,4 +906,160 @@ pub fn rapport_statistiques(conn: &Connection, debut: &str, fin: &str) -> Result
         });
     }
     Ok(Rapport { titre: "Statistiques".into(), debut: debut.into(), fin: fin.into(), indicateurs, tableaux })
+}
+
+/// Libellé lisible du canal d'une commande `c` (rapports).
+pub(crate) const LIBELLE_CANAL: &str = "CASE c.canal WHEN 'serveur' THEN 'Personnel' WHEN 'telephone' THEN 'Téléphone'
+    WHEN 'qr_table' THEN 'QR de table' WHEN 'en_ligne' THEN 'En ligne' ELSE c.canal END";
+/// Libellé lisible du type d'une commande `c` (rapports).
+pub(crate) const LIBELLE_TYPE: &str = "CASE c.type WHEN 'sur_place' THEN 'Sur place' WHEN 'comptoir' THEN 'Comptoir'
+    WHEN 'emporter' THEN 'À emporter' WHEN 'livraison' THEN 'Livraison' ELSE c.type END";
+
+/// RG-RAP-04 (fiche 0043) : commandes non honorées sur des journées d'exploitation, pour décider (zones, livreurs,
+/// numéros, horaires, ruptures). Une commande compte une fois, par la raison la plus forte : refusée par le
+/// restaurant, livraison en échec ou annulée, commande à distance abandonnée après acceptation.
+pub fn rapport_non_honorees(conn: &Connection, debut: &str, fin: &str) -> Resultat<Rapport> {
+    let fuseau = crate::parametres::lire(conn)?.fuseau_minutes * 60;
+    // Motif d'une livraison en échec ou annulée : le dernier changement de statut journalisé.
+    let motif_livraison = "(SELECT a.motif FROM journal_audit a WHERE a.action = 'livraison.statut' AND a.entite_id = c.id
+                            ORDER BY a.horodatage DESC LIMIT 1)";
+    let nh = format!(
+        "WITH nh AS (
+           SELECT c.id, j.date_exploitation AS date, c.numero, {LIBELLE_CANAL} AS canal, c.type,
+             CASE WHEN c.validation = 'refusee' THEN 'Refusée par le restaurant'
+                  WHEN c.livraison_statut = 'echec' THEN 'Livraison en échec'
+                  WHEN c.livraison_statut = 'annulee' THEN 'Livraison annulée'
+                  ELSE 'Abandonnée après acceptation' END AS raison,
+             COALESCE(NULLIF(TRIM(CASE WHEN c.validation = 'refusee' THEN c.validation_motif ELSE {motif_livraison} END), ''), 'sans motif') AS motif,
+             COALESCE(NULLIF(c.livraison_quartier, ''), CASE WHEN c.type = 'livraison' THEN 'non précisé' ELSE 'sur place / à emporter' END) AS quartier,
+             COALESCE(c.client_telephone, cl.telephone, '') AS telephone,
+             COALESCE(cl.nom, c.client_nom_saisi, '') AS nom,
+             COALESCE((SELECT e.nom FROM employes e WHERE e.id = c.livreur_id), '') AS livreur,
+             strftime('%H', c.cree_le / 1000 + {fuseau}, 'unixepoch') || ' h' AS heure,
+             (SELECT COALESCE(SUM(l.quantite * (l.prix_unitaire + l.montant_options)), 0) FROM lignes_commande l WHERE l.commande_id = c.id)
+               + c.livraison_frais AS montant
+           FROM commandes c JOIN journees j ON j.id = c.journee_id LEFT JOIN clients cl ON cl.id = c.client_id
+           WHERE j.date_exploitation BETWEEN ?1 AND ?2
+             AND (c.validation = 'refusee' OR c.livraison_statut IN ('echec', 'annulee')
+                  OR (c.statut = 'annulee' AND c.canal <> 'serveur' AND c.validation = 'acceptee'
+                      AND NOT EXISTS (SELECT 1 FROM lignes_commande l WHERE l.origine_commande_id = c.id)))
+         )"
+    );
+    let (nb, montant): (i64, i64) = conn.query_row(&format!("{nh} SELECT COUNT(*), COALESCE(SUM(montant), 0) FROM nh"), params![debut, fin], |r| {
+        Ok((r.get(0)?, r.get(1)?))
+    })?;
+    // Commandes à distance reçues (acceptées, refusées ou en attente) : base du taux.
+    let distance: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM commandes c JOIN journees j ON j.id = c.journee_id
+         WHERE j.date_exploitation BETWEEN ?1 AND ?2 AND (c.canal <> 'serveur' OR c.type = 'livraison')",
+        params![debut, fin],
+        |r| r.get(0),
+    )?;
+    let taux = if distance > 0 { nb * 10_000 / distance } else { 0 };
+    let groupes = |expr: &str, filtre: &str| -> Resultat<Vec<Vec<serde_json::Value>>> {
+        let mut s = conn.prepare(&format!(
+            "{nh} SELECT {expr}, COUNT(*), COALESCE(SUM(montant), 0) FROM nh {filtre} GROUP BY 1 ORDER BY 2 DESC, 3 DESC LIMIT 50"
+        ))?;
+        let v = s
+            .query_map(params![debut, fin], |r| Ok(vec![json!(r.get::<_, String>(0)?), json!(r.get::<_, i64>(1)?), json!(r.get::<_, i64>(2)?)]))?
+            .collect::<Result<_, _>>()?;
+        Ok(v)
+    };
+    let col = |premiere: &str| vec![premiere.to_string(), "Nombre".into(), "Montant".into()];
+    let tableau = |titre: &str, colonnes: Vec<String>, lignes: Vec<Vec<serde_json::Value>>| Tableau { titre: titre.into(), colonnes, lignes, formule: None };
+    // Numéros qui reviennent : 2 commandes non honorées ou plus sur la période (liste noire à envisager, RG-CAN-03).
+    let mut s = conn.prepare(&format!(
+        "{nh} SELECT telephone, MAX(nom), COUNT(*), COALESCE(SUM(montant), 0) FROM nh WHERE telephone <> ''
+         GROUP BY telephone HAVING COUNT(*) >= 2 ORDER BY 3 DESC, 4 DESC LIMIT 50"
+    ))?;
+    let repetes = s
+        .query_map(params![debut, fin], |r| {
+            Ok(vec![json!(r.get::<_, String>(0)?), json!(r.get::<_, String>(1)?), json!(r.get::<_, i64>(2)?), json!(r.get::<_, i64>(3)?)])
+        })?
+        .collect::<Result<_, _>>()?;
+    let mut s = conn.prepare(&format!(
+        "{nh} SELECT date, numero, canal, raison, motif, quartier, nom, telephone, montant FROM nh ORDER BY date DESC, numero DESC LIMIT 300"
+    ))?;
+    let detail = s
+        .query_map(params![debut, fin], |r| {
+            Ok(vec![
+                json!(r.get::<_, String>(0)?),
+                json!(r.get::<_, i64>(1)?),
+                json!(r.get::<_, String>(2)?),
+                json!(r.get::<_, String>(3)?),
+                json!(r.get::<_, String>(4)?),
+                json!(r.get::<_, String>(5)?),
+                json!(r.get::<_, String>(6)?),
+                json!(r.get::<_, String>(7)?),
+                json!(r.get::<_, i64>(8)?),
+            ])
+        })?
+        .collect::<Result<_, _>>()?;
+    // Articles annulés après envoi en cuisine (rupture, client parti, erreur) : non servis, parfois perdus.
+    let mut s = conn.prepare(
+        "SELECT COALESCE(NULLIF(TRIM(a.motif), ''), 'sans motif'), SUM(a.quantite), SUM(a.montant), SUM(CASE WHEN a.perte = 1 THEN a.montant ELSE 0 END)
+         FROM annulations a JOIN commandes c ON c.id = a.commande_id JOIN journees j ON j.id = c.journee_id
+         WHERE j.date_exploitation BETWEEN ?1 AND ?2 AND a.apres_envoi = 1 GROUP BY 1 ORDER BY 3 DESC LIMIT 50",
+    )?;
+    let articles: Vec<Vec<serde_json::Value>> = s
+        .query_map(params![debut, fin], |r| {
+            Ok(vec![json!(r.get::<_, String>(0)?), json!(r.get::<_, i64>(1)?), json!(r.get::<_, i64>(2)?), json!(r.get::<_, i64>(3)?)])
+        })?
+        .collect::<Result<_, _>>()?;
+    let articles_montant: i64 = articles.iter().filter_map(|l| l[2].as_i64()).sum();
+    // Refus automatiques à la réception (fermé, zone à risque, numéro bloqué…) : aucune commande créée, seulement journalisés.
+    let mut s = conn.prepare(&format!(
+        "SELECT COALESCE(NULLIF(TRIM(motif), ''), 'sans motif'), COUNT(*) FROM journal_audit
+         WHERE action = 'commande_entrante.refusee' AND date(horodatage / 1000 + {fuseau}, 'unixepoch') BETWEEN ?1 AND ?2
+         GROUP BY 1 ORDER BY 2 DESC LIMIT 50"
+    ))?;
+    let refus_auto: Vec<Vec<serde_json::Value>> =
+        s.query_map(params![debut, fin], |r| Ok(vec![json!(r.get::<_, String>(0)?), json!(r.get::<_, i64>(1)?)]))?.collect::<Result<_, _>>()?;
+    let nb_refus_auto: i64 = refus_auto.iter().filter_map(|l| l[1].as_i64()).sum();
+    Ok(Rapport {
+        titre: "Commandes non honorées".into(),
+        debut: debut.into(),
+        fin: fin.into(),
+        indicateurs: vec![
+            ind("nb_non_honorees", "Commandes non honorées", nb, ""),
+            ind("manque_a_gagner", "Montant des commandes non honorées", montant, ""),
+            ind("non_honorees_taux", "Part des commandes à distance et livraisons", taux, ""),
+            ind("articles_annules", "Articles annulés après envoi", articles_montant, ""),
+            ind("nb_refus_auto", "Refus automatiques à la réception", nb_refus_auto, ""),
+        ],
+        tableaux: vec![
+            tableau("Par raison", col("Raison"), groupes("raison", "")?),
+            tableau("Par motif", col("Motif"), groupes("raison || ' : ' || motif", "")?),
+            tableau("Par canal", col("Canal"), groupes("canal", "")?),
+            tableau("Par quartier", col("Quartier"), groupes("quartier", "")?),
+            tableau("Par heure de commande", col("Heure"), groupes("heure", "")?),
+            tableau("Par livreur (livraisons en échec ou annulées)", col("Livreur"), groupes("livreur", "WHERE livreur <> ''")?),
+            tableau(
+                "Numéros revenant plusieurs fois",
+                vec!["Téléphone".into(), "Client".into(), "Nombre".into(), "Montant".into()],
+                repetes,
+            ),
+            tableau(
+                "Articles annulés après envoi, par motif",
+                vec!["Motif".into(), "Quantité".into(), "Montant".into(), "Valeur perdue".into()],
+                articles,
+            ),
+            tableau("Refus automatiques à la réception, par motif", vec!["Motif".into(), "Nombre".into()], refus_auto),
+            tableau(
+                "Détail",
+                vec![
+                    "Date".into(),
+                    "N°".into(),
+                    "Canal".into(),
+                    "Raison".into(),
+                    "Motif".into(),
+                    "Quartier".into(),
+                    "Client".into(),
+                    "Téléphone".into(),
+                    "Montant".into(),
+                ],
+                detail,
+            ),
+        ],
+    })
 }

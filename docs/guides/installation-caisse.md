@@ -109,7 +109,10 @@ s'ouvre. Annuler ensuite les lignes de cette commande d'essai (non encaissée : 
 
 - Youma sauvegarde tout seul pendant que la journée est ouverte, dans `C:\ProgramData\Youma\sauvegardes`.
 - Administration → Restaurant et règles → « Second emplacement » : la clé USB qui reste au restaurant (par exemple
-  `E:\Youma`). Youma prévient quand elle n'a pas reçu de sauvegarde depuis longtemps.
+  `E:\Youma`). Youma prévient quand elle n'a pas reçu de sauvegarde depuis longtemps. L'export (Administration →
+  Sauvegardes) copie vers ce second emplacement ; aucun autre dossier n'est accepté (fiche 0043).
+- **Restaurer sur un nouveau PC** : installer Youma, créer le propriétaire, régler le second emplacement sur la clé
+  USB, puis Administration → Sauvegardes → « Sur la clé USB » → **Restaurer**.
 - Facultatif : sauvegardes chiffrées sur Internet (Administration → Cloud, voir `relais-en-ligne.md`). Faire noter
   la **phrase de chiffrement** sur papier.
 

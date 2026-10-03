@@ -17,6 +17,8 @@ const PREFIXE: &str = "youma-";
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Sauvegarde {
+    /// Nom du fichier : c'est lui (jamais un chemin) qu'on donne pour restaurer (fiche 0043).
+    pub nom: String,
     pub chemin: String,
     pub taille: u64,
     pub horodatage: i64,
@@ -46,7 +48,7 @@ pub fn sauvegarder(db: &mut Db, dossier: &Path, motif: &str) -> Resultat<Sauvega
         let res = std::fs::create_dir_all(&ext).and_then(|_| std::fs::copy(&chemin, &dest));
         enregistrer(db.conn(), maintenant, &dest, motif, taille, true, res.err().map(|e| e.to_string()))?;
     }
-    Ok(Sauvegarde { chemin: chemin.to_string_lossy().into(), taille, horodatage: maintenant, motif: motif.into() })
+    Ok(Sauvegarde { nom: nom_de(&chemin), chemin: chemin.to_string_lossy().into(), taille, horodatage: maintenant, motif: motif.into() })
 }
 
 fn enregistrer(conn: &Connection, ms: i64, chemin: &Path, motif: &str, taille: u64, externe: bool, erreur: Option<String>) -> Resultat<()> {
@@ -58,15 +60,55 @@ fn enregistrer(conn: &Connection, ms: i64, chemin: &Path, motif: &str, taille: u
 }
 
 /// Copie vers une clé USB en un clic.
-pub fn exporter(db: &mut Db, acteur: &Acteur, dossier: &Path) -> Resultat<Sauvegarde> {
+fn nom_de(chemin: &Path) -> String {
+    chemin.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// Second emplacement réglé dans l'administration (clé USB, disque externe), s'il y en a un.
+pub fn dossier_externe(conn: &Connection) -> Resultat<Option<PathBuf>> {
+    let d = crate::parametres::lire(conn)?.dossier_sauvegarde_externe;
+    Ok(Some(d.trim()).filter(|d| !d.is_empty()).map(PathBuf::from))
+}
+
+/// Constat C4 (fiche 0043) : seul un nom de sauvegarde Youma est accepté, jamais un chemin choisi par l'appelant.
+pub fn nom_valide(nom: &str) -> Resultat<()> {
+    let ok = nom.starts_with(PREFIXE)
+        && nom.ends_with(".db")
+        && nom.len() <= 120
+        && nom.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+        && !nom.contains("..");
+    if ok {
+        Ok(())
+    } else {
+        Err(Erreur::validation("Nom de sauvegarde invalide : choisissez une sauvegarde dans la liste"))
+    }
+}
+
+/// Copie de sauvegarde vers le second emplacement réglé (clé USB). Le dossier n'est plus donné par l'appelant : il
+/// se règle dans Administration → Restaurant et règles (mot de passe d'administration).
+pub fn exporter(db: &mut Db, acteur: &Acteur, dossier_sauvegardes: &Path) -> Resultat<Sauvegarde> {
+    let externe = dossier_externe(db.conn())?
+        .ok_or_else(|| Erreur::validation("Réglez d'abord le second emplacement (Administration → Restaurant et règles), par exemple E:\\Youma"))?;
     db.executer(acteur, |op| {
         op.exiger(perm::SAUVEGARDE_GERER)?;
-        op.audit("sauvegarde.exporter", "systeme", None, None, Some(json!({ "dossier": dossier.to_string_lossy() })), None, None)?;
+        op.audit("sauvegarde.exporter", "systeme", None, None, Some(json!({ "dossier": externe.to_string_lossy() })), None, None)?;
         Ok(())
     })?;
-    let s = sauvegarder(db, dossier, "export")?;
-    db.conn().execute("UPDATE sauvegardes SET externe = 1 WHERE chemin = ?1", params![s.chemin])?;
-    Ok(s)
+    let s = sauvegarder(db, dossier_sauvegardes, "export")?;
+    let copie = externe.join(&s.nom);
+    if !copie.exists() {
+        return Err(Erreur::validation(format!("Copie impossible vers {} : clé USB branchée ?", externe.to_string_lossy())));
+    }
+    db.conn().execute("UPDATE sauvegardes SET externe = 1 WHERE chemin = ?1", params![copie.to_string_lossy()])?;
+    Ok(Sauvegarde { chemin: copie.to_string_lossy().into(), ..s })
+}
+
+/// Sauvegardes du second emplacement (clé USB) : celles qu'on peut restaurer sur un nouveau PC.
+pub fn lister_externes(conn: &Connection) -> Resultat<Vec<Sauvegarde>> {
+    match dossier_externe(conn)? {
+        Some(d) => lister(&d),
+        None => Ok(Vec::new()),
+    }
 }
 
 pub fn lister(dossier: &Path) -> Resultat<Vec<Sauvegarde>> {
@@ -80,7 +122,7 @@ pub fn lister(dossier: &Path) -> Resultat<Vec<Sauvegarde>> {
         let meta = e.metadata()?;
         let horodatage = horodatage_nom(&nom).unwrap_or(0);
         let motif = nom.trim_end_matches(".db").splitn(4, '-').nth(3).unwrap_or("").to_string();
-        v.push(Sauvegarde { chemin: e.path().to_string_lossy().into(), taille: meta.len(), horodatage, motif });
+        v.push(Sauvegarde { nom: nom.clone(), chemin: e.path().to_string_lossy().into(), taille: meta.len(), horodatage, motif });
     }
     v.sort_by_key(|s| std::cmp::Reverse(s.horodatage));
     Ok(v)
@@ -177,11 +219,20 @@ pub fn verifier_fichier(chemin: &Path) -> Resultat<i64> {
 }
 
 /// Restauration : sauvegarde de l'état actuel, remplacement du fichier, réouverture.
-pub fn restaurer(db: &mut Db, acteur: &Acteur, fichier: &Path, dossier_sauvegardes: &Path) -> Resultat<()> {
+/// `nom` : une sauvegarde du dossier des sauvegardes ou du second emplacement, jamais un chemin (C4, fiche 0043).
+pub fn restaurer(db: &mut Db, acteur: &Acteur, nom: &str, dossier_sauvegardes: &Path) -> Resultat<()> {
     db.executer(acteur, |op| {
         op.exiger(perm::SAUVEGARDE_GERER)?;
         Ok(())
     })?;
+    nom_valide(nom)?;
+    let fichier = [Some(dossier_sauvegardes.to_path_buf()), dossier_externe(db.conn())?]
+        .into_iter()
+        .flatten()
+        .map(|d| d.join(nom))
+        .find(|f| f.is_file())
+        .ok_or_else(|| Erreur::NonTrouve(format!("Sauvegarde {nom}")))?;
+    let fichier = fichier.as_path();
     verifier_fichier(fichier)?;
     let cible = db.chemin().map(Path::to_path_buf).ok_or_else(|| Erreur::validation("Base en mémoire"))?;
     sauvegarder(db, dossier_sauvegardes, "avant-restauration")?;

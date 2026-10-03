@@ -115,6 +115,8 @@ CREATE TABLE IF NOT EXISTS positions (code_livreur TEXT PRIMARY KEY, lat INTEGER
     ms INTEGER NOT NULL, transmise INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS modifications (code_suivi TEXT PRIMARY KEY, corps TEXT NOT NULL, ms INTEGER NOT NULL,
     transmise INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS avis (code_suivi TEXT PRIMARY KEY, note INTEGER NOT NULL, commentaire TEXT NOT NULL,
+    ms INTEGER NOT NULL, transmis INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS verifications (telephone TEXT PRIMARY KEY, empreinte TEXT NOT NULL, expire INTEGER NOT NULL,
     tentatives INTEGER NOT NULL DEFAULT 0);
 ";
@@ -203,6 +205,7 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/public/suivi/{code}", get(suivi))
         .route("/api/public/commandes/{code}/modifier", post(modifier))
         .route("/api/public/position/{code}", post(position))
+        .route("/api/public/avis/{code}", post(avis))
         .merge(cloud::routes())
         // Le relais ne sert que les pages du client et du livreur, jamais l'application du personnel.
         .route("/", get(|| async { Redirect::temporary("/menu") }));
@@ -269,7 +272,7 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         return Err(erreur(StatusCode::UNAUTHORIZED, "NON_AUTHENTIFIE", "Clé du relais incorrecte"));
     }
     let t = maintenant();
-    let (commandes, positions, modifications, menu_empreinte) = e.avec(|c| {
+    let (commandes, positions, modifications, avis, menu_empreinte) = e.avec(|c| {
         let tx = c.unchecked_transaction()?;
         let mut valeurs = vec![("config", s.config.clone()), ("dernier_contact", json!(t))];
         if let Some(m) = &s.menu {
@@ -315,14 +318,28 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
             .collect::<Result<_, _>>()?;
         tx.execute("UPDATE modifications SET transmise = 1 WHERE transmise = 0", [])?;
         tx.execute("DELETE FROM modifications WHERE transmise = 1 AND ms < ?1", [t - 86_400_000])?;
+        // RG-AVI-01 : avis des clients, transmis au poste qui les enregistre (fiche 0043).
+        let avis: Vec<Value> = tx
+            .prepare("SELECT code_suivi, note, commentaire FROM avis WHERE transmis = 0")?
+            .query_map([], |r| Ok(json!({ "code_suivi": r.get::<_, String>(0)?, "note": r.get::<_, i64>(1)?, "commentaire": r.get::<_, String>(2)? })))?
+            .collect::<Result<_, _>>()?;
+        tx.execute("UPDATE avis SET transmis = 1 WHERE transmis = 0", [])?;
+        tx.execute("DELETE FROM avis WHERE transmis = 1 AND ms < ?1", [t - 8 * 86_400_000])?;
         // Ménage : commandes traitées de plus de 3 jours, codes SMS expirés.
         tx.execute("DELETE FROM commandes WHERE cree_le < ?1 AND resultat IS NOT NULL", [t - 3 * 86_400_000])?;
         tx.execute("DELETE FROM verifications WHERE expire < ?1", [t])?;
         tx.commit()?;
         let commandes: Vec<Value> = a_transmettre.into_iter().filter_map(|(_, c)| serde_json::from_str(&c).ok()).collect();
-        Ok((commandes, positions, modifications, menu_empreinte))
+        Ok((commandes, positions, modifications, avis, menu_empreinte))
     })?;
-    Ok(Json(json!({ "commandes": commandes, "positions": positions, "modifications": modifications, "sms": e.sms.nom(), "menu_empreinte": menu_empreinte })))
+    Ok(Json(json!({
+        "commandes": commandes,
+        "positions": positions,
+        "modifications": modifications,
+        "avis": avis,
+        "sms": e.sms.nom(),
+        "menu_empreinte": menu_empreinte,
+    })))
 }
 
 // ───────────── Client ─────────────
@@ -509,6 +526,12 @@ fn suivi_publie(e: &Etat, code: String) -> Rep {
         e.avec(|c| c.query_row("SELECT corps, code_livreur FROM suivis WHERE code_suivi = ?1", [&code], |r| Ok((r.get(0)?, r.get(1)?))).optional())?;
     if let Some((corps, livreur)) = publie {
         let mut s: Value = serde_json::from_str(&corps).map_err(interne)?;
+        // Avis reçu ici mais pas encore transmis au poste : la page de suivi le montre déjà.
+        let note: Option<i64> = e.avec(|c| c.query_row("SELECT note FROM avis WHERE code_suivi = ?1", [&code], |r| r.get(0)).optional())?;
+        if let Some(n) = note {
+            s["avis"] = json!(n);
+            s["avis_possible"] = json!(false);
+        }
         // Position la plus fraîche : celle reçue ici, sans attendre le passage par le poste.
         if s["etape"] == "en_route" {
             if let Some(l) = livreur {
@@ -573,6 +596,49 @@ async fn modifier(State(e): State<Etat>, Path(code): Path<String>, Json(m): Json
             Ok(Json(json!({ "statut": "en_attente", "message": "Modification envoyée au restaurant", "numero": null, "code_suivi": code, "total": 0 })))
         }
     }
+}
+
+#[derive(Deserialize)]
+struct NouvelAvis {
+    note: i64,
+    #[serde(default)]
+    commentaire: String,
+}
+
+/// RG-AVI-01 : avis du client sur une commande terminée (suivi publié par le poste), une seule fois ; le poste
+/// revérifie à la réception. Codes inconnus comptés comme les autres essais (RG-CAN-08).
+async fn avis(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>, Json(a): Json<NouvelAvis>) -> Rep {
+    let adresse = e.adresse(&entetes, ip);
+    essais_publics(&e, &adresse)?;
+    let r = enregistrer_avis(&e, &code, a);
+    compter_si_inconnu(&e, &adresse, &r);
+    r
+}
+
+fn enregistrer_avis(e: &Etat, code: &str, a: NouvelAvis) -> Rep {
+    let code = code.trim().to_uppercase();
+    if !(1..=5).contains(&a.note) || a.commentaire.chars().count() > 500 {
+        return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Note de 1 à 5, commentaire de 500 caractères au plus"));
+    }
+    let suivi: Option<Value> = e.avec(|c| {
+        c.query_row("SELECT corps FROM suivis WHERE code_suivi = ?1", [&code], |r| r.get::<_, String>(0))
+            .optional()
+            .map(|o| o.and_then(|s| serde_json::from_str::<Value>(&s).ok()))
+    })?;
+    let Some(s) = suivi else { return Err(erreur(StatusCode::NOT_FOUND, "NON_TROUVE", "Commande introuvable")) };
+    if !s["avis_possible"].as_bool().unwrap_or(false) {
+        return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "REGLE_METIER", "Vous pourrez donner votre avis une fois la commande servie ou livrée"));
+    }
+    let n = e.avec(|c| {
+        c.execute(
+            "INSERT OR IGNORE INTO avis(code_suivi, note, commentaire, ms) VALUES (?1, ?2, ?3, ?4)",
+            params![code, a.note, a.commentaire.trim(), maintenant()],
+        )
+    })?;
+    if n == 0 {
+        return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "REGLE_METIER", "Votre avis a déjà été reçu : merci"));
+    }
+    Ok(Json(Value::Null))
 }
 
 #[derive(Deserialize)]
