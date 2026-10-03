@@ -12,7 +12,7 @@ Rôle : transaction métier, migrations, audit, permissions, sessions, appareils
 - `secours.rs` (169 l.) — réinitialisation par code signé du fournisseur.
 - `licence.rs` (181 l.) — Ed25519 ; `cle_publique` = `YOUMA_CLE_PUBLIQUE` sinon `CLE_DEV` (l. 18–21).
 - `parametres.rs` (383 l.) — `Parametres` (Fidelite, Canaux, ParametresPaie, Cloud…), `lire`/`modifier`, `journal_audit`.
-- `sauvegarde.rs` (249 l.) — sauvegarde, export, restauration, intégrité, rotation.
+- `sauvegarde.rs` — sauvegarde, export (vers le second emplacement réglé seulement), restauration par **nom** (`nom_valide`, C4 fiche 0043), `lister_externes`, intégrité, rotation.
 - `journee.rs` (152 l.) — ouverture, `blocages_cloture` (RG-JOU-04), clôture.
 - `demo.rs` (371 l.) — base de démonstration (PIN 1234/2222/3333/4444/5555).
 

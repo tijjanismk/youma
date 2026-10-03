@@ -53,6 +53,9 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Avis des clients et commandes non honorées** (fiche 0043) : note 1 à 5 depuis le suivi, mécontents à rappeler
+  (Clients → Avis, tableau de bord), rapports « Avis clients » et « Non honorées » ; sauvegardes exportées et restaurées
+  par nom seulement, via le second emplacement (C4).
 - **Sécurité** (fiche 0042) : codes publics limités à 15 essais en 15 minutes (RG-CAN-08) ; poste de production
   refusé sans la vraie clé des licences ; mode d'emploi des licences `docs/guides/licences.md`.
 - **Applications Youma Client et Youma Livreur** (fiche 0041, `docs/guides/applications-mobiles.md`) : Capacitor,
@@ -108,7 +111,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 - Téléphones en service : réponse « majeure partie » à la question des iPhone, à préciser (Android ou iPhone ?).
 - **[HYPOTHÈSE]** (fiche 0040) la position sert au client qui suit son livreur ; pas besoin d'envoyer au restaurant la
   précision de la position du client (constat L3).
-- Suites de sécurité (`AI_CONTEXT/ETUDE-MOBILE.md`) : C4 (sauvegardes dans le dossier géré seulement), `cargo audit` en CI.
+- Suites de sécurité (`AI_CONTEXT/ETUDE-MOBILE.md`) : `cargo audit` en CI.
 - Créer les clés des licences (`docs/guides/licences.md`) et le secret `YOUMA_CLE_PUBLIQUE`.
 
 

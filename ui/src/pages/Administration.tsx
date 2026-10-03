@@ -1180,18 +1180,26 @@ type Diagnostic = {
     dernier_controle: { ok: boolean; messages: string[]; horodatage: number } | null;
   };
 };
-type Sauvegarde = { chemin: string; taille: number; horodatage: number; motif: string };
+type Sauvegarde = { nom: string; chemin: string; taille: number; horodatage: number; motif: string };
 
 function SauvegardesAdmin() {
   const { agir } = useApp();
   const { donnees: d, recharger } = useDonnees(() => get<Diagnostic>("/diagnostic"), []);
   const { donnees: liste, recharger: rechargerListe } = useDonnees(() => get<Sauvegarde[]>("/sauvegardes"), []);
-  const [usb, setUsb] = useState("E:\\");
-  const [restauration, setRestauration] = useState("");
+  // Sauvegardes du second emplacement (clé USB) : celles d'un autre PC, à restaurer sur celui-ci (fiche 0043).
+  const { donnees: externes, recharger: rechargerExternes } = useDonnees(() => get<Sauvegarde[]>("/sauvegardes/externes"), []);
+  const { etat } = useApp();
   const tout = () => {
     recharger();
     rechargerListe();
+    rechargerExternes();
   };
+  // Restauration par le nom d'une sauvegarde de la liste, jamais par un chemin (constat C4, fiche 0043).
+  const restaurer = (s: Sauvegarde) => {
+    if (confirm(`Restaurer la sauvegarde du ${dateHeure(s.horodatage)} ? Elle remplace toutes les données actuelles (une sauvegarde de l'état actuel est faite avant).`))
+      agir((pin) => post("/sauvegardes/restaurer", { nom: s.nom }, pin), "Restauration terminée").then(() => location.reload());
+  };
+  const externe = etat?.parametres?.dossier_sauvegarde_externe?.trim();
   const mo = (o: number) => `${nombre(Math.round(o / 1_048_576))} Mo`;
   return (
     <div className="grille-2">
@@ -1250,11 +1258,12 @@ function SauvegardesAdmin() {
           <button onClick={() => agir(() => post("/integrite"), "Contrôle terminé").then(tout)}>Contrôle complet de la base</button>
         </div>
         <h3>Export sur clé USB</h3>
-        <Champ libelle="Dossier de la clé (ex. E:\)" valeur={usb} changer={setUsb} />
-        <button
-          className="principal"
-          onClick={() => agir((pin) => post("/sauvegardes/exporter", { chemin: usb }, pin), "Copie sur la clé terminée").then(tout)}
-        >
+        <p className="aide">
+          {externe
+            ? `Copie vers le second emplacement : ${externe}`
+            : "Réglez d'abord le second emplacement (Administration → Restaurant et règles), par exemple E:\\Youma."}
+        </p>
+        <button className="principal" disabled={!externe} onClick={() => agir((pin) => post("/sauvegardes/exporter", {}, pin), "Copie sur la clé terminée").then(tout)}>
           Exporter
         </button>
       </div>
@@ -1266,23 +1275,29 @@ function SauvegardesAdmin() {
             dateHeure(s.horodatage),
             s.motif,
             mo(s.taille),
-            <button className="petit" onClick={() => setRestauration(s.chemin)}>
+            <button className="petit attention" onClick={() => restaurer(s)}>
               Restaurer
             </button>,
           ])}
         />
-        <h3>Restaurer depuis un fichier</h3>
-        <Champ libelle="Chemin du fichier de sauvegarde" valeur={restauration} changer={setRestauration} />
-        <button
-          className="attention"
-          disabled={!restauration}
-          onClick={() => {
-            if (confirm("Restaurer remplace toutes les données actuelles (une sauvegarde de l'état actuel est faite avant). Continuer ?"))
-              agir((pin) => post("/sauvegardes/restaurer", { chemin: restauration }, pin), "Restauration terminée").then(() => location.reload());
-          }}
-        >
-          Restaurer
-        </button>
+        <h3>Sur la clé USB (second emplacement)</h3>
+        {!externe ? (
+          <p className="aide">Nouveau PC : réglez le second emplacement sur la clé (Administration → Restaurant et règles) pour voir ses sauvegardes ici.</p>
+        ) : (externes ?? []).length === 0 ? (
+          <p className="aide">Aucune sauvegarde Youma dans {externe} (clé branchée ?).</p>
+        ) : (
+          <TableauDonnees
+            colonnes={["Date", "Motif", "Taille", ""]}
+            lignes={(externes ?? []).slice(0, 30).map((s) => [
+              dateHeure(s.horodatage),
+              s.motif,
+              mo(s.taille),
+              <button className="petit attention" onClick={() => restaurer(s)}>
+                Restaurer
+              </button>,
+            ])}
+          />
+        )}
       </div>
     </div>
   );

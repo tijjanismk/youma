@@ -1388,6 +1388,24 @@ span.raison-bloquee {
   align-items: center;
   gap: 6px;
 }
+/* Avis du client (fiche 0043) */
+.etoiles {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 8px 0;
+}
+.etoile {
+  min-width: var(--tactile);
+  min-height: var(--tactile);
+  color: var(--bord-fort);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.etoile.choisie {
+  color: var(--mangue);
+}
 .liste-appli li > .grand {
   flex: 1 1 220px;
   min-width: 0;

@@ -554,3 +554,100 @@ fn rg_can_07_commande_renvoyee_une_seule_fois() {
     b.horloge.avancer_minutes(6);
     assert_ne!(recu(&mut b, "Hamdallaye", "76223344", "a_la_livraison").numero, premiere.numero);
 }
+
+/// RG-AVI-01 à 03 (fiche 0043) : avis du client par son code de suivi, une fois, commande terminée ; avis faible à traiter.
+#[test]
+fn rg_avi_avis_du_client_et_suite_du_gerant() {
+    use youma_core::avis::{self, NouvelAvis};
+    let mut b = banc();
+    b.ouvrir_journee();
+    activer(&mut b, |c| c.en_ligne = true);
+    let r = recu(&mut b, "Hamdallaye", "76000011", "a_la_livraison");
+    let code = r.code_suivi.clone().unwrap();
+    let id = id_par_numero(&b, r.numero.unwrap());
+    let mauvais = NouvelAvis { note: 2, commentaire: "Livré froid".into() };
+    // Pas d'avis avant la fin de la commande.
+    assert_eq!(avis::donner(&mut b.db, &code, &mauvais).unwrap_err().regle_code(), Some("RG-AVI-01"));
+    assert!(!entrantes::suivi(b.db.conn(), &code).unwrap().avis_possible);
+    let c = b.caissier();
+    entrantes::valider(&mut b.db, &c, &id, true, "").unwrap();
+    let g = b.gerant();
+    livraison::changer_statut(&mut b.db, &g, &id, "livree", "").unwrap();
+    assert!(entrantes::suivi(b.db.conn(), &code).unwrap().avis_possible);
+    assert!(avis::donner(&mut b.db, &code, &NouvelAvis { note: 6, commentaire: String::new() }).is_err());
+    assert!(avis::donner(&mut b.db, "INCONNU", &mauvais).is_err());
+    avis::donner(&mut b.db, &code, &mauvais).unwrap();
+    let s = entrantes::suivi(b.db.conn(), &code).unwrap();
+    assert_eq!((s.avis, s.avis_possible), (Some(2), false));
+    assert_eq!(avis::donner(&mut b.db, &code, &mauvais).unwrap_err().regle_code(), Some("RG-AVI-01"), "un seul avis");
+    // Avis faible : à traiter par le gérant (bon d'avoir, appel…), une seule fois.
+    assert_eq!(avis::nombre_a_traiter(b.db.conn()).unwrap(), 1);
+    let a = &avis::lister(b.db.conn(), true).unwrap()[0];
+    assert_eq!((a.note, a.commentaire.as_str(), a.telephone.as_deref()), (2, "Livré froid", Some("76000011")));
+    let serveur = b.serveur();
+    assert!(avis::traiter(&mut b.db, &serveur, &a.id, "Appelé").is_err(), "réservé au gérant");
+    assert!(avis::traiter(&mut b.db, &g, &a.id, " ").is_err());
+    avis::traiter(&mut b.db, &g, &a.id, "Appelé, bon d'avoir de 2 000 FCFA").unwrap();
+    assert!(avis::traiter(&mut b.db, &g, &a.id, "Encore").is_err());
+    assert_eq!(avis::nombre_a_traiter(b.db.conn()).unwrap(), 0);
+    // L'avis ne se modifie ni ne s'efface.
+    assert!(b.db.conn().execute("UPDATE avis SET note = 5", []).is_err());
+    assert!(b.db.conn().execute("DELETE FROM avis", []).is_err());
+    // Rapport : note moyenne en dixièmes, avis faibles comptés.
+    let jour = journee::ouverte(b.db.conn()).unwrap().unwrap().date_exploitation;
+    let rap = avis::rapport(b.db.conn(), &jour, &jour).unwrap();
+    let ind = |cle: &str| rap.indicateurs.iter().find(|i| i.cle == cle).unwrap().valeur;
+    assert_eq!((ind("nb_avis"), ind("moyenne_note"), ind("nb_mecontents"), ind("nb_a_traiter")), (1, 20, 1, 0));
+    // Délai de 7 jours dépassé : plus d'avis.
+    let r2 = recu(&mut b, "Hamdallaye", "76000012", "a_la_livraison");
+    let id2 = id_par_numero(&b, r2.numero.unwrap());
+    entrantes::valider(&mut b.db, &c, &id2, true, "").unwrap();
+    livraison::changer_statut(&mut b.db, &g, &id2, "livree", "").unwrap();
+    b.horloge.avancer_minutes(8 * 24 * 60);
+    let e = avis::donner(&mut b.db, &r2.code_suivi.unwrap(), &NouvelAvis { note: 5, commentaire: String::new() }).unwrap_err();
+    assert_eq!(e.regle_code(), Some("RG-AVI-01"));
+}
+
+/// RG-RAP-04 (fiche 0043) : commandes non honorées par raison, motif, quartier, numéro ; refus automatiques comptés.
+#[test]
+fn rg_rap_04_commandes_non_honorees() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    activer(&mut b, |c| c.en_ligne = true);
+    let c = b.caissier();
+    let g = b.gerant();
+    // Refusée par le restaurant.
+    let r1 = recu(&mut b, "Hamdallaye", "76000021", "a_la_livraison");
+    let id1 = id_par_numero(&b, r1.numero.unwrap());
+    entrantes::valider(&mut b.db, &c, &id1, false, "Rupture de brochettes").unwrap();
+    // Livraison en échec, même numéro.
+    let r2 = recu(&mut b, "Hamdallaye", "76000021", "a_la_livraison");
+    let id2 = id_par_numero(&b, r2.numero.unwrap());
+    entrantes::valider(&mut b.db, &c, &id2, true, "").unwrap();
+    livraison::changer_statut(&mut b.db, &g, &id2, "echec", "Client injoignable").unwrap();
+    // Livrée normalement : pas comptée.
+    let r3 = recu(&mut b, "Badalabougou", "76000022", "a_la_livraison");
+    let id3 = id_par_numero(&b, r3.numero.unwrap());
+    entrantes::valider(&mut b.db, &c, &id3, true, "").unwrap();
+    livraison::changer_statut(&mut b.db, &g, &id3, "livree", "").unwrap();
+    // Refus automatique à la réception (liste noire) : aucune commande, mais compté.
+    zones_risque::bloquer_numero(&mut b.db, &g, "76000099", "fausses commandes").unwrap();
+    let bloque = en_ligne(&b, "Hamdallaye", "76000099", "a_la_livraison");
+    assert_eq!(entrantes::recevoir(&mut b.db, &bloque).unwrap().statut, "refusee");
+
+    let jour = journee::ouverte(b.db.conn()).unwrap().unwrap().date_exploitation;
+    let r = youma_core::rapports::rapport_non_honorees(b.db.conn(), &jour, &jour).unwrap();
+    let ind = |cle: &str| r.indicateurs.iter().find(|i| i.cle == cle).unwrap().valeur;
+    assert_eq!(ind("nb_non_honorees"), 2);
+    assert!(ind("manque_a_gagner") > 0);
+    assert_eq!(ind("non_honorees_taux"), 6_666, "2 sur 3 commandes à distance");
+    assert_eq!(ind("nb_refus_auto"), 1);
+    let tab = |titre: &str| r.tableaux.iter().find(|t| t.titre.starts_with(titre)).unwrap();
+    let motifs: Vec<String> = tab("Par motif").lignes.iter().map(|l| l[0].as_str().unwrap().to_string()).collect();
+    assert!(motifs.contains(&"Refusée par le restaurant : Rupture de brochettes".to_string()), "{motifs:?}");
+    assert!(motifs.contains(&"Livraison en échec : Client injoignable".to_string()), "{motifs:?}");
+    assert_eq!(tab("Par quartier").lignes[0][0], "Hamdallaye");
+    let repetes = &tab("Numéros revenant").lignes;
+    assert_eq!((repetes.len(), repetes[0][0].as_str(), repetes[0][2].as_i64()), (1, Some("76000021"), Some(2)));
+    assert_eq!(tab("Détail").lignes.len(), 2);
+}

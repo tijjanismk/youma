@@ -270,7 +270,7 @@ fn doublon(op: &Op, telephone: &str, lignes: &[LigneSaisie]) -> Resultat<Option<
     Ok(None)
 }
 
-fn id_par_code(conn: &Connection, code: &str) -> Resultat<String> {
+pub(crate) fn id_par_code(conn: &Connection, code: &str) -> Resultat<String> {
     trouver(conn.query_row("SELECT id FROM commandes WHERE code_suivi = ?1", params![code], |r| r.get(0)), "Commande")
 }
 
@@ -756,6 +756,12 @@ pub struct Suivi {
     pub livreur: Option<(i64, i64, i64)>,
     pub destination: Option<(i64, i64)>,
     pub mis_a_jour: i64,
+    /// RG-AVI-01 : note déjà donnée par le client (fiche 0043).
+    #[serde(default)]
+    pub avis: Option<i64>,
+    /// Le client peut donner son avis (commande servie, livrée ou en échec, pas encore notée).
+    #[serde(default)]
+    pub avis_possible: bool,
 }
 
 /// Page de suivi du client (sans connexion : le code de suivi fait office de clé).
@@ -824,6 +830,7 @@ pub fn suivi(conn: &Connection, code: &str) -> Resultat<Suivi> {
         |r| Ok((r.get(0)?, r.get(1)?)),
     )?;
     let modifiable = etape == "recue" && c.statut == "ouverte";
+    let avis = crate::avis::note_de(conn, &id)?;
     let panier = if modifiable {
         let mut st = conn.prepare("SELECT produit_id, quantite, options_json, commentaire FROM lignes_commande WHERE commande_id = ?1 ORDER BY cree_le")?;
         let v = st
@@ -861,6 +868,8 @@ pub fn suivi(conn: &Connection, code: &str) -> Resultat<Suivi> {
         livreur,
         destination: lat.zip(lon),
         mis_a_jour: modifie,
+        avis_possible: avis.is_none() && crate::avis::possible_a_l_etape(etape),
+        avis,
     })
 }
 

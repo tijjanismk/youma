@@ -1,6 +1,6 @@
-import { Check, MapPin, Pencil } from "lucide-react";
+import { Check, MapPin, Pencil, Star } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ErreurApi, get } from "../api";
+import { ErreurApi, get, post } from "../api";
 import { APPLI } from "../appli";
 import { dateHeure, distanceTexte, fcfa, lienCarte, minutesDepuis } from "../format";
 import type { Suivi as SuiviT } from "../types";
@@ -77,6 +77,7 @@ export default function Suivi({ code }: { code: string }) {
           ))}
         </ol>
       )}
+      {(s.avis_possible || s.avis) && <AvisClient code={code} note={s.avis ?? null} donne={(n) => setS({ ...s, avis: n, avis_possible: false })} />}
       {(s.modifications_restantes ?? 0) > 0 && (
         <div className="carte">
           <a className="bouton" href={`/menu?modifier=${encodeURIComponent(code)}${s.code_table ? `&table=${encodeURIComponent(s.code_table)}` : ""}`}>
@@ -125,5 +126,63 @@ export default function Suivi({ code }: { code: string }) {
         )}
       </div>
     </Page>
+  );
+}
+
+/** RG-AVI-01 : avis du client sur sa commande terminée, une seule fois (fiche 0043). */
+function AvisClient({ code, note, donne }: { code: string; note: number | null; donne: (n: number) => void }) {
+  const [choix, setChoix] = useState(0);
+  const [commentaire, setCommentaire] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  if (note)
+    return (
+      <div className="carte" role="status">
+        <p>
+          Merci pour votre avis : <strong>{note} / 5</strong>
+        </p>
+      </div>
+    );
+  return (
+    <form
+      className="carte avis-client"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setEnvoi(true);
+        setErreur("");
+        try {
+          await post(`/public/avis/${encodeURIComponent(code)}`, { note: choix, commentaire });
+          donne(choix);
+        } catch (err) {
+          setErreur(err instanceof Error ? err.message : String(err));
+        }
+        setEnvoi(false);
+      }}
+    >
+      <h2>Votre avis</h2>
+      <div className="etoiles" role="radiogroup" aria-label="Note">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={choix === n}
+            aria-label={`${n} sur 5`}
+            className={n <= choix ? "etoile choisie" : "etoile"}
+            onClick={() => setChoix(n)}
+          >
+            <Star size={32} aria-hidden fill={n <= choix ? "currentColor" : "none"} />
+          </button>
+        ))}
+      </div>
+      <label className="champ">
+        <span>{choix > 0 && choix <= 2 ? "Dites-nous ce qui n'a pas été (le restaurant vous recontactera)" : "Un commentaire (facultatif)"}</span>
+        <textarea className="zone-texte" rows={3} maxLength={500} value={commentaire} onChange={(e) => setCommentaire(e.target.value)} />
+      </label>
+      <button className="principal grand" disabled={choix === 0 || envoi}>
+        Envoyer mon avis
+      </button>
+      {erreur && <p className="erreur-texte">{erreur}</p>}
+    </form>
   );
 }

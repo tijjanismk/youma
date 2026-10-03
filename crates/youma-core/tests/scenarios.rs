@@ -6,7 +6,7 @@ use commun::*;
 use youma_core::caisse::{self, ClotureSession, Encaissement, PartSaisie};
 use youma_core::commandes::{self, NouvelleCommande};
 use youma_core::employes::{self, Avance};
-use youma_core::{achats, auth, impression, journee, livraison, paie, rapports, sauvegarde, stock, Acteur, Db};
+use youma_core::{achats, auth, impression, journee, livraison, paie, parametres, rapports, sauvegarde, stock, Acteur, Db};
 
 /// Scénario 1 (a) : une erreur au milieu d'un encaissement mixte n'écrit rien.
 #[test]
@@ -390,13 +390,30 @@ fn s14_restauration_nouveau_pc() {
     b.ouvrir_caisse(7_000);
     let usb = b.dossier.path().join("usb");
     let p = b.proprietaire();
-    let s = sauvegarde::exporter(&mut b.db, &p, &usb).unwrap();
-    // Nouveau PC : base vide.
+    let locales = b.dossier.path().join("sauvegardes");
+    // C4 (fiche 0043) : sans second emplacement réglé, pas d'export ; jamais de chemin donné par l'appelant.
+    assert!(sauvegarde::exporter(&mut b.db, &p, &locales).is_err());
+    let mut params = parametres::lire(b.db.conn()).unwrap();
+    params.dossier_sauvegarde_externe = usb.to_string_lossy().into();
+    parametres::ecrire(b.db.conn(), &params).unwrap();
+    let s = sauvegarde::exporter(&mut b.db, &p, &locales).unwrap();
+    assert!(usb.join(&s.nom).is_file());
+    // Nouveau PC : base vide ; la clé USB est réglée comme second emplacement.
     let neuf = tempfile::tempdir().unwrap();
     let mut db = Db::ouvrir(&neuf.path().join("youma.db"), b.horloge.clone()).unwrap();
     assert_eq!(auth::nombre_utilisateurs(db.conn()).unwrap(), 0);
+    let mut params = parametres::lire(db.conn()).unwrap();
+    params.dossier_sauvegarde_externe = usb.to_string_lossy().into();
+    parametres::ecrire(db.conn(), &params).unwrap();
+    assert_eq!(sauvegarde::lister_externes(db.conn()).unwrap()[0].nom, s.nom);
+    let systeme = Acteur::systeme();
+    let dossier_neuf = neuf.path().join("sauvegardes");
+    // Un chemin, ou un nom qui sort du dossier, est refusé.
+    for mauvais in [s.chemin.as_str(), "../youma.db", "youma-../../x.db", "autre.db"] {
+        assert!(sauvegarde::restaurer(&mut db, &systeme, mauvais, &dossier_neuf).is_err(), "{mauvais}");
+    }
     // Base vide : on restaure en tant que système (assistant d'installation).
-    sauvegarde::restaurer(&mut db, &Acteur::systeme(), std::path::Path::new(&s.chemin), &neuf.path().join("sauvegardes")).unwrap();
+    sauvegarde::restaurer(&mut db, &systeme, &s.nom, &dossier_neuf).unwrap();
     assert!(auth::nombre_utilisateurs(db.conn()).unwrap() >= 5);
     assert_eq!(caisse::solde(db.conn(), &b.compte("Caisse principale")).unwrap(), 7_000);
     assert!(journee::ouverte(db.conn()).unwrap().is_some());

@@ -127,6 +127,11 @@ Les bons s'impriment aussi à l'imprimante du poste, si elle est installée.
 gérant). Fiche du client → **Rendre privilégié** : ses commandes à distance passent en tête ; les tables restent par
 ordre d'arrivée.
 
+**Avis des clients** : le client note sa commande (1 à 5) sur sa page de suivi. Tableau de bord → « Clients mécontents à
+rappeler » : Clients → **Avis** → rappeler le client, puis **Noter la suite** (appel, bon d'avoir…). Rapports →
+**Avis clients** (note moyenne par canal, livreur, serveur) et **Non honorées** (commandes refusées, livraisons ratées,
+par motif, quartier, heure et numéro) pour décider : zones, horaires, livreurs, liste noire.
+
 **Ce qui demande le PIN du gérant** : annuler un article envoyé, une remise au-delà du plafond, certains retraits.
 Le gérant tape son PIN **lui-même** sur l'écran : ne jamais le donner au personnel.
 Après **5 PIN faux en 15 minutes**, les autorisations sont bloquées 5 minutes sur ce compte (le gérant, lui, n'est pas

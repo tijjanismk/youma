@@ -7,6 +7,7 @@
 pub mod achats;
 pub mod appareils;
 pub mod auth;
+pub mod avis;
 pub mod caisse;
 pub mod cartes;
 pub mod catalogue;

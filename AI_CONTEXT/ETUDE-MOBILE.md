@@ -44,7 +44,7 @@ plages privées. Numérotation : l'étude propose la fiche **0039**, déjà pris
 | C1 | PIN d'autorisation ponctuelle sans verrouillage (force brute de 10 000 PIN par un employé connecté) | **Corrigé** (RG-AUT-08, fiche 0040, migration 0011) : 5 PIN faux en 15 min bloquent 5 min le demandeur ; un PIN juste n'efface pas les échecs | `auth.rs::autoriser_par_pin`, appelé par `db.rs::executer_interne` avant la transaction ; test `rg_aut_08_…` |
 | C2 | Repli sur `CLE_DEV` si `YOUMA_CLE_PUBLIQUE` absente | **Corrigé** (fiche 0042) : `youma-server/build.rs` refuse une compilation release sans la clé (sauf `YOUMA_CLE_DEV=1`) ; guide `docs/guides/licences.md` | `crates/youma-server/build.rs` |
 | C3 | Routes publiques suivi/position sans limiteur | **Corrigé** (RG-CAN-08, fiche 0042) : 15 codes inconnus en 15 min par adresse, poste et relais | `api.rs::public_suivi`, `youma-relais` `essais_publics` |
-| C4 | Export/restauration de sauvegarde avec chemin libre fourni par le client | **Ouvert** (réservé SAUVEGARDE_GERER + session élevée) | `api.rs:1341–1350` |
+| C4 | Export/restauration de sauvegarde avec chemin libre | **Corrigé** (fiche 0043) : export vers le second emplacement réglé seulement, restauration par nom de sauvegarde | `sauvegarde.rs::nom_valide`, `exporter`, `restaurer` |
 | C5 | Clé privée de l'autorité TLS en clair dans la base | Compromis assumé (fiche 0020) | — |
 | — | `cargo audit` absent de la CI | **Ouvert** | `.github/workflows/ci.yml` |
 
@@ -94,5 +94,5 @@ L4 traité dans l'application livreur (position en arrière-plan). iPhone : proj
 
 ## 6. Reste à faire
 
-1. C4, `cargo audit` en CI (C2 et C3 faits, fiche 0042).
+1. `cargo audit` en CI (C2, C3, C4 faits, fiches 0042 et 0043).
 2. Après le pilote : mini-app livreur (option 4) si le suivi se coupe encore ; L3 si une zone GPS se trompe.

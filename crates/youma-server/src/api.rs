@@ -2,7 +2,6 @@
 //! seulement l'authentification, les droits de lecture et la sérialisation.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
@@ -16,7 +15,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use youma_core::erreur::{Erreur, Resultat};
 use youma_core::permissions as perm;
 use youma_core::{
-    achats, appareils, auth, caisse, cartes, catalogue, clients, cloud, commandes, consignes, contrats, demo, employes, entrantes, fidelite, horloge,
+    achats, appareils, auth, avis, caisse, cartes, catalogue, clients, cloud, commandes, consignes, contrats, demo, employes, entrantes, fidelite, horloge,
     impression, journee,
     licence, livraison, paie, parametres, promotions, rapports, recettes, releves_mm, salle, sauvegarde, secours, stock, zones_risque, Db,
 };
@@ -214,6 +213,10 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/tableau-de-bord", get(tableau_de_bord))
         .route("/rapports/periode", get(rapport_periode))
         .route("/rapports/statistiques", get(rapport_statistiques))
+        .route("/rapports/non-honorees", get(rapport_non_honorees))
+        .route("/rapports/avis", get(rapport_avis))
+        .route("/avis", get(avis_lister))
+        .route("/avis/{id}/traiter", post(avis_traiter))
         .route("/rapports/stock", get(rapport_stock))
         .route("/rapports/dettes", get(rapport_dettes))
         .route("/audit", get(audit))
@@ -232,6 +235,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/reseau/certificat", get(certificat_reseau))
         .route("/diagnostic", get(diagnostic))
         .route("/sauvegardes", get(sauvegardes).post(sauvegarde_creer))
+        .route("/sauvegardes/externes", get(sauvegardes_externes))
         .route("/sauvegardes/exporter", post(sauvegarde_exporter))
         .route("/sauvegardes/restaurer", post(sauvegarde_restaurer))
         .route("/integrite", post(integrite))
@@ -255,7 +259,8 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/public/commandes", post(public_commande))
         .route("/public/suivi/{code}", get(public_suivi))
         .route("/public/commandes/{code}/modifier", post(public_modifier))
-        .route("/public/position/{code}", post(public_position));
+        .route("/public/position/{code}", post(public_position))
+        .route("/public/avis/{code}", post(public_avis));
 
     let mut app = Router::new().nest("/api", api);
     if let Some(ui) = &etat.config.dossier_ui {
@@ -1115,6 +1120,37 @@ async fn rapport_statistiques(State(e): State<Etat>, a: Auth, Query(p): Q) -> Re
     rapport_sur_periode(e, a, p, |db, d, f| rapports::rapport_statistiques(db.conn(), d, f)).await
 }
 
+async fn rapport_non_honorees(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
+    rapport_sur_periode(e, a, p, |db, d, f| rapports::rapport_non_honorees(db.conn(), d, f)).await
+}
+
+async fn rapport_avis(State(e): State<Etat>, a: Auth, Query(p): Q) -> Result<Response, ApiErreur> {
+    rapport_sur_periode(e, a, p, |db, d, f| avis::rapport(db.conn(), d, f)).await
+}
+
+/// RG-AVI-02 : avis reçus (`a_traiter=1` : avis faibles sans suite).
+async fn avis_lister(State(e): State<Etat>, a: Auth, Query(p): Q) -> Rep<Vec<avis::Avis>> {
+    let a_traiter = q(&p, "a_traiter") == Some("1");
+    lire!(e, a, Some(perm::RAPPORT_VOIR), |db| avis::lister(db.conn(), a_traiter))
+}
+
+#[derive(Deserialize)]
+struct SuiteAvis {
+    suite: String,
+}
+
+async fn avis_traiter(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(s): Json<SuiteAvis>) -> Rep<()> {
+    ecrire!(e, a, |db| avis::traiter(db, &a, &id, &s.suite))
+}
+
+/// RG-AVI-01 : avis du client depuis sa page de suivi (code de suivi = clé), limité comme les autres codes (RG-CAN-08).
+async fn public_avis(State(e): State<Etat>, AdresseClient(ip): AdresseClient, Path(code): Path<String>, Json(n): Json<avis::NouvelAvis>) -> Rep<()> {
+    essais_publics(&e, ip)?;
+    let r = e.avec_db(move |db| avis::donner(db, &code, &n)).await;
+    compter_si_inconnu(&e, ip, &r);
+    Ok(Json(r?))
+}
+
 /// Rapport sur des journées d'exploitation (`debut`, `fin`, défaut : aujourd'hui), en JSON ou CSV (`format=csv`).
 async fn rapport_sur_periode(
     e: Etat,
@@ -1336,18 +1372,26 @@ async fn sauvegarde_creer(State(e): State<Etat>, a: Auth) -> Rep<sauvegarde::Sau
     Ok(Json(r))
 }
 
-#[derive(Deserialize)]
-struct Dossier {
-    chemin: String,
+/// Sauvegardes du second emplacement (clé USB) : restaurables sur un nouveau PC.
+async fn sauvegardes_externes(State(e): State<Etat>, a: Auth) -> Rep<Vec<sauvegarde::Sauvegarde>> {
+    lire!(e, a, Some(perm::SAUVEGARDE_GERER), |db| sauvegarde::lister_externes(db.conn()))
 }
 
-async fn sauvegarde_exporter(State(e): State<Etat>, a: Auth, Json(d): Json<Dossier>) -> Rep<sauvegarde::Sauvegarde> {
-    ecrire!(e, a, |db| sauvegarde::exporter(db, &a, &PathBuf::from(&d.chemin)))
-}
-
-async fn sauvegarde_restaurer(State(e): State<Etat>, a: Auth, Json(d): Json<Dossier>) -> Rep<()> {
+/// C4 (fiche 0043) : l'export va au second emplacement réglé dans l'administration, jamais à un chemin envoyé.
+async fn sauvegarde_exporter(State(e): State<Etat>, a: Auth) -> Rep<sauvegarde::Sauvegarde> {
     let dossier = e.config.dossier_sauvegardes();
-    ecrire!(e, a, |db| sauvegarde::restaurer(db, &a, &PathBuf::from(&d.chemin), &dossier))
+    ecrire!(e, a, |db| sauvegarde::exporter(db, &a, &dossier))
+}
+
+#[derive(Deserialize)]
+struct NomSauvegarde {
+    nom: String,
+}
+
+/// C4 (fiche 0043) : restauration par le nom d'une sauvegarde connue, jamais par un chemin.
+async fn sauvegarde_restaurer(State(e): State<Etat>, a: Auth, Json(d): Json<NomSauvegarde>) -> Rep<()> {
+    let dossier = e.config.dossier_sauvegardes();
+    ecrire!(e, a, |db| sauvegarde::restaurer(db, &a, &d.nom, &dossier))
 }
 
 async fn integrite(State(e): State<Etat>, a: Auth) -> Rep<sauvegarde::RapportIntegrite> {

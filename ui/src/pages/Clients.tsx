@@ -5,13 +5,15 @@ import { useApp, useDonnees } from "../contexte";
 import { dateFr, dateHeure, fcfa } from "../format";
 import { t } from "../i18n";
 import type { Carte, Client, EtatFidelite, MouvementPoints } from "../types";
+import { AvisClients } from "./Avis";
 import { CartesCadeaux, Societes } from "./CartesSocietes";
 
 type Releve = { horodatage: number; type: string; montant: number; commande_numero: number | null; motif: string; solde: number }[];
 
-type Vue = "clients" | "cartes" | "societes";
+type Vue = "clients" | "cartes" | "societes" | "avis";
 
 export default function Clients() {
+  const { peut } = useApp();
   const [vue, setVue] = useState<Vue>("clients");
   return (
     <div>
@@ -20,6 +22,7 @@ export default function Clients() {
           { cle: "clients" as Vue, libelle: "Clients et crédit" },
           { cle: "cartes" as Vue, libelle: "Cartes cadeaux" },
           { cle: "societes" as Vue, libelle: "Sociétés" },
+          ...(peut("rapport.voir") ? [{ cle: "avis" as Vue, libelle: "Avis" }] : []),
         ]}
         actif={vue}
         changer={setVue}
@@ -27,6 +30,7 @@ export default function Clients() {
       {vue === "clients" && <ListeClients />}
       {vue === "cartes" && <CartesCadeaux />}
       {vue === "societes" && <Societes />}
+      {vue === "avis" && <AvisClients />}
     </div>
   );
 }

@@ -766,7 +766,7 @@ fn migration_0010_garde_les_paiements() {
     {
         let c = rusqlite::Connection::open(&chemin).unwrap();
         c.execute_batch(
-            "DROP TABLE mouvements_carte; DROP TABLE cartes_cadeaux; DROP TABLE mouvements_fidelite;
+            "DROP TABLE avis; DROP TABLE mouvements_carte; DROP TABLE cartes_cadeaux; DROP TABLE mouvements_fidelite;
              CREATE TABLE p AS SELECT id, paiement_id, moyen, compte_id, client_id, montant, reference, numero_payeur FROM parts_paiement;
              DROP TABLE parts_paiement;
              CREATE TABLE parts_paiement (id TEXT PRIMARY KEY, paiement_id TEXT NOT NULL REFERENCES paiements(id),
@@ -785,7 +785,7 @@ fn migration_0010_garde_les_paiements() {
     }
     let db = Db::ouvrir(&chemin, h).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 11);
+    assert_eq!(v, 12);
     let n: i64 = db.conn().query_row("SELECT COUNT(*) FROM parts_paiement WHERE moyen = 'especes' AND montant = 2000", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 1, "le paiement d'avant la migration est conservé");
     let fk: i64 = db.conn().pragma_query_value(None, "foreign_keys", |r| r.get(0)).unwrap();
@@ -814,7 +814,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 11);
+    assert_eq!(v, 12);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);
