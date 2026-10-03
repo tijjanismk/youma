@@ -1,0 +1,34 @@
+[
+ {
+  "date": "2026-10-03",
+  "texte": "verifier_pin_autorisation (RG-AUT-03) ne compte pas les échecs : force brute possible (constat C1, ouvert)",
+  "fichier": "crates/youma-core/src/auth.rs",
+  "ligne": 107,
+  "statut": "piege",
+  "empreinte": "21dccf57e73a5d1d"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "MenuClient ne teste pas isSecureContext : en HTTP la géolocalisation échoue avec un message générique (L1/L2, ouverts)",
+  "fichier": "ui/src/public/MenuClient.tsx",
+  "ligne": 374,
+  "statut": "piege",
+  "empreinte": "97393a471582ab0f"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "Contrôle des doublons RG-CAN-07 placé APRÈS la liste noire RG-CAN-03, sinon un numéro bloqué reçoit 'déjà reçue'",
+  "fichier": "crates/youma-core/src/entrantes.rs",
+  "ligne": 230,
+  "statut": "confirme",
+  "empreinte": "aa5677ba07285906"
+ },
+ {
+  "date": "2026-10-03",
+  "texte": "Migration qui reconstruit une table référencée : commencer par le marqueur -- youma:cles-etrangeres-coupees",
+  "fichier": "crates/youma-core/src/db.rs",
+  "ligne": 30,
+  "statut": "confirme",
+  "empreinte": "99d4079d940ff747"
+ }
+]

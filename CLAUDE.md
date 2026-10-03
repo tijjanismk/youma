@@ -4,6 +4,10 @@ Logiciel de gestion de restaurant local-first pour le Mali.
 Référence unique : `docs/CAHIER_DES_CHARGES.md`. Le lire avant toute tâche.
 Après une pause : lire `docs/REPRISE.md` (état, ce qui reste, questions ouvertes) et le tenir à jour.
 
+Carte du projet : `AI_CONTEXT/` (`ARCHITECTURE.md`, `DOMAINE.md`, `modules/`, `ETUDE-MOBILE.md` : constats de sécurité
+et étude mobile du 30/09 confrontés au code). Fichiers générés (`carte.json`, `ALERTES.md`) non versionnés : les refaire
+avec le skill project-map (`carte.py . --sortie AI_CONTEXT --md`), puis `carte.py verifier`.
+
 ## Phase actuelle : RÉALISATION
 
 - Conception livrée dans `docs/conception/` (phases 1 à 4) ; MVP 0, MVP 1 et V2 codés (voir fiche 0001 et le
