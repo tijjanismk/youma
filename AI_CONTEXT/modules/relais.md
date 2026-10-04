@@ -9,6 +9,7 @@ Rôle : serveur public facultatif (HTTPS) : menu en ligne, suivi, livreur, propr
 - Numéro vérifié une fois (fiche 0046) : `POST /api/public/verification/confirmer` → `jeton_client` (empreinte dans `clients_verifies`, 180 jours après la dernière commande) ; `commande` accepte `jeton_client` ou `code_verification`.
 - Livreurs (fiche 0047, RG-LIV-05) : le poste publie `livreurs` (téléphone, empreinte Argon2 du PIN, courses) ; `POST /api/public/livreur/connexion` (5 essais / 15 min par numéro) → jeton de 30 jours (`sessions_livreurs`, liée à l'empreinte du PIN) ; `GET /api/public/livreur/courses`.
 - Photos du menu (fiche 0048) : `ranger_photos` à la synchronisation (table `photos`, empreinte SHA-256), `GET /api/public/photos/{empreinte}` en cache un an ; `CompressionLayer` gzip sur tout le routeur.
+- Relais partagé (fiche 0049) : `aiguiller` (avant routage, `/r/<slug>` → en-tête interne `x-youma-restaurant`), extracteur `Resto` → `Etat::pour_restaurant` (base `restaurants/<slug>.db`, clé de `cloud_restaurants.slug`) ; `cloud::migrer`, `cloud::slug`, `adresse_restaurant`.
 - `youma-licence/src/main.rs` — clés et licences ; clé privée par `--cle-privee-fichier` ou `YOUMA_CLE_PRIVEE` (guide `docs/guides/licences.md`).
 
 ## Base de données (propre au relais)

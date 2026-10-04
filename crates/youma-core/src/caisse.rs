@@ -259,6 +259,16 @@ pub struct OuvertureSession {
     pub billetage: Vec<LigneBilletage>,
     #[serde(default)]
     pub motif_ecart: String,
+    /// RG-CAI-17 : l'argent qui manque dans le tiroir a été retiré pour le coffre (ou le propriétaire) depuis la
+    /// dernière clôture : il est remis au coffre au lieu d'être compté comme un écart.
+    #[serde(default)]
+    pub remis_au_coffre: bool,
+}
+
+fn compte_coffre(op: &Op) -> Resultat<String> {
+    op.query_row("SELECT id FROM comptes_tresorerie WHERE type = 'coffre' AND actif = 1 ORDER BY ordre LIMIT 1", [], |r| r.get(0))
+        .optional()?
+        .ok_or_else(|| Erreur::regle("RG-CAI-16", "Aucun compte coffre actif : créez-le dans l'administration"))
 }
 
 fn caisse_principale(conn: &Connection) -> Resultat<String> {
@@ -307,7 +317,14 @@ pub fn ouvrir_session(db: &mut Db, acteur: &Acteur, o: &OuvertureSession) -> Res
         if !o.billetage.is_empty() && total_billetage(&o.billetage)? != o.fond_compte {
             return Err(Erreur::validation("Le billetage ne correspond pas au fond déclaré"));
         }
-        let theorique = solde(op, &compte)?;
+        let solde_tiroir = solde(op, &compte)?;
+        // RG-CAI-17 : argent sorti du tiroir pour le coffre depuis la dernière clôture, déclaré par un responsable.
+        let remise = if o.remis_au_coffre { (solde_tiroir - o.fond_compte).max(0) } else { 0 };
+        if remise > 0 {
+            // Gérant ou propriétaire (le caissier fait autoriser par PIN, RG-AUT-03).
+            op.exiger(perm::CAISSE_ECART)?;
+        }
+        let theorique = solde_tiroir - remise;
         let ecart = o.fond_compte - theorique;
         if ecart.abs() > op.params.seuil_ecart_caisse && o.motif_ecart.trim().is_empty() {
             return Err(Erreur::regle(
@@ -323,6 +340,12 @@ pub fn ouvrir_session(db: &mut Db, acteur: &Acteur, o: &OuvertureSession) -> Res
             params![id, compte, journee.id, uid, op.appareil_id, op.maintenant, o.fond_compte, theorique],
         )?;
         enregistrer_billetage(op, &id, "ouverture", &o.billetage)?;
+        if remise > 0 {
+            let coffre = compte_coffre(op)?;
+            let motif = Some(o.motif_ecart.trim()).filter(|m| !m.is_empty()).unwrap_or("Retiré du tiroir avant l'ouverture");
+            let sortie = mouvement(op, &compte, Some(&id), "remise_coffre", -remise, Some(("session_caisse", &id)), motif, None)?;
+            mouvement(op, &coffre, None, "remise_coffre", remise, Some(("mouvement_tresorerie", &sortie)), motif, None)?;
+        }
         if ecart != 0 {
             mouvement(op, &compte, Some(&id), "ecart_ouverture", ecart, Some(("session_caisse", &id)), o.motif_ecart.trim(), None)?;
         }
@@ -331,7 +354,7 @@ pub fn ouvrir_session(db: &mut Db, acteur: &Acteur, o: &OuvertureSession) -> Res
             "session_caisse",
             Some(&id),
             None,
-            Some(json!({ "fond": o.fond_compte, "theorique": theorique, "ecart": ecart })),
+            Some(json!({ "fond": o.fond_compte, "theorique": theorique, "ecart": ecart, "remise_coffre": remise })),
             Some(o.motif_ecart.trim()).filter(|m| !m.is_empty()),
             None,
         )?;
@@ -392,10 +415,7 @@ pub fn cloturer_session(db: &mut Db, acteur: &Acteur, session_id: &str, c: &Clot
             None => 0,
         };
         if remise > 0 {
-            let coffre: String = op
-                .query_row("SELECT id FROM comptes_tresorerie WHERE type = 'coffre' AND actif = 1 ORDER BY ordre LIMIT 1", [], |r| r.get(0))
-                .optional()?
-                .ok_or_else(|| Erreur::regle("RG-CAI-16", "Aucun compte coffre actif : créez-le dans l'administration"))?;
+            let coffre = compte_coffre(op)?;
             let sortie = mouvement(op, &s.compte_id, Some(session_id), "remise_coffre", -remise, Some(("session_caisse", session_id)), "Remise de clôture", None)?;
             mouvement(op, &coffre, None, "remise_coffre", remise, Some(("mouvement_tresorerie", &sortie)), "Remise de clôture", None)?;
         }

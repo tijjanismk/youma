@@ -61,6 +61,8 @@ nouveau. Livreur parti : **Retirer l'accès**.
 **En début de service**
 1. Menu **Caisse** → compter l'argent du tiroir → **Fond de caisse compté** → **Ouvrir ma session**.
    S'il y a une différence avec le fond prévu, donner le **motif de l'écart**.
+   Si l'argent a été retiré du tiroir depuis la dernière clôture (le propriétaire a pris la recette) : cocher
+   **L'argent a été retiré du tiroir pour le coffre**, taper la monnaie laissée ; le gérant confirme avec son PIN.
 
 **Encaisser une addition**
 1. Ouvrir la commande (Salle ou Caisse) → **Encaisser …**.

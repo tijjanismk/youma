@@ -1,6 +1,6 @@
 import { Bike, LogOut, MapPin, Phone } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { adresseRelais, APPLI, choisirRelais } from "../appli";
+import { adresseRelais, APPLI, cheminPublic, choisirRelais, prefixeWeb } from "../appli";
 import { Champ } from "../composants/Base";
 import { fcfa, lienCarte } from "../format";
 import { t } from "../i18n";
@@ -19,7 +19,7 @@ export type CourseAssignee = {
   reste: number;
 };
 
-/** Session du livreur sur un relais (vide sur le web : le relais de la page). */
+/** Session du livreur sur un relais (sur le web : le début d'adresse de la page, vide ou `/r/<nom>`). */
 export type SessionLivreur = { relais: string; restaurant: string; nom: string; jeton: string };
 
 const CLE_SESSIONS = "youma.livreur.sessions";
@@ -76,8 +76,8 @@ async function appel<T>(relais: string, chemin: string, init?: RequestInit): Pro
  * Application Youma Livreur (plusieurs restaurants possibles) et page `/livreur` du relais.
  */
 export default function MesCourses() {
-  const [sessions, setSessions] = useState<SessionLivreur[]>(() => lireSessions().filter((s) => APPLI || s.relais === ""));
-  const maj = useCallback(() => setSessions(lireSessions().filter((s) => APPLI || s.relais === "")), []);
+  const [sessions, setSessions] = useState<SessionLivreur[]>(() => lireSessions().filter((s) => APPLI || s.relais === prefixeWeb()));
+  const maj = useCallback(() => setSessions(lireSessions().filter((s) => APPLI || s.relais === prefixeWeb())), []);
   return (
     <>
       {sessions.map((s) => (
@@ -94,7 +94,7 @@ function Connexion({ connecte, premiere }: { connecte: () => void; premiere: boo
   const [pin, setPin] = useState("");
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
-  const relais = APPLI ? adresseRelais(lien) : "";
+  const relais = APPLI ? adresseRelais(lien) : prefixeWeb();
   const valide = relais !== null && telephone.replace(/\D/g, "").length >= 8 && /^\d{4,6}$/.test(pin);
   return (
     <form
@@ -172,7 +172,7 @@ function CoursesDuRestaurant({ session, deconnecte }: { session: SessionLivreur;
   }, [session, deconnecte]);
   const ouvrir = (c: CourseAssignee) => {
     if (APPLI) choisirRelais(session.relais);
-    location.assign(`/livreur/${encodeURIComponent(c.code_livreur)}`);
+    location.assign(cheminPublic(`/livreur/${encodeURIComponent(c.code_livreur)}`));
   };
   return (
     <section className="carte">

@@ -116,6 +116,9 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAI-14** Chaque paiement conserve les espèces reçues du client et la monnaie rendue (rendu = reçu − part en espèces). Ils figurent sur le ticket, l'écran de reçu, le rapport Z (total reçu, rendu, gardé) et le rapport d'activité. Sans part en espèces, reçu = rendu = 0.
 * **RG-CAI-15** Paiement par carte sur un TPE non relié : part sur un compte **banque**, numéro d'autorisation du ticket TPE obligatoire, jamais deux fois dans la journée (fiche 0026).
 * **RG-CAI-16** À la clôture, le caissier indique le fond gardé dans le tiroir pour la monnaie (par défaut le fond d'ouverture) ; le reste de l'argent compté part au coffre par deux mouvements liés « remise_coffre ». La session suivante n'attend que ce fond. Le rapport Z affiche « Remis au coffre » et « Fond laissé en caisse ».
+* **RG-CAI-17** À l'ouverture, si le tiroir contient moins que le solde attendu parce que l'argent a été retiré
+  depuis la clôture (recette prise par le propriétaire), un responsable (permission `caisse.ecart`, sinon son PIN)
+  déclare la différence **remise au coffre** : deux mouvements liés « remise_coffre » au lieu d'un écart d'ouverture.
 
 ### Relevés Mobile Money (RMM) — fiche 0016
 * **RG-RMM-01** Import d'un relevé CSV d'opérateur sur un compte Mobile Money : séparateur et colonnes reconnus par

@@ -26,7 +26,11 @@ async fn main() {
     // Cloud (fiche 0018) : inscription d'un restaurant par le fournisseur.
     if let Some(nom) = arg(&args, "--ajouter-restaurant") {
         match youma_relais::inscrire_restaurant(&donnees, &nom) {
-            Ok(cle) => println!("Restaurant « {nom} » inscrit. Clé à saisir sur son poste central : {cle}"),
+            Ok(cle) => {
+                let slug = youma_relais::adresse_restaurant(&donnees, &cle).ok().flatten().unwrap_or_default();
+                println!("Restaurant « {nom} » inscrit. Clé à saisir sur son poste central : {cle}");
+                println!("Adresse de ses commandes en ligne (Adresse du relais) : https://VOTRE-RELAIS/r/{slug}");
+            }
             Err(e) => {
                 eprintln!("Erreur : {e}");
                 std::process::exit(1);

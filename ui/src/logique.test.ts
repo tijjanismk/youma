@@ -435,3 +435,36 @@ describe("photos du menu servies par le relais (fiche 0048)", async () => {
     expect(srcPhoto("data:image/jpeg;base64,xx")).toBe("data:image/jpeg;base64,xx");
   });
 });
+
+describe("relais partagé par plusieurs restaurants (fiche 0049)", () => {
+  it("le restaurant fait partie de l'adresse du relais et des liens", () => {
+    expect(adresseRelais("https://relais.ml/r/maquis-le-baobab/menu")).toBe("https://relais.ml/r/maquis-le-baobab");
+    expect(adresseRelais("relais.ml/menu")).toBe("https://relais.ml");
+    expect(lireLien("https://relais.ml/r/chez-fanta/suivi/ABCD1234")).toEqual({ relais: "https://relais.ml/r/chez-fanta", code: "ABCD1234", page: "suivi" });
+    expect(lireLien("https://relais.ml/r/chez-fanta/livreur/XYZ")).toEqual({ relais: "https://relais.ml/r/chez-fanta", code: "XYZ", page: "course" });
+    expect(lireLien("youma-client://menu?relais=https%3A%2F%2Frelais.ml%2Fr%2Fchez-fanta")).toEqual({ relais: "https://relais.ml/r/chez-fanta", page: "menu" });
+  });
+  it("sur le web, les pages /r/<nom> gardent leur début d'adresse", async () => {
+    const { baseApi, cheminCourant, cheminPublic } = await import("./appli");
+    history.replaceState(null, "", "/r/chez-fanta/suivi/ABCD");
+    expect(baseApi()).toBe("/r/chez-fanta");
+    expect(cheminCourant()).toBe("/suivi/ABCD");
+    expect(cheminPublic("/menu")).toBe("/r/chez-fanta/menu");
+    history.replaceState(null, "", "/menu");
+    expect(baseApi()).toBe("");
+    expect(cheminCourant()).toBe("/menu");
+  });
+});
+
+describe("journée oubliée ouverte (RG-JOU-03)", async () => {
+  const { joursJourneeOuverte } = await import("./format");
+  const a = (iso: string) => new Date(iso).getTime();
+  it("pas d'alerte pour la journée du jour, ni celle d'hier avant midi", () => {
+    expect(joursJourneeOuverte("2026-10-04", a("2026-10-04T20:00:00"))).toBe(0);
+    expect(joursJourneeOuverte("2026-10-03", a("2026-10-04T01:30:00"))).toBe(0);
+  });
+  it("alerte au-delà", () => {
+    expect(joursJourneeOuverte("2026-10-03", a("2026-10-04T14:00:00"))).toBe(1);
+    expect(joursJourneeOuverte("2026-09-25", a("2026-10-04T09:00:00"))).toBe(9);
+  });
+});

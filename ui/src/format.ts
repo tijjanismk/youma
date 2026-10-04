@@ -45,6 +45,19 @@ export function aujourdhui(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Jours de retard d'une journée d'exploitation restée ouverte (RG-JOU-02/03) : 0 tant qu'elle est celle d'hier soir
+ * (service après minuit) ou d'aujourd'hui ; sinon le nombre de jours depuis sa date. `maintenant` : heure du poste.
+ */
+export function joursJourneeOuverte(dateExploitation: string, maintenant: number): number {
+  const d = new Date(maintenant);
+  const jour = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const [a, m, j] = dateExploitation.split("-").map(Number);
+  const ecart = Math.round((jour - Date.UTC(a, m - 1, j)) / 86_400_000);
+  // Ouverte hier : normal jusqu'à midi (le service du soir se termine après minuit).
+  return ecart >= 2 || (ecart === 1 && d.getHours() >= 12) ? ecart : 0;
+}
+
 export function premierDuMois(iso = aujourdhui()): string {
   return iso.slice(0, 8) + "01";
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ErreurApi, post } from "../api";
 import { heure, versMicro } from "../format";
-import { APPLI } from "../appli";
+import { APPLI, cheminPublic, prefixeWeb } from "../appli";
 import { Page } from "./MenuClient";
 import { messageErreurPosition, positionPossible } from "./position";
 import { lireSessions } from "./MesCourses";
@@ -115,15 +115,18 @@ export default function Livreur({ code }: { code: string }) {
           {!APPLI && location.protocol === "https:" && (
             <p className="aide">
               Avec l'application Youma Livreur, la position continue écran verrouillé :{" "}
-              <a href={`youma-livreur://course?relais=${encodeURIComponent(location.origin)}&code=${encodeURIComponent(code)}`}>ouvrir dans l'application</a>.
+              <a href={`youma-livreur://course?relais=${encodeURIComponent(location.origin + prefixeWeb())}&code=${encodeURIComponent(code)}`}>
+                ouvrir dans l'application
+              </a>
+              .
             </p>
           )}
         </>
       )}
       {message && <p className="erreur-texte">{message}</p>}
-      {!APPLI && lireSessions().some((s) => s.relais === "") && (
+      {!APPLI && lireSessions().some((s) => s.relais === prefixeWeb()) && (
         <p>
-          <a href="/livreur">Mes courses</a>
+          <a href={cheminPublic("/livreur")}>Mes courses</a>
         </p>
       )}
     </Page>

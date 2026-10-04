@@ -33,6 +33,26 @@ function ecrireJson(cle: string, v: unknown) {
 }
 
 /**
+ * Relais partagé (fiche 0049) : sur le web, les pages d'un restaurant inscrit sont sous `/r/<nom>/…` ; ses appels à
+ * l'API et ses liens gardent ce début. Vide à la racine (restaurant historique du relais, poste central) et dans les
+ * applications (l'adresse du relais y comprend déjà `/r/<nom>`).
+ */
+export function prefixeWeb(): string {
+  if (APPLI) return "";
+  return /^\/r\/[a-z0-9-]{2,40}(?=\/|$)/.exec(location.pathname)?.[0] ?? "";
+}
+
+/** Adresse d'une page publique du même restaurant (`/suivi/…` → `/r/<nom>/suivi/…` sur le relais partagé). */
+export function cheminPublic(p: string): string {
+  return `${prefixeWeb()}${p}`;
+}
+
+/** Page publique affichée, sans le début `/r/<nom>`. */
+export function cheminCourant(): string {
+  return location.pathname.slice(prefixeWeb().length) || "/";
+}
+
+/**
  * Adresse du relais d'un lien collé ou partagé : « https://resto.up.railway.app/menu », « resto.up.railway.app »…
  * Toujours en https : la position et le paiement passent par Internet (fiche 0013).
  */
@@ -43,7 +63,8 @@ export function adresseRelais(saisie: string): string | null {
   try {
     const u = new URL(s);
     if (u.protocol !== "https:" || !u.hostname.includes(".")) return null;
-    return u.origin;
+    // Relais partagé : le restaurant fait partie de l'adresse (`https://relais/r/<nom>`, fiche 0049).
+    return u.origin + (/^\/r\/[a-z0-9-]{2,40}(?=\/|$)/.exec(u.pathname)?.[0] ?? "");
   } catch {
     return null;
   }
@@ -51,7 +72,7 @@ export function adresseRelais(saisie: string): string | null {
 
 /** Relais utilisé par les appels de l'API (vide sur le web : appels relatifs). */
 export function baseApi(): string {
-  if (!APPLI) return "";
+  if (!APPLI) return prefixeWeb();
   try {
     return localStorage.getItem(CLE_RELAIS) ?? "";
   } catch {
@@ -134,9 +155,9 @@ export function lireLien(lien: string): { relais: string; code?: string; page: "
     if (quoi === "suivi") return code ? { relais, code, page: "suivi" } : null;
     return { relais, page: "menu" };
   }
-  const relais = adresseRelais(u.origin);
+  const relais = adresseRelais(`${u.origin}${u.pathname}`);
   if (!relais) return null;
-  const [, quoi, code] = u.pathname.split("/");
+  const [, quoi, code] = u.pathname.replace(/^\/r\/[a-z0-9-]{2,40}(?=\/|$)/, "").split("/");
   if (quoi === "livreur" && code) return { relais, code: decodeURIComponent(code), page: "course" };
   if (quoi === "suivi" && code) return { relais, code: decodeURIComponent(code), page: "suivi" };
   return { relais, page: "menu" };

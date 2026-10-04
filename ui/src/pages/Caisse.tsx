@@ -125,8 +125,13 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
   const [billets, setBillets] = useState<LigneBillet[]>([]);
   const [detail, setDetail] = useState(false);
   const [motif, setMotif] = useState("");
+  // RG-CAI-17 : le tiroir a été vidé depuis la dernière clôture ; la différence part au coffre, pas en écart.
+  const [auCoffre, setAuCoffre] = useState(false);
+  const coffre = e.comptes.some((c) => c.type === "coffre" && c.actif);
   const total = detail ? billets.reduce((s, l) => s + l.coupure * l.nombre, 0) : fond;
-  const ecart = caisse ? total - caisse.solde : 0;
+  const manque = caisse ? caisse.solde - total : 0;
+  const remise = auCoffre && manque > 0 ? manque : 0;
+  const ecart = caisse ? total - caisse.solde + remise : 0;
   return (
     <div className="carte formulaire-etroit">
       <h2>Ouvrir ma session</h2>
@@ -147,6 +152,21 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
       ) : (
         <ChampMontant libelle="Fond de caisse compté" valeur={fond} changer={setFond} autoFocus />
       )}
+      {coffre && manque > 0 && (
+        <label className="case">
+          <input type="checkbox" checked={auCoffre} onChange={(x) => setAuCoffre(x.target.checked)} />
+          <span>L'argent a été retiré du tiroir pour le coffre (ou le propriétaire) : je ne laisse que la monnaie</span>
+        </label>
+      )}
+      {remise > 0 && (
+        <>
+          <p>
+            Remis au coffre : <strong>{fcfa(remise)}</strong> — Fond de caisse : <strong>{fcfa(total)}</strong>
+          </p>
+          <p className="aide">Le gérant ou le propriétaire confirme avec son PIN.</p>
+          <Champ libelle="Retiré par (facultatif)" valeur={motif} changer={setMotif} placeholder="Le propriétaire, hier soir" />
+        </>
+      )}
       {ecart !== 0 && (
         <>
           <p className="attention-texte">Écart de {fcfa(ecart)} avec le solde attendu.</p>
@@ -156,9 +176,10 @@ function Ouverture({ e, recharger }: { e: EtatCaisse; recharger: () => void }) {
       <button
         className="principal grand"
         onClick={() =>
-          agir((pin) => post("/caisse/ouvrir", { fond_compte: total, billetage: detail ? billets : [], motif_ecart: motif }, pin), "Session ouverte").then(
-            recharger,
-          )
+          agir(
+            (pin) => post("/caisse/ouvrir", { fond_compte: total, billetage: detail ? billets : [], motif_ecart: motif, remis_au_coffre: remise > 0 }, pin),
+            "Session ouverte",
+          ).then(recharger)
         }
       >
         Ouvrir la caisse

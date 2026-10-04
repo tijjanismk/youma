@@ -49,7 +49,7 @@ impl Banc {
 
     pub fn ouvrir_caisse(&mut self, fond: i64) -> String {
         let a = self.caissier();
-        caisse::ouvrir_session(&mut self.db, &a, &OuvertureSession { compte_id: None, fond_compte: fond, billetage: vec![], motif_ecart: "Fond initial".into() }).unwrap()
+        caisse::ouvrir_session(&mut self.db, &a, &OuvertureSession { compte_id: None, fond_compte: fond, billetage: vec![], motif_ecart: "Fond initial".into(), remis_au_coffre: false }).unwrap()
     }
 
     pub fn produit(&self, nom: &str) -> String {
