@@ -364,7 +364,7 @@ fn rg_cai_08_10_11_13_mouvements_de_caisse() {
     // RG-CAI-08 : fond compté différent du théorique → motif.
     let fin = caisse::ClotureSession { compte_final: 12_000, billetage: vec![caisse::LigneBilletage { coupure: 10_000, nombre: 1 }, caisse::LigneBilletage { coupure: 1_000, nombre: 2 }], motif_ecart: String::new(), fond_garde: None };
     caisse::cloturer_session(&mut b.db, &a, &s, &fin).unwrap();
-    let e = caisse::ouvrir_session(&mut b.db, &a, &OuvertureSession { compte_id: None, fond_compte: 2_000, billetage: vec![], motif_ecart: String::new() }).unwrap_err();
+    let e = caisse::ouvrir_session(&mut b.db, &a, &OuvertureSession { compte_id: None, fond_compte: 2_000, billetage: vec![], motif_ecart: String::new(), remis_au_coffre: false }).unwrap_err();
     assert_eq!(e.regle_code(), Some("RG-CAI-08"));
 }
 
@@ -386,7 +386,35 @@ fn rg_cai_16_remise_au_coffre_a_la_cloture() {
     let z = youma_core::rapports::rapport_z(b.db.conn(), &s).unwrap();
     assert!(z.contains("Remis au coffre") && z.contains("Fond laissé en caisse"), "{z}");
     // La réouverture n'attend plus que le fond laissé : pas d'écart.
-    caisse::ouvrir_session(&mut b.db, &a, &OuvertureSession { compte_id: None, fond_compte: 5_000, billetage: vec![], motif_ecart: String::new() }).unwrap();
+    caisse::ouvrir_session(&mut b.db, &a, &OuvertureSession { compte_id: None, fond_compte: 5_000, billetage: vec![], motif_ecart: String::new(), remis_au_coffre: false }).unwrap();
+}
+
+/// RG-CAI-17 : le tiroir a été vidé après une clôture qui gardait tout ; à l'ouverture, un responsable déclare la
+/// différence remise au coffre au lieu d'un écart.
+#[test]
+fn rg_cai_17_argent_retire_avant_l_ouverture() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let s = b.ouvrir_caisse(20_000);
+    let c = b.caissier();
+    // Clôture sans remise : les 20 000 restent dans le tiroir (solde attendu à la réouverture).
+    let fin = caisse::ClotureSession { compte_final: 20_000, billetage: vec![], motif_ecart: String::new(), fond_garde: None };
+    caisse::cloturer_session(&mut b.db, &c, &s, &fin).unwrap();
+    assert_eq!(b.solde("Caisse principale"), 20_000);
+    let coffre_avant = b.solde("Coffre / propriétaire");
+    // Le propriétaire a pris l'argent en laissant 5 000 de monnaie.
+    let o = OuvertureSession { compte_id: None, fond_compte: 5_000, billetage: vec![], motif_ecart: String::new(), remis_au_coffre: true };
+    assert_eq!(code(&caisse::ouvrir_session(&mut b.db, &c, &o).unwrap_err()), "AUTORISATION_REQUISE", "un responsable le déclare");
+    let responsable = Banc::avec_pin_gerant(b.caissier());
+    let s2 = caisse::ouvrir_session(&mut b.db, &responsable, &o).unwrap();
+    assert_eq!(b.solde("Caisse principale"), 5_000);
+    assert_eq!(b.solde("Coffre / propriétaire") - coffre_avant, 15_000);
+    let ecarts: i64 = b
+        .db
+        .conn()
+        .query_row("SELECT COUNT(*) FROM mouvements_tresorerie WHERE session_id = ?1 AND type = 'ecart_ouverture'", [&s2], |r| r.get(0))
+        .unwrap();
+    assert_eq!(ecarts, 0, "pas d'écart : l'argent est au coffre");
 }
 
 // ───────────── Employés et paie : réalités maliennes ─────────────

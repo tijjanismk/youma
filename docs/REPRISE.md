@@ -53,6 +53,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Tiroir vidé avant l'ouverture** (RG-CAI-17) : à l'ouverture, « L'argent a été retiré du tiroir pour le coffre »
+  met la différence au coffre (PIN du gérant) au lieu d'un écart.
 - **Relais partagé par plusieurs restaurants** (fiche 0049) : chaque restaurant inscrit (`--ajouter-restaurant`) a ses
   adresses `https://relais/r/<nom>/…` et sa propre base ; un seul service Railway pour tous. Le restaurant déjà relié
   garde les adresses à la racine.

@@ -27,7 +27,7 @@ cite. Ici : où chaque famille est appliquée. Chemins relatifs à `crates/youma
 | JOU 01–04 | journée d'exploitation, clôture | `journee.rs`, `db.rs:414` |
 | CMD 01–12 | commandes, envoi par poste (03), article envoyé non modifiable (04), parts égales (12) | `commandes.rs:145,593,607,1092`, `entrantes.rs:512,664` |
 | CAT 01–07 | catalogue, menu du jour (07), produit revendu → article de stock (06) | `catalogue.rs:149,155,276,359,452` |
-| CAI 01–16 | encaissement multi-parts (01–06), annulation de paiement (07), sessions et billetage (08–14), TPE (15), remise au coffre (16) | `caisse.rs:350,485–556,667,755,798,849` |
+| CAI 01–17 | encaissement multi-parts (01–06), annulation de paiement (07), sessions et billetage (08–14), TPE (15), remise au coffre à la clôture (16) ou à l'ouverture si le tiroir a été vidé (17) | `caisse.rs:350,485–556,667,755,798,849` |
 | CLI 01–04 | crédit client, plafond, relevé, téléphone unique (04) | `clients.rs:21,100,193`, `caisse.rs:485` |
 | FID 01–04 | points : réglages (01), gain au solde de l'addition (02), utilisation = remise (03), retrait à l'annulation (04) | `parametres.rs:50`, `caisse.rs:643,725`, `fidelite.rs:86,117` |
 | CAD 01–05 | cartes cadeaux / bons d'avoir : code (02), expiration (03), avoir avec motif + accord gérant (04), recrédit à l'annulation (05) | `cartes.rs:80,193,222,236` |
