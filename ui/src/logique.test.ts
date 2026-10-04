@@ -427,3 +427,11 @@ describe("sessions du livreur (fiche 0047)", async () => {
     expect(lireSessions().map((s) => s.relais)).toEqual(["https://a.ml"]);
   });
 });
+
+describe("photos du menu servies par le relais (fiche 0048)", async () => {
+  const { srcPhoto } = await import("./composants/Plat");
+  it("adresse du relais gardée telle quelle sur le web, URL data: inchangée", () => {
+    expect(srcPhoto("/api/public/photos/abc")).toBe("/api/public/photos/abc");
+    expect(srcPhoto("data:image/jpeg;base64,xx")).toBe("data:image/jpeg;base64,xx");
+  });
+});

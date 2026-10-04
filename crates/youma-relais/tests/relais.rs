@@ -372,6 +372,58 @@ async fn livreur_connecte_voit_ses_courses() {
     assert_eq!(r.post("/public/livreur/connexion", connexion("76554433", "7777")).await.0, 429);
 }
 
+/// Fiche 0048 : les photos du menu sont servies à part (cache d'un an) et les réponses compressées ; un menu déjà
+/// reçu avec ses photos intégrées est converti au redémarrage du relais.
+#[tokio::test]
+async fn photos_du_menu_servies_a_part_et_compression() {
+    const JPEG: &str = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U";
+    let avec_photo = |photo: &str| {
+        let mut m = menu();
+        m["produits"] = json!([{ "id": "p1", "categorie_id": "c", "nom": "Brochettes", "description": "", "photo": photo, "prix": 1500, "groupes_options": [] },
+                               { "id": "p2", "categorie_id": "c", "nom": "Coca", "description": "", "photo": "", "prix": 500, "groupes_options": [] }]);
+        m
+    };
+    let r = relais().await;
+    r.synchroniser(CLE, json!({ "menu": avec_photo(JPEG) })).await;
+    let (_, m) = r.get("/public/menu").await;
+    let adresse = m["produits"][0]["photo"].as_str().unwrap().to_string();
+    assert!(adresse.starts_with("/api/public/photos/"), "{adresse}");
+    assert_eq!(m["produits"][1]["photo"], "");
+    assert!(!m.to_string().contains("base64"), "plus de photo dans le menu");
+    let rep = r.client.get(format!("{}{}", r.url.trim_end_matches("/api"), adresse)).send().await.unwrap();
+    assert_eq!(rep.status().as_u16(), 200);
+    assert_eq!(rep.headers()["content-type"], "image/jpeg");
+    assert!(rep.headers()["cache-control"].to_str().unwrap().contains("immutable"));
+    let octets = rep.bytes().await.unwrap();
+    assert_eq!(&octets[..3], &[0xFF, 0xD8, 0xFF], "image JPEG d'origine");
+    // Réponses compressées pour qui le demande (navigateurs, applications).
+    let rep = r.client.get(format!("{}/public/menu", r.url)).header("accept-encoding", "gzip").send().await.unwrap();
+    assert_eq!(rep.headers()["content-encoding"], "gzip");
+    // Photo retirée du plat : effacée du relais.
+    r.synchroniser(CLE, json!({ "menu": avec_photo("") })).await;
+    let rep = r.client.get(format!("{}{}", r.url.trim_end_matches("/api"), adresse)).send().await.unwrap();
+    assert_eq!(rep.status().as_u16(), 404);
+
+    // Relais mis à jour avec un ancien menu (photos intégrées) : converti à l'ouverture.
+    let dossier = tempfile::tempdir().unwrap();
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: FournisseurSms::Simulation, whatsapp: None };
+    drop(Etat::ouvrir(&config).unwrap());
+    rusqlite::Connection::open(dossier.path().join("youma-relais.db"))
+        .unwrap()
+        .execute("INSERT INTO etat(cle, valeur) VALUES ('menu', ?1)", [avec_photo(JPEG).to_string()])
+        .unwrap();
+    let etat = Etat::ouvrir(&config).unwrap();
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", ecoute.local_addr().unwrap());
+    tokio::spawn(youma_relais::servir(etat, None, ecoute));
+    let c = reqwest::Client::new();
+    c.post(format!("{url}/api/relais/synchroniser")).bearer_auth(CLE).json(&json!({})).send().await.unwrap();
+    let m: Value = c.get(format!("{url}/api/public/menu")).send().await.unwrap().json().await.unwrap();
+    let photo = m["produits"][0]["photo"].as_str().unwrap();
+    assert_eq!(photo, adresse, "même photo, même adresse");
+    assert_eq!(c.get(format!("{url}{photo}")).send().await.unwrap().status().as_u16(), 200);
+}
+
 /// Cloud multi-restaurants : résumés, SMS de clôture une seule fois, espace propriétaire, sauvegardes chiffrées.
 #[tokio::test]
 async fn cloud_resumes_proprietaire_et_sauvegardes() {

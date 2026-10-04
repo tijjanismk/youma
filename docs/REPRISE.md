@@ -53,6 +53,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Photos du menu en ligne servies à part** (fiche 0048) : le relais range chaque photo une fois et la sert avec un
+  cache d'un an ; menu et suivi compressés. Le menu ouvert 50 000 fois ne retélécharge plus les photos.
 - **Livreurs inscrits par le restaurant** (fiche 0047, RG-LIV-05) : PIN donné depuis la fiche du livreur ; connexion
   par téléphone + PIN dans Youma Livreur (ou page `/livreur` du relais) ; les courses assignées y apparaissent avec
   l'adresse et la position du client, sans lien à coller. Démonstration : Ibrahim, 76 55 44 33, PIN 6666.
