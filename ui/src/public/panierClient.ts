@@ -70,3 +70,33 @@ export function distanceMetres(a: [number, number], b: [number, number]): number
   const h = Math.sin(dlat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dlon / 2) ** 2;
   return Math.round(2 * r * Math.asin(Math.sqrt(h)));
 }
+
+/** Numéro malien à 8 chiffres, sans indicatif (comme `zones_risque::normaliser_telephone`). */
+export function normaliserTelephone(t: string): string {
+  let c = t.replace(/\D/g, "");
+  if (c.startsWith("00")) c = c.slice(2);
+  return c.length === 11 && c.startsWith("223") ? c.slice(3) : c;
+}
+
+export type ClientVerifie = { telephone: string; jeton: string };
+
+const cleClientVerifie = () => `youma.client-verifie.${baseApi()}`;
+
+/** Fiche 0046 : numéro vérifié une fois auprès de ce relais, gardé sur le téléphone du client. */
+export function lireClientVerifie(): ClientVerifie | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(cleClientVerifie()) ?? "null");
+    return v && typeof v.telephone === "string" && typeof v.jeton === "string" ? { telephone: v.telephone, jeton: v.jeton } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function retenirClientVerifie(v: ClientVerifie | null) {
+  try {
+    if (v) localStorage.setItem(cleClientVerifie(), JSON.stringify(v));
+    else localStorage.removeItem(cleClientVerifie());
+  } catch {
+    /* stockage indisponible : le client redonnera un code la prochaine fois */
+  }
+}

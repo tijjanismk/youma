@@ -33,7 +33,7 @@ cite. Ici : où chaque famille est appliquée. Chemins relatifs à `crates/youma
 | CAD 01–05 | cartes cadeaux / bons d'avoir : code (02), expiration (03), avoir avec motif + accord gérant (04), recrédit à l'annulation (05) | `cartes.rs:80,193,222,236` |
 | SOC 01–04 | contrats société : crédit autorisé (01), part plafonnée + employé nommé (02/03), relevé (04) | `contrats.rs:69,121,154`, `caisse.rs:457` |
 | VIP 01–03 | client privilégié (01), tête de file des entrantes (02), priorité cuisine des commandes à distance (03) ; tables : ordre d'arrivée | `fidelite.rs:187`, `entrantes.rs:556`, `commandes.rs:1017` |
-| CAN 01–07 | canaux QR / en ligne : QR inconnu (02), liste noire (03), paiement/plafond (05), modifications client (06), commande renvoyée une seule fois (07, fenêtre 5 min) | `entrantes.rs:126,230,320,368,458`, relais `youma-relais/src/lib.rs` |
+| CAN 01–08 | canaux QR / en ligne : QR inconnu (02), liste noire (03), numéro vérifié une fois par SMS ou WhatsApp (04, fiche 0046), paiement/plafond (05), modifications client (06), commande renvoyée une seule fois (07, fenêtre 5 min) | `entrantes.rs:126,230,320,368,458`, relais `youma-relais/src/lib.rs` |
 | ZON 01–03 | zones à risque (quartier et/ou cercle GPS) | `zones_risque.rs:86`, `entrantes.rs:206`, `commandes.rs:462` |
 | LIV 01–04 | livraison, remise du livreur (03), position pendant la course (04) | `livraison.rs:106`, `entrantes.rs:867` |
 | STK 01–07, REC 01–04 | stock (sortie à l'envoi, retour à l'annulation, inventaire), recettes et coût matière | `stock.rs:180,225,279,395`, `recettes.rs:38` |

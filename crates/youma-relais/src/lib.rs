@@ -32,7 +32,7 @@ use youma_core::zones_risque::normaliser_telephone;
 
 pub mod cloud;
 pub mod sms;
-pub use sms::{FournisseurSms, Orange};
+pub use sms::{FournisseurSms, Orange, WhatsApp};
 
 /// Au-delà, le poste central est considéré injoignable : le menu s'affiche « fermé ».
 pub const SILENCE_MAX_MS: i64 = 90_000;
@@ -50,6 +50,8 @@ pub struct Config {
     pub derriere_proxy: bool,
     /// Orange Mali, ou simulation tant que le contrat n'est pas signé.
     pub sms: FournisseurSms,
+    /// WhatsApp Cloud, second canal des codes au choix du client (fiche 0046).
+    pub whatsapp: Option<WhatsApp>,
 }
 
 #[derive(Clone)]
@@ -119,6 +121,8 @@ CREATE TABLE IF NOT EXISTS avis (code_suivi TEXT PRIMARY KEY, note INTEGER NOT N
     ms INTEGER NOT NULL, transmis INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS verifications (telephone TEXT PRIMARY KEY, empreinte TEXT NOT NULL, expire INTEGER NOT NULL,
     tentatives INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS clients_verifies (empreinte TEXT PRIMARY KEY, telephone TEXT NOT NULL, cree_le INTEGER NOT NULL,
+    utilise_le INTEGER NOT NULL);
 ";
 
 impl Etat {
@@ -131,7 +135,7 @@ impl Etat {
         Ok(Etat {
             db: Arc::new(Mutex::new(conn)),
             empreinte_cle: empreinte(&config.cle),
-            sms: Arc::new(sms::Envoyeur::new(config.sms.clone())),
+            sms: Arc::new(sms::Envoyeur::new(config.sms.clone(), config.whatsapp.clone())),
             limites: Arc::new(Mutex::new(HashMap::new())),
             derriere_proxy: config.derriere_proxy,
             dossier: config.dossier_donnees.clone(),
@@ -201,6 +205,7 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/etat", get(|State(e): State<Etat>| async move { Json(json!({ "relais": true, "sms": e.sms.nom() })) }))
         .route("/api/public/menu", get(menu))
         .route("/api/public/verification", post(verification))
+        .route("/api/public/verification/confirmer", post(confirmer))
         .route("/api/public/commandes", post(commande))
         .route("/api/public/suivi/{code}", get(suivi))
         .route("/api/public/commandes/{code}/modifier", post(modifier))
@@ -328,6 +333,7 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         // Ménage : commandes traitées de plus de 3 jours, codes SMS expirés.
         tx.execute("DELETE FROM commandes WHERE cree_le < ?1 AND resultat IS NOT NULL", [t - 3 * 86_400_000])?;
         tx.execute("DELETE FROM verifications WHERE expire < ?1", [t])?;
+        tx.execute("DELETE FROM clients_verifies WHERE utilise_le < ?1", [t - CLIENT_VERIFIE_MS])?;
         tx.commit()?;
         let commandes: Vec<Value> = a_transmettre.into_iter().filter_map(|(_, c)| serde_json::from_str(&c).ok()).collect();
         Ok((commandes, positions, modifications, avis, menu_empreinte))
@@ -356,20 +362,29 @@ async fn menu(State(e): State<Etat>, Query(q): Query<HashMap<String, String>>) -
     }
     let ouvert = m["ouvert"] == json!(true) && e.poste_joignable()?;
     m["ouvert"] = json!(ouvert);
+    m["canaux_verification"] = json!(e.sms.canaux());
     Ok(Json(m))
 }
 
 #[derive(Deserialize)]
 struct DemandeCode {
     telephone: String,
+    /// `sms` (par défaut) ou `whatsapp`, au choix du client (fiche 0046).
+    canal: Option<String>,
 }
 
-/// RG-CAN-04 : code à 4 chiffres envoyé par SMS, valable 10 minutes, 5 essais.
+/// Numéro vérifié une fois : reconnu pendant 180 jours après sa dernière commande (fiche 0046).
+pub const CLIENT_VERIFIE_MS: i64 = 180 * 86_400_000;
+
+/// RG-CAN-04 : code à 4 chiffres envoyé par SMS ou WhatsApp, valable 10 minutes, 5 essais.
 async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(d): Json<DemandeCode>) -> Rep {
     let config = e.lire("config")?.unwrap_or_default();
     if config["verification_numero"] != "sms" {
-        return Err(erreur(StatusCode::FORBIDDEN, "INTERDIT", "Vérification par SMS non activée"));
+        return Err(erreur(StatusCode::FORBIDDEN, "INTERDIT", "Vérification du numéro non activée"));
     }
+    let canal = sms::Canal::depuis(d.canal.as_deref())
+        .filter(|c| e.sms.canaux().contains(&c.nom()))
+        .ok_or_else(|| erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Moyen d'envoi du code non proposé"))?;
     let tel = normaliser_telephone(&d.telephone);
     if tel.len() != 8 {
         return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Numéro malien à 8 chiffres"));
@@ -380,10 +395,14 @@ async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<Socket
     }
     let code = format!("{:04}", rand::thread_rng().gen_range(0..10_000));
     let restaurant = e.lire("menu")?.and_then(|m| m["restaurant"].as_str().map(str::to_owned)).unwrap_or_default();
-    let message = format!("{restaurant} : votre code de commande est {code}");
-    if let Err(err) = e.sms.envoyer(&format!("+223{tel}"), &message).await {
-        tracing::warn!("SMS non envoyé : {err}");
-        return Err(erreur(StatusCode::BAD_GATEWAY, "SMS", "SMS non envoyé : réessayez ou appelez le restaurant"));
+    if let Err(err) = e.sms.envoyer_code(canal, &format!("+223{tel}"), &restaurant, &code).await {
+        tracing::warn!("code non envoyé : {err}");
+        let message = if canal == sms::Canal::WhatsApp {
+            "Message WhatsApp non envoyé : essayez par SMS ou appelez le restaurant"
+        } else {
+            "SMS non envoyé : réessayez ou appelez le restaurant"
+        };
+        return Err(erreur(StatusCode::BAD_GATEWAY, "SMS", message));
     }
     let h = hex(&empreinte(&format!("{tel}:{code}")));
     e.avec(|c| {
@@ -392,8 +411,8 @@ async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<Socket
             params![tel, h, maintenant() + 600_000],
         )
     })?;
-    // Simulation (pas encore de contrat Orange) : le code s'affiche sur la page du client.
-    if e.sms.simulation() {
+    // Simulation (pas encore de contrat Orange, WhatsApp non configuré) : le code s'affiche sur la page du client.
+    if e.sms.simule(canal) {
         return Ok(Json(json!({ "envoye": true, "simulation": true, "code": code })));
     }
     Ok(Json(json!({ "envoye": true })))
@@ -422,6 +441,45 @@ fn verifier_code(e: &Etat, tel: &str, code: &str) -> Result<bool, Echec> {
     })
 }
 
+#[derive(Deserialize)]
+struct Confirmation {
+    telephone: String,
+    code: String,
+}
+
+/// Fiche 0046 : le bon code donne un jeton au téléphone du client ; ses commandes suivantes n'ont plus besoin de
+/// code. Seule l'empreinte du jeton est gardée.
+async fn confirmer(State(e): State<Etat>, Json(d): Json<Confirmation>) -> Rep {
+    let tel = normaliser_telephone(&d.telephone);
+    if !verifier_code(&e, &tel, &d.code)? {
+        return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Code incorrect ou expiré"));
+    }
+    let jeton = code_aleatoire(32);
+    let t = maintenant();
+    e.avec(|c| {
+        c.execute(
+            "INSERT INTO clients_verifies(empreinte, telephone, cree_le, utilise_le) VALUES (?1, ?2, ?3, ?3)",
+            params![hex(&empreinte(&jeton)), tel, t],
+        )
+    })?;
+    Ok(Json(json!({ "telephone": tel, "jeton_client": jeton })))
+}
+
+/// Jeton valable pour ce numéro : sa date d'usage est prolongée.
+fn client_verifie(e: &Etat, tel: &str, jeton: &str) -> Result<bool, Echec> {
+    if jeton.is_empty() || tel.is_empty() {
+        return Ok(false);
+    }
+    let t = maintenant();
+    e.avec(|c| {
+        let n = c.execute(
+            "UPDATE clients_verifies SET utilise_le = ?3 WHERE empreinte = ?1 AND telephone = ?2 AND utilise_le >= ?4",
+            params![hex(&empreinte(jeton)), tel, t, t - CLIENT_VERIFIE_MS],
+        )?;
+        Ok(n == 1)
+    })
+}
+
 /// Commande en ligne : gardée jusqu'à ce que le poste central la reprenne. Le client reçoit tout de suite
 /// son code de suivi ; le poste décide (prix, zones à risque, liste noire, file de validation).
 async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(mut c): Json<Value>) -> Rep {
@@ -442,9 +500,10 @@ async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr
     let config = e.lire("config")?.unwrap_or_default();
     let tel = normaliser_telephone(c["telephone"].as_str().unwrap_or(""));
     let verifie = if config["verification_numero"] == "sms" {
+        let jeton = c["jeton_client"].as_str().unwrap_or("").to_string();
         let code = c["code_verification"].as_str().unwrap_or("").to_string();
-        if !verifier_code(&e, &tel, &code)? {
-            return Ok(refus("Code SMS incorrect ou expiré"));
+        if !client_verifie(&e, &tel, &jeton)? && !verifier_code(&e, &tel, &code)? {
+            return Ok(refus(if jeton.is_empty() { "Code incorrect ou expiré" } else { "Numéro à vérifier de nouveau" }));
         }
         true
     } else {
@@ -477,6 +536,7 @@ async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr
     let code_suivi = code_aleatoire(8);
     let o = c.as_object_mut().ok_or_else(|| erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Commande invalide"))?;
     o.remove("code_verification");
+    o.remove("jeton_client");
     o.insert("origine_id".into(), json!(origine));
     o.insert("code_suivi".into(), json!(code_suivi));
     o.insert("telephone_verifie".into(), json!(verifie));

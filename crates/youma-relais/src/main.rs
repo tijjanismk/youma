@@ -5,6 +5,8 @@
 //! La clé peut aussi venir de la variable d'environnement `YOUMA_RELAIS_CLE`.
 //! SMS Orange Mali : `YOUMA_ORANGE_CLIENT_ID`, `YOUMA_ORANGE_CLIENT_SECRET`, `YOUMA_ORANGE_EXPEDITEUR` (+223…),
 //! `YOUMA_ORANGE_NOM_EXPEDITEUR` (facultatif). Sans eux : simulation (code affiché au client).
+//! WhatsApp (facultatif, fiche 0046) : `YOUMA_WHATSAPP_JETON`, `YOUMA_WHATSAPP_NUMERO_ID`, `YOUMA_WHATSAPP_MODELE`
+//! (`youma_code`), `YOUMA_WHATSAPP_LANGUE` (`fr`).
 
 use std::path::PathBuf;
 
@@ -44,8 +46,9 @@ async fn main() {
         dossier_ui: arg(&args, "--ui").map(PathBuf::from).or_else(|| Some(PathBuf::from("ui/dist")).filter(|p| p.exists())),
         derriere_proxy: args.iter().any(|a| a == "--derriere-proxy"),
         sms: youma_relais::FournisseurSms::depuis_environnement(),
+        whatsapp: youma_relais::WhatsApp::depuis_environnement(),
     };
-    tracing::info!("SMS : {}", config.sms.nom());
+    tracing::info!("SMS : {} ; WhatsApp : {}", config.sms.nom(), if config.whatsapp.is_some() { "configuré" } else { "non configuré" });
     if let Err(e) = youma_relais::demarrer(config).await {
         eprintln!("Erreur : {e}");
         std::process::exit(1);

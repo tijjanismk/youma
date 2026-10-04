@@ -140,6 +140,8 @@ export type MenuPublic = {
   paiement_avance: boolean;
   paiement_a_la_livraison: boolean;
   verification_numero: string;
+  /** Relais : moyens d'envoi du code proposés au client (`sms`, `whatsapp`, fiche 0046). */
+  canaux_verification?: string[];
   operateurs: string[];
   quartiers: { nom: string; frais: number }[];
   /** Frais d'un quartier absent de la liste (fiche 0045). */
@@ -265,6 +267,8 @@ export type Commande = {
   livraison_repere: string | null;
   livraison_telephone: string | null;
   livraison_frais: number;
+  livraison_lat: number | null;
+  livraison_lon: number | null;
   livreur_id: string | null;
   note: string;
   cree_le: number;
