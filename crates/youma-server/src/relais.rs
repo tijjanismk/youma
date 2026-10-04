@@ -68,6 +68,8 @@ async fn synchroniser(etat: &Etat, client: &reqwest::Client, resultats: &mut Vec
                 "menu_empreinte": empreinte,
                 "config": { "verification_numero": c.verification_numero },
                 "suivis": entrantes::suivis_recents(db.conn(), db.maintenant() - 24 * 3_600_000)?,
+                // RG-LIV-05 : livreurs ayant l'accès à l'application et leurs courses (fiche 0047).
+                "livreurs": youma_core::livraison::livreurs_relais(db.conn())?,
                 "resultats": envoyes,
             });
             Ok(Some((format!("{}/api/relais/synchroniser", c.relais_url.trim().trim_end_matches('/')), c.relais_cle, corps)))

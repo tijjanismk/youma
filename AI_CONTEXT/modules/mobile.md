@@ -15,3 +15,4 @@ Rôle : coquilles Capacitor 8 (Android + iOS) autour de l'interface compilée av
 - [CONFIRMÉ] Sur le web `APPLI` est nul : `baseApi()` renvoie "" et rien ne change — `ui/src/appli.ts`.
 - [CONFIRMÉ] Adresse du relais toujours en https — `adresseRelais` (test `logique.test.ts`).
 - [DÉDUIT] Pas d'outils Android dans l'environnement de développement (dl.google.com bloqué) : la CI est le seul banc de construction.
+- Youma Livreur : connexion téléphone + PIN donné par le restaurant, courses assignées listées (`ui/src/public/MesCourses.tsx`, aussi page `/livreur` du relais, fiche 0047).

@@ -35,7 +35,7 @@ cite. Ici : où chaque famille est appliquée. Chemins relatifs à `crates/youma
 | VIP 01–03 | client privilégié (01), tête de file des entrantes (02), priorité cuisine des commandes à distance (03) ; tables : ordre d'arrivée | `fidelite.rs:187`, `entrantes.rs:556`, `commandes.rs:1017` |
 | CAN 01–08 | canaux QR / en ligne : QR inconnu (02), liste noire (03), numéro vérifié une fois par SMS ou WhatsApp (04, fiche 0046), paiement/plafond (05), modifications client (06), commande renvoyée une seule fois (07, fenêtre 5 min) | `entrantes.rs:126,230,320,368,458`, relais `youma-relais/src/lib.rs` |
 | ZON 01–03 | zones à risque (quartier et/ou cercle GPS) | `zones_risque.rs:86`, `entrantes.rs:206`, `commandes.rs:462` |
-| LIV 01–04 | livraison, remise du livreur (03), position pendant la course (04) | `livraison.rs:106`, `entrantes.rs:867` |
+| LIV 01–05 | livraison, remise du livreur (03), position pendant la course (04), accès du livreur par téléphone + PIN et courses publiées au relais (05, fiche 0047) | `livraison.rs` (`livreurs_relais`), `employes.rs::definir_pin_livreur`, `entrantes.rs:867`, relais `connexion_livreur` |
 | STK 01–07, REC 01–04 | stock (sortie à l'envoi, retour à l'annulation, inventaire), recettes et coût matière | `stock.rs:180,225,279,395`, `recettes.rs:38` |
 | ACH 01–05, CON 01–06 | achats (marché par défaut), consignes d'emballages | `achats.rs:88–209`, `consignes.rs` |
 | EMP 01–07, PAI 01–09 | employés, présences, avances, paie | `employes.rs`, `paie.rs:88,155,240,386` |

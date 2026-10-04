@@ -1,4 +1,4 @@
-import { Phone } from "lucide-react";
+import { Bike, Phone } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { get, post } from "../api";
@@ -87,17 +87,20 @@ export default function FicheEmploye() {
           ))}
         </div>
       </div>
+      {peut("employe.gerer") && (e.fonction === "livreur" || e.acces_livreur) && <AccesLivreur employe={e} fait={recharger} />}
       <div className="carte">
         <h2>Compte de l'employé</h2>
         <TableauDonnees
           colonnes={["Date", "Mouvement", "Détail", "Montant", "Solde"]}
-          lignes={[...donnees.releve].reverse().map((l) => [
-            dateFr(l.date),
-            t(l.type),
-            `${l.quantite ? `${l.quantite} × ` : ""}${l.motif}`,
-            <Montant valeur={l.montant} />,
-            <Montant valeur={l.solde} />,
-          ])}
+          lignes={[...donnees.releve]
+            .reverse()
+            .map((l) => [
+              dateFr(l.date),
+              t(l.type),
+              `${l.quantite ? `${l.quantite} × ` : ""}${l.motif}`,
+              <Montant valeur={l.montant} />,
+              <Montant valeur={l.solde} />,
+            ])}
         />
       </div>
       {mode === "modifier" && <FormulaireEmploye initial={e} fermer={() => setMode("")} fait={recharger} />}
@@ -108,6 +111,47 @@ export default function FicheEmploye() {
           <BulletinImprimable b={bulletin} />
         </Modal>
       )}
+    </div>
+  );
+}
+
+/**
+ * RG-LIV-05 (fiche 0047) : le livreur se connecte à l'application Youma Livreur avec son téléphone et ce PIN, et y
+ * voit les courses qu'on lui assigne. Le PIN n'est jamais réaffiché : on en donne un nouveau s'il l'oublie.
+ */
+function AccesLivreur({ employe, fait }: { employe: Employe; fait: () => void }) {
+  const { agir } = useApp();
+  const [pin, setPin] = useState("");
+  const valide = /^\d{4,6}$/.test(pin);
+  const envoyer = (p: string | null, message: string) =>
+    agir((x) => post(`/employes/${employe.id}/acces-livreur`, { pin: p }, x), message).then((r) => {
+      if (r !== undefined) {
+        setPin("");
+        fait();
+      }
+    });
+  return (
+    <div className="carte">
+      <h2>
+        <Bike size={20} className="icone-texte" aria-hidden /> Application Youma Livreur
+      </h2>
+      {employe.acces_livreur ? (
+        <p>
+          Accès donné : il se connecte avec <strong>{employe.telephone}</strong> et son PIN, puis voit les courses qui lui sont assignées.
+        </p>
+      ) : (
+        <p className="aide">
+          Donnez-lui un PIN : il se connectera avec son téléphone ({employe.telephone || "à indiquer d'abord sur sa fiche"}) et verra ses courses sans lien à
+          coller.
+        </p>
+      )}
+      <div className="grille-2">
+        <Champ libelle={employe.acces_livreur ? "Nouveau PIN (4 à 6 chiffres)" : "PIN du livreur (4 à 6 chiffres)"} valeur={pin} changer={setPin} type="tel" />
+        <button className="principal" disabled={!valide} onClick={() => envoyer(pin, "PIN du livreur enregistré")}>
+          {employe.acces_livreur ? "Changer le PIN" : "Donner l'accès"}
+        </button>
+      </div>
+      {employe.acces_livreur && <button onClick={() => envoyer(null, "Accès retiré")}>Retirer l'accès</button>}
     </div>
   );
 }
@@ -190,9 +234,10 @@ function EvenementModal({ employe, fermer, fait }: { employe: Employe; fermer: (
         <button
           className="principal"
           onClick={() =>
-            agir((pin) => post("/employes/evenement", { employe_id: employe.id, type, montant, quantite: type === "tache" ? quantite : null, motif }, pin), "Enregistré").then(
-              (r) => r !== undefined && (fait(), fermer()),
-            )
+            agir(
+              (pin) => post("/employes/evenement", { employe_id: employe.id, type, montant, quantite: type === "tache" ? quantite : null, motif }, pin),
+              "Enregistré",
+            ).then((r) => r !== undefined && (fait(), fermer()))
           }
         >
           Enregistrer

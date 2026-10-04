@@ -121,6 +121,10 @@ CREATE TABLE IF NOT EXISTS avis (code_suivi TEXT PRIMARY KEY, note INTEGER NOT N
     ms INTEGER NOT NULL, transmis INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS verifications (telephone TEXT PRIMARY KEY, empreinte TEXT NOT NULL, expire INTEGER NOT NULL,
     tentatives INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS livreurs (telephone TEXT PRIMARY KEY, nom TEXT NOT NULL, pin_hash TEXT NOT NULL,
+    courses TEXT NOT NULL, maj INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions_livreurs (empreinte TEXT PRIMARY KEY, telephone TEXT NOT NULL, pin_hash TEXT NOT NULL,
+    expire INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS clients_verifies (empreinte TEXT PRIMARY KEY, telephone TEXT NOT NULL, cree_le INTEGER NOT NULL,
     utilise_le INTEGER NOT NULL);
 ";
@@ -211,6 +215,8 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/public/commandes/{code}/modifier", post(modifier))
         .route("/api/public/position/{code}", post(position))
         .route("/api/public/avis/{code}", post(avis))
+        .route("/api/public/livreur/connexion", post(connexion_livreur))
+        .route("/api/public/livreur/courses", get(courses_livreur))
         .merge(cloud::routes())
         // Le relais ne sert que les pages du client et du livreur, jamais l'application du personnel.
         .route("/", get(|| async { Redirect::temporary("/menu") }));
@@ -256,6 +262,18 @@ struct Synchronisation {
     suivis: Vec<SuiviPublie>,
     #[serde(default)]
     resultats: Vec<Resultat>,
+    /// RG-LIV-05 : livreurs ayant l'accès à l'application et leurs courses. Absent (poste ancien) : rien ne change.
+    #[serde(default)]
+    livreurs: Option<Vec<LivreurPublie>>,
+}
+
+#[derive(Deserialize)]
+struct LivreurPublie {
+    telephone: String,
+    nom: String,
+    pin_hash: String,
+    #[serde(default)]
+    courses: Vec<Value>,
 }
 
 #[derive(Deserialize)]
@@ -299,6 +317,15 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
                 params![p.code_suivi, p.code_livreur, p.suivi.to_string(), t],
             )?;
         }
+        if let Some(livreurs) = &s.livreurs {
+            tx.execute("DELETE FROM livreurs", [])?;
+            for l in livreurs {
+                tx.execute(
+                    "INSERT OR REPLACE INTO livreurs(telephone, nom, pin_hash, courses, maj) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![normaliser_telephone(&l.telephone), l.nom, l.pin_hash, json!(l.courses).to_string(), t],
+                )?;
+            }
+        }
         for r in &s.resultats {
             tx.execute("UPDATE commandes SET resultat = ?1 WHERE origine_id = ?2", params![r.reponse.to_string(), r.origine_id])?;
         }
@@ -334,6 +361,7 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         tx.execute("DELETE FROM commandes WHERE cree_le < ?1 AND resultat IS NOT NULL", [t - 3 * 86_400_000])?;
         tx.execute("DELETE FROM verifications WHERE expire < ?1", [t])?;
         tx.execute("DELETE FROM clients_verifies WHERE utilise_le < ?1", [t - CLIENT_VERIFIE_MS])?;
+        tx.execute("DELETE FROM sessions_livreurs WHERE expire < ?1", [t])?;
         tx.commit()?;
         let commandes: Vec<Value> = a_transmettre.into_iter().filter_map(|(_, c)| serde_json::from_str(&c).ok()).collect();
         Ok((commandes, positions, modifications, avis, menu_empreinte))
@@ -553,6 +581,69 @@ async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr
         "code_suivi": code_suivi,
         "total": 0,
     })))
+}
+
+// ───────────── Livreur (RG-LIV-05, fiche 0047) ─────────────
+
+/// Session de l'application Youma Livreur : 30 jours.
+pub const SESSION_LIVREUR_MS: i64 = 30 * 86_400_000;
+
+#[derive(Deserialize)]
+struct ConnexionLivreur {
+    telephone: String,
+    pin: String,
+}
+
+/// RG-LIV-05 : téléphone + PIN donné par le restaurant. 5 essais en 15 minutes par numéro, 20 par adresse.
+async fn connexion_livreur(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(c): Json<ConnexionLivreur>) -> Rep {
+    let tel = normaliser_telephone(&c.telephone);
+    let adresse = e.adresse(&entetes, ip);
+    if !e.limiter(&format!("livreur-ip:{adresse}"), 20, 15 * 60_000) || !e.limiter(&format!("livreur-tel:{tel}"), 5, 15 * 60_000) {
+        return Err(erreur(StatusCode::TOO_MANY_REQUESTS, "TROP_DE_DEMANDES", "Trop d'essais : réessayez dans 15 minutes"));
+    }
+    let livreur: Option<(String, String)> =
+        e.avec(|x| x.query_row("SELECT nom, pin_hash FROM livreurs WHERE telephone = ?1", [&tel], |r| Ok((r.get(0)?, r.get(1)?))).optional())?;
+    let pin = c.pin.trim().to_string();
+    let ok = match &livreur {
+        Some((_, h)) => {
+            let h = h.clone();
+            tokio::task::spawn_blocking(move || youma_core::auth::verifier(&pin, &h)).await.map_err(interne)?
+        }
+        None => false,
+    };
+    let Some((nom, pin_hash)) = livreur.filter(|_| ok) else {
+        return Err(erreur(StatusCode::UNAUTHORIZED, "NON_AUTHENTIFIE", "Téléphone ou PIN incorrect"));
+    };
+    let jeton = youma_core::auth::nouveau_jeton();
+    e.avec(|x| {
+        x.execute(
+            "INSERT INTO sessions_livreurs(empreinte, telephone, pin_hash, expire) VALUES (?1, ?2, ?3, ?4)",
+            params![hex(&empreinte(&jeton)), tel, pin_hash, maintenant() + SESSION_LIVREUR_MS],
+        )
+    })?;
+    let restaurant = e.lire("menu")?.and_then(|m| m["restaurant"].as_str().map(str::to_owned)).unwrap_or_default();
+    Ok(Json(json!({ "jeton": jeton, "nom": nom, "restaurant": restaurant })))
+}
+
+/// Courses en cours du livreur connecté. Un PIN changé ou un accès retiré sur le poste ferme ses sessions.
+async fn courses_livreur(State(e): State<Etat>, entetes: HeaderMap) -> Rep {
+    let jeton = entetes.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or("");
+    let h = hex(&empreinte(jeton));
+    let trouve: Option<(String, String)> = e.avec(|x| {
+        x.query_row(
+            "SELECT l.nom, l.courses FROM sessions_livreurs s JOIN livreurs l ON l.telephone = s.telephone AND l.pin_hash = s.pin_hash
+             WHERE s.empreinte = ?1 AND s.expire > ?2",
+            params![h, maintenant()],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+    })?;
+    let Some((nom, courses)) = trouve.filter(|_| !jeton.is_empty()) else {
+        e.avec(|x| x.execute("DELETE FROM sessions_livreurs WHERE empreinte = ?1", [&h]))?;
+        return Err(erreur(StatusCode::UNAUTHORIZED, "NON_AUTHENTIFIE", "Session expirée : reconnectez-vous"));
+    };
+    let courses: Value = serde_json::from_str(&courses).unwrap_or_else(|_| json!([]));
+    Ok(Json(json!({ "nom": nom, "courses": courses })))
 }
 
 const ESSAIS_MAX: usize = 15;

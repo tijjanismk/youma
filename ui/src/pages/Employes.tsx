@@ -34,6 +34,7 @@ export const EMPLOYE_VIDE: Employe = {
   date_depart: null,
   notes: "",
   solde: 0,
+  acces_livreur: false,
 };
 
 export function libelleMontant(type: string) {
@@ -66,7 +67,12 @@ export function FormulaireEmploye({ initial, fermer, fait }: { initial: Employe;
       <div className="grille-2">
         <Champ libelle="Nom" valeur={e.nom} changer={(v) => maj("nom", v)} obligatoire autoFocus />
         <Champ libelle="Surnom (comme on l'appelle)" valeur={e.surnom} changer={(v) => maj("surnom", v)} />
-        <Choix libelle="Fonction" valeur={e.fonction} changer={(v) => maj("fonction", v)} options={(refs?.fonctions ?? [e.fonction]).map((f) => ({ valeur: f, libelle: f }))} />
+        <Choix
+          libelle="Fonction"
+          valeur={e.fonction}
+          changer={(v) => maj("fonction", v)}
+          options={(refs?.fonctions ?? [e.fonction]).map((f) => ({ valeur: f, libelle: f }))}
+        />
         <Choix
           libelle="Rémunération"
           valeur={e.type_remuneration}
@@ -101,7 +107,11 @@ export function FormulaireEmploye({ initial, fermer, fait }: { initial: Employe;
             <Champ libelle="Personne à prévenir" valeur={e.contact_urgence} changer={(v) => maj("contact_urgence", v)} />
             <Champ libelle="Horaires" valeur={e.horaires} changer={(v) => maj("horaires", v)} placeholder="18 h – 2 h, repos lundi" />
             <Champ libelle="Avantages en nature" valeur={e.avantages_nature} changer={(v) => maj("avantages_nature", v)} placeholder="Nourri le midi, logé…" />
-            <ChampMontant libelle="Plafond d'avance propre (vide = règle générale)" valeur={e.plafond_avance ?? 0} changer={(v) => maj("plafond_avance", v || null)} />
+            <ChampMontant
+              libelle="Plafond d'avance propre (vide = règle générale)"
+              valeur={e.plafond_avance ?? 0}
+              changer={(v) => maj("plafond_avance", v || null)}
+            />
           </div>
           <h3>Déclarations sociales (facultatif)</h3>
           <p className="aide">Les cotisations ne sont prélevées que si elles sont activées dans l'administration ET cochées ici.</p>
@@ -130,7 +140,11 @@ export function FormulaireEmploye({ initial, fermer, fait }: { initial: Employe;
       )}
       <div className="actions">
         <button onClick={fermer}>Annuler</button>
-        <button className="principal" disabled={!ok} onClick={() => agir((pin) => post("/employes", e, pin), "Employé enregistré").then((r) => r !== undefined && (fait(), fermer()))}>
+        <button
+          className="principal"
+          disabled={!ok}
+          onClick={() => agir((pin) => post("/employes", e, pin), "Employé enregistré").then((r) => r !== undefined && (fait(), fermer()))}
+        >
           Enregistrer
         </button>
       </div>
@@ -155,10 +169,7 @@ export default function Employes() {
         )}
       </div>
       <Onglets
-        onglets={[
-          { cle: "liste", libelle: "Liste" },
-          ...(peut("employe.presence") ? [{ cle: "pointage" as const, libelle: "Présences du jour" }] : []),
-        ]}
+        onglets={[{ cle: "liste", libelle: "Liste" }, ...(peut("employe.presence") ? [{ cle: "pointage" as const, libelle: "Présences du jour" }] : [])]}
         actif={onglet}
         changer={setOnglet}
       />
@@ -196,7 +207,15 @@ function Pointage({ employes }: { employes: Employe[] }) {
   const statut = (id: string) => donnees?.find((p) => p.employe_id === id)?.statut;
   const pointer = (employe_id: string, s: string) => agir((pin) => post("/presences", [{ employe_id, date, statut: s }], pin)).then(recharger);
   const tousPresents = () =>
-    agir((pin) => post("/presences", employes.filter((e) => !statut(e.id)).map((e) => ({ employe_id: e.id, date, statut: "present" })), pin), "Présences enregistrées").then(recharger);
+    agir(
+      (pin) =>
+        post(
+          "/presences",
+          employes.filter((e) => !statut(e.id)).map((e) => ({ employe_id: e.id, date, statut: "present" })),
+          pin,
+        ),
+      "Présences enregistrées",
+    ).then(recharger);
   return (
     <div className="carte">
       <div className="titre-ligne">

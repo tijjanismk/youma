@@ -1375,6 +1375,14 @@ span.raison-bloquee {
   font-weight: 600;
   text-decoration: none;
 }
+/* Course assignée au livreur connecté (fiche 0047). */
+.course-livreur {
+  border-top: 1px solid var(--bord);
+  padding: 12px 0;
+}
+.course-livreur h3 {
+  margin: 0 0 4px;
+}
 .liste-appli {
   list-style: none;
   margin: 0;

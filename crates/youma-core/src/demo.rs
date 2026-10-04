@@ -75,6 +75,7 @@ fn employe(nom: &str, fonction: &str, remuneration: &str, montant: i64, contrat:
         date_depart: None,
         notes: String::new(),
         solde: 0,
+        acces_livreur: false,
     }
 }
 
@@ -254,7 +255,11 @@ pub fn remplir(db: &mut Db) -> Resultat<Demo> {
     db.conn().execute("UPDATE utilisateurs SET employe_id = ?1 WHERE id = ?2", params![awa_id, serveur])?;
     employes::enregistrer(db, &sys, &employe("Moussa Coulibaly", "grilleur", "journalier", 3_000, "aucun"))?;
     employes::enregistrer(db, &sys, &employe("Fanta Diarra", "plongeur", "journalier", 2_000, "aucun"))?;
-    employes::enregistrer(db, &sys, &employe("Ibrahim Keïta", "livreur", "tache", 500, "aucun"))?;
+    // Livreur avec l'accès à l'application Youma Livreur : 76 55 44 33, PIN 6666 (RG-LIV-05).
+    let mut ibrahim = employe("Ibrahim Keïta", "livreur", "tache", 500, "aucun");
+    ibrahim.telephone = "76 55 44 33".into();
+    let ibrahim_id = employes::enregistrer(db, &sys, &ibrahim)?;
+    employes::definir_pin_livreur(db, &sys, &ibrahim_id, Some("6666"))?;
     let mut adama = employe("Adama Sangaré", "gérant", "mensuel", 120_000, "cdi");
     adama.declare_inps = true;
     adama.affilie_amo = true;

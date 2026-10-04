@@ -71,6 +71,9 @@ pub struct Employe {
     /// Solde du compte employé (+ dû à l'employé, − dû par l'employé). Lecture seule.
     #[serde(default)]
     pub solde: i64,
+    /// RG-LIV-05 : PIN de l'application Youma Livreur défini. Lecture seule (`definir_pin_livreur`).
+    #[serde(default)]
+    pub acces_livreur: bool,
 }
 
 fn autre() -> String {
@@ -86,7 +89,7 @@ fn actif() -> String {
 const COLS: &str = "e.id, e.nom, e.surnom, e.telephone, e.fonction, e.date_embauche, e.type_remuneration, e.montant_base,
     e.type_contrat, e.date_fin_contrat, e.piece_identite, e.contact_urgence, e.quartier, e.declare_inps, e.numero_inps,
     e.affilie_amo, e.numero_amo, e.avantages_nature, e.plafond_avance, e.horaires, e.statut, e.date_depart, e.notes,
-    (SELECT COALESCE(SUM(m.montant), 0) FROM mouvements_employe m WHERE m.employe_id = e.id)";
+    (SELECT COALESCE(SUM(m.montant), 0) FROM mouvements_employe m WHERE m.employe_id = e.id), e.pin_livreur_hash IS NOT NULL";
 
 fn depuis(r: &rusqlite::Row) -> rusqlite::Result<Employe> {
     Ok(Employe {
@@ -114,6 +117,7 @@ fn depuis(r: &rusqlite::Row) -> rusqlite::Result<Employe> {
         date_depart: r.get(21)?,
         notes: r.get(22)?,
         solde: r.get(23)?,
+        acces_livreur: r.get(24)?,
     })
 }
 
@@ -558,4 +562,40 @@ pub fn releve(conn: &Connection, employe_id: &str) -> Resultat<Vec<LigneCompte>>
         })
         .collect();
     Ok(v)
+}
+
+/// RG-LIV-05 : accès à l'application Youma Livreur par le téléphone de l'employé et un PIN de 4 à 6 chiffres donné par
+/// le restaurant (fiche 0047). `None` retire l'accès. Le PIN n'est gardé que haché.
+pub fn definir_pin_livreur(db: &mut Db, acteur: &Acteur, employe_id: &str, pin: Option<&str>) -> Resultat<()> {
+    let hash = match pin.map(str::trim) {
+        Some(p) if (4..=6).contains(&p.len()) && p.chars().all(|c| c.is_ascii_digit()) => Some(crate::auth::hacher(p)?),
+        Some(_) => return Err(Erreur::validation("PIN de 4 à 6 chiffres")),
+        None => None,
+    };
+    db.executer(acteur, |op| {
+        op.exiger(perm::EMPLOYE_GERER)?;
+        let (telephone, statut): (String, String) =
+            trouver(op.query_row("SELECT telephone, statut FROM employes WHERE id = ?1", params![employe_id], |r| Ok((r.get(0)?, r.get(1)?))), "Employé")?;
+        if hash.is_some() {
+            let tel = crate::zones_risque::normaliser_telephone(&telephone);
+            if tel.len() != 8 {
+                return Err(Erreur::regle("RG-LIV-05", "Indiquez d'abord le téléphone du livreur (8 chiffres) sur sa fiche"));
+            }
+            if statut != "actif" {
+                return Err(Erreur::regle("RG-LIV-05", "Seul un employé actif peut avoir l'accès livreur"));
+            }
+            // Le relais reconnaît le livreur par son numéro : deux accès ne peuvent pas le partager.
+            let autres: Vec<String> = op
+                .prepare("SELECT telephone FROM employes WHERE id <> ?1 AND pin_livreur_hash IS NOT NULL")?
+                .query_map(params![employe_id], |r| r.get(0))?
+                .collect::<Result<_, _>>()?;
+            if autres.iter().any(|t| crate::zones_risque::normaliser_telephone(t) == tel) {
+                return Err(Erreur::regle("RG-LIV-05", "Un autre livreur a déjà l'accès avec ce téléphone"));
+            }
+        }
+        op.execute("UPDATE employes SET pin_livreur_hash = ?1, modifie_le = ?2 WHERE id = ?3", params![hash, op.maintenant, employe_id])?;
+        op.audit(if hash.is_some() { "livreur.acces" } else { "livreur.acces_retire" }, "employe", Some(employe_id), None, None, None, None)?;
+        op.evenement("employes", Some(employe_id));
+        Ok(())
+    })
 }

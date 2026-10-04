@@ -895,3 +895,21 @@ test("position du client : échec et imprécision expliqués sous la case, bouto
   await page.getByRole("button", { name: "Confirmer" }).click();
   await expect(c).toHaveCount(0);
 });
+
+test("accès du livreur à l'application : PIN donné depuis sa fiche (RG-LIV-05, fiche 0047)", async ({ page }) => {
+  await connexion(page, /Mariam/, "1234");
+  await page.goto("/employes");
+  await page.getByRole("link", { name: /Ibrahim Keïta/ }).click();
+  const carte = page.locator(".carte").filter({ hasText: "Application Youma Livreur" });
+  await expect(carte).toContainText("Accès donné : il se connecte avec 76 55 44 33");
+  await expect(carte.getByRole("button", { name: "Changer le PIN" })).toBeDisabled();
+  await carte.getByLabel("Nouveau PIN (4 à 6 chiffres)").fill("6666");
+  await carte.getByRole("button", { name: "Changer le PIN" }).click();
+  await expect(page.getByText("PIN du livreur enregistré")).toBeVisible();
+  // Page du relais pour le livreur (sur le poste, sans relais : la connexion échoue proprement).
+  const livreur = await page.context().browser()!.newPage();
+  await livreur.goto(page.url().replace(/\/employes.*/, "/livreur"));
+  await expect(livreur.getByRole("heading", { name: "Connexion du livreur" })).toBeVisible();
+  await expect(livreur.getByRole("button", { name: "Se connecter" })).toBeDisabled();
+  await livreur.close();
+});

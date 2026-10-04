@@ -403,6 +403,59 @@ fn rg_zon_02_cercle_gps_et_validation_par_responsable() {
     assert!(!entrantes::file(b.db.conn()).unwrap()[0].validation_responsable);
 }
 
+/// RG-LIV-05 (fiche 0047) : le livreur se connecte par son téléphone et le PIN donné par le restaurant ; ses courses
+/// sont publiées au relais avec l'adresse et la position du client.
+#[test]
+fn rg_liv_05_acces_livreur_et_courses_publiees() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let g = b.gerant();
+    let ibrahim = b.employe("Ibrahim Keïta");
+    // Base de démonstration : Ibrahim a l'accès (76 55 44 33, PIN 6666).
+    let l = livraison::livreurs_relais(b.db.conn()).unwrap();
+    assert_eq!(l.len(), 1);
+    assert_eq!(l[0].telephone, "76554433");
+    assert!(youma_core::auth::verifier("6666", &l[0].pin_hash));
+    assert!(l[0].courses.is_empty());
+    assert!(youma_core::employes::employe(b.db.conn(), &ibrahim).unwrap().acces_livreur);
+
+    // PIN invalide, employé sans téléphone, téléphone déjà pris : refusés.
+    assert!(youma_core::employes::definir_pin_livreur(&mut b.db, &g, &ibrahim, Some("12")).is_err());
+    let moussa = b.employe("Moussa Coulibaly");
+    let e = youma_core::employes::definir_pin_livreur(&mut b.db, &g, &moussa, Some("1234")).unwrap_err();
+    assert_eq!(e.regle_code(), Some("RG-LIV-05"));
+    let mut m = youma_core::employes::employe(b.db.conn(), &moussa).unwrap();
+    m.telephone = "+223 76 55 44 33".into();
+    youma_core::employes::enregistrer(&mut b.db, &g, &m).unwrap();
+    assert_eq!(youma_core::employes::definir_pin_livreur(&mut b.db, &g, &moussa, Some("1234")).unwrap_err().regle_code(), Some("RG-LIV-05"));
+    // Un serveur ne donne pas l'accès.
+    let s = b.serveur();
+    assert!(youma_core::employes::definir_pin_livreur(&mut b.db, &s, &ibrahim, None).is_err());
+
+    // Livraison saisie par téléphone, sans code : l'assignation crée les codes, la course est publiée.
+    let c = b.caissier();
+    let mut n = nouvelle_livraison("Hamdallaye", "76000009");
+    n.livraison.as_mut().unwrap().lat = Some(12_640_000);
+    n.livraison.as_mut().unwrap().lon = Some(-8_002_000);
+    let id = commandes::ouvrir(&mut b.db, &c, &n).unwrap();
+    let ligne = b.ligne("Brochettes (3)", 1);
+    commandes::ajouter_lignes(&mut b.db, &c, &id, &[ligne]).unwrap();
+    livraison::assigner(&mut b.db, &g, &id, &ibrahim).unwrap();
+    let l = livraison::livreurs_relais(b.db.conn()).unwrap();
+    let course = &l[0].courses[0];
+    assert_eq!(course.statut, "assignee");
+    assert_eq!((course.quartier.as_deref(), course.lat, course.lon), (Some("Hamdallaye"), Some(12_640_000), Some(-8_002_000)));
+    assert!(course.reste > 0);
+    let code_suivi: Option<String> = b.db.conn().query_row("SELECT code_suivi FROM commandes WHERE id = ?1", [&id], |r| r.get(0)).unwrap();
+    assert!(code_suivi.is_some(), "suivi publié au relais, nécessaire à la position du livreur");
+    assert_eq!(entrantes::suivis_recents(b.db.conn(), 0).unwrap().iter().filter(|s| s.code_livreur.as_deref() == Some(course.code_livreur.as_str())).count(), 1);
+    // Livrée : plus dans ses courses. Accès retiré : plus publié.
+    livraison::changer_statut(&mut b.db, &g, &id, "livree", "").unwrap();
+    assert!(livraison::livreurs_relais(b.db.conn()).unwrap()[0].courses.is_empty());
+    youma_core::employes::definir_pin_livreur(&mut b.db, &g, &ibrahim, None).unwrap();
+    assert!(livraison::livreurs_relais(b.db.conn()).unwrap().is_empty());
+}
+
 #[test]
 fn rg_liv_04_suivi_en_direct_et_position_du_livreur() {
     let mut b = banc();
