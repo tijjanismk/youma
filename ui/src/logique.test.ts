@@ -455,3 +455,16 @@ describe("relais partagé par plusieurs restaurants (fiche 0049)", () => {
     expect(cheminCourant()).toBe("/menu");
   });
 });
+
+describe("journée oubliée ouverte (RG-JOU-03)", async () => {
+  const { joursJourneeOuverte } = await import("./format");
+  const a = (iso: string) => new Date(iso).getTime();
+  it("pas d'alerte pour la journée du jour, ni celle d'hier avant midi", () => {
+    expect(joursJourneeOuverte("2026-10-04", a("2026-10-04T20:00:00"))).toBe(0);
+    expect(joursJourneeOuverte("2026-10-03", a("2026-10-04T01:30:00"))).toBe(0);
+  });
+  it("alerte au-delà", () => {
+    expect(joursJourneeOuverte("2026-10-03", a("2026-10-04T14:00:00"))).toBe(1);
+    expect(joursJourneeOuverte("2026-09-25", a("2026-10-04T09:00:00"))).toBe(9);
+  });
+});

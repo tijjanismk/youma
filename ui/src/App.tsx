@@ -5,7 +5,7 @@ import { definirJetonAppareil, get, post } from "./api";
 import { APPLI, cheminCourant } from "./appli";
 import { BandeauMiseAJour } from "./composants/Installation";
 import { Fournisseur, useApp } from "./contexte";
-import { dateFr, dateHeure } from "./format";
+import { dateFr, dateHeure, joursJourneeOuverte } from "./format";
 import Connexion from "./pages/Connexion";
 import { choisirTheme, lireTheme, Theme } from "./theme";
 import Installation from "./pages/Installation";
@@ -88,6 +88,20 @@ export default function App() {
   );
 }
 
+/** Journée d'exploitation oubliée ouverte : les ventes du jour y sont comptées tant qu'elle n'est pas clôturée. */
+function JourneeEnRetard() {
+  const { etat, session } = useApp();
+  if (!etat?.journee || !session) return null;
+  const jours = joursJourneeOuverte(etat.journee.date_exploitation, etat.horloge.maintenant);
+  if (jours === 0) return null;
+  return (
+    <div className="bandeau erreur" role="alert">
+      La journée du {dateFr(etat.journee.date_exploitation)} est toujours ouverte ({jours} jour{jours > 1 ? "s" : ""}) : les ventes d'aujourd'hui y sont
+      comptées. Clôturez-la depuis l'Accueil (« Clôturer la journée »), puis ouvrez la journée d'aujourd'hui.
+    </div>
+  );
+}
+
 function Bandeaux() {
   const { etat, enLigne, session, agir, rechargerEtat, peut } = useApp();
   return (
@@ -99,6 +113,7 @@ function Bandeaux() {
         </div>
       )}
       {etat?.demo && <div className="bandeau demo">BASE DE DÉMONSTRATION — aucune donnée réelle</div>}
+      <JourneeEnRetard />
       {etat && !etat.horloge.coherente && (
         <div className="bandeau erreur" role="alert">
           L'horloge du PC ({dateHeure(etat.horloge.maintenant)}) est antérieure au dernier enregistrement ({dateHeure(etat.horloge.dernier_evenement)}). Les
