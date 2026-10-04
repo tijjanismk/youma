@@ -573,6 +573,26 @@ async fn relais_internet_de_bout_en_bout() {
     assert_eq!(r.status().as_u16(), 200);
     let local = attendre(format!("{}/public/suivi/{code}", s.url), |v| !v["livreur"].is_null()).await;
     assert_eq!(local["livreur"][0], 12_640_000);
+
+    // RG-LIV-05 : le gérant donne un PIN au livreur ; le livreur se connecte sur le relais et voit sa course.
+    let (c, e) = s.post(&gerant, &format!("/employes/{}/acces-livreur", livreur.as_str().unwrap()), json!({ "pin": "4321" })).await;
+    assert_eq!(c, 200, "{e}");
+    let (c, _) = s.post(&caissier, &format!("/employes/{}/acces-livreur", livreur.as_str().unwrap()), json!({ "pin": null })).await;
+    assert_eq!(c, 403, "la caisse ne gère pas les accès");
+    let mut jeton = String::new();
+    // 5 essais par numéro au plus (RG-LIV-05) : on laisse au poste le temps de publier le nouveau PIN.
+    for _ in 0..5 {
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        let r = s.client.post(format!("{relais}/api/public/livreur/connexion")).json(&json!({ "telephone": "76554433", "pin": "4321" })).send().await.unwrap();
+        if r.status().as_u16() == 200 {
+            jeton = r.json::<Value>().await.unwrap()["jeton"].as_str().unwrap().to_string();
+            break;
+        }
+    }
+    assert!(!jeton.is_empty(), "nouveau PIN publié au relais");
+    let v: Value = s.client.get(format!("{relais}/api/public/livreur/courses")).bearer_auth(&jeton).send().await.unwrap().json().await.unwrap();
+    assert_eq!(v["courses"][0]["code_livreur"], livreur_code.as_str());
+    assert_eq!(v["courses"][0]["statut"], "en_route");
 }
 
 /// Cloud facultatif de bout en bout : résumé, sauvegarde chiffrée envoyée puis récupérée, espace propriétaire.

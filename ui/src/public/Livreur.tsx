@@ -4,6 +4,7 @@ import { heure, versMicro } from "../format";
 import { APPLI } from "../appli";
 import { Page } from "./MenuClient";
 import { messageErreurPosition, positionPossible } from "./position";
+import { lireSessions } from "./MesCourses";
 
 /**
  * Page du livreur (lien secret distinct du code du client) : envoie sa position pendant la course
@@ -120,6 +121,11 @@ export default function Livreur({ code }: { code: string }) {
         </>
       )}
       {message && <p className="erreur-texte">{message}</p>}
+      {!APPLI && lireSessions().some((s) => s.relais === "") && (
+        <p>
+          <a href="/livreur">Mes courses</a>
+        </p>
+      )}
     </Page>
   );
 }

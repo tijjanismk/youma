@@ -8,7 +8,7 @@ SQLite et sert l'interface web aux téléphones du Wi-Fi ; un **relais Internet 
 
 | Couche | Techno | Où |
 | --- | --- | --- |
-| Métier | Rust, rusqlite, migrations `PRAGMA user_version` 0001→0011 | `crates/youma-core` (≈ 12 000 l.) |
+| Métier | Rust, rusqlite, migrations `PRAGMA user_version` 0001→0013 | `crates/youma-core` (≈ 12 000 l.) |
 | Poste central | axum, WebSocket, TLS local, impression ESC/POS | `crates/youma-server` (164 routes dans `api.rs`) |
 | Relais Internet | axum + SQLite propre, SMS Orange, cloud multi-restaurants | `crates/youma-relais` |
 | Licences | Ed25519 hors ligne (outil fournisseur) | `crates/youma-licence` |

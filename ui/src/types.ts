@@ -382,6 +382,8 @@ export type Employe = {
   date_depart: string | null;
   notes: string;
   solde: number;
+  /** RG-LIV-05 : PIN de l'application Youma Livreur défini. */
+  acces_livreur: boolean;
 };
 
 export type Bulletin = {

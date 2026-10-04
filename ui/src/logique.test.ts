@@ -414,3 +414,16 @@ describe("numéro du client vérifié une fois (fiche 0046)", async () => {
     expect(lireClientVerifie()).toBeNull();
   });
 });
+
+describe("sessions du livreur (fiche 0047)", async () => {
+  const { lireSessions, oublierSession, retenirSession } = await import("./public/MesCourses");
+  beforeEach(() => localStorage.clear());
+  it("une session par restaurant, oubliée à la déconnexion", () => {
+    retenirSession({ relais: "https://a.ml", restaurant: "A", nom: "Ibrahim", jeton: "1" });
+    retenirSession({ relais: "https://b.ml", restaurant: "B", nom: "Ibrahim", jeton: "2" });
+    retenirSession({ relais: "https://a.ml", restaurant: "A", nom: "Ibrahim", jeton: "3" });
+    expect(lireSessions().map((s) => s.jeton)).toEqual(["3", "2"]);
+    oublierSession("https://b.ml");
+    expect(lireSessions().map((s) => s.relais)).toEqual(["https://a.ml"]);
+  });
+});

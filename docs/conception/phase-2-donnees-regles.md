@@ -234,6 +234,11 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-LIV-04** Suivi en direct : la position du livreur (microdegrés entiers, ajout seul) n'est acceptée que
   pendant la course (livraison assignée ou en route) et avec le lien secret du livreur, distinct du code de
   suivi du client. Le client ne voit la position que pendant la course.
+* **RG-LIV-05** Accès à l'application Youma Livreur : le restaurant inscrit lui-même ses livreurs (employés actifs) avec
+  leur téléphone et un PIN de 4 à 6 chiffres, gardé haché ; un téléphone pour un seul livreur. Le livreur connecté voit
+  les courses qui lui sont assignées (adresse, téléphone et position du client, reste à encaisser), sans lien à
+  coller. 5 essais de connexion en 15 minutes par numéro ; un PIN changé ou un accès retiré ferme ses sessions
+  (fiche 0047).
 
 ### Fidélité, cartes cadeaux, sociétés, privilèges (FID, CAD, SOC, VIP) — fiche 0039
 

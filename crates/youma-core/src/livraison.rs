@@ -44,6 +44,11 @@ pub fn assigner(db: &mut Db, acteur: &Acteur, commande_id: &str, livreur_id: &st
             "UPDATE commandes SET livreur_id = ?1, livraison_statut = 'assignee', modifie_le = ?2 WHERE id = ?3",
             params![livreur_id, op.maintenant, commande_id],
         )?;
+        // RG-LIV-05 : la course apparaît dans l'application du livreur ; il lui faut son code (et le suivi publié).
+        op.execute(
+            "UPDATE commandes SET code_suivi = COALESCE(code_suivi, ?1), code_livreur = COALESCE(code_livreur, ?2) WHERE id = ?3",
+            params![crate::entrantes::code_aleatoire(8), crate::entrantes::code_aleatoire(12), commande_id],
+        )?;
         op.audit("livraison.assigner", "commande", Some(commande_id), None, Some(json!({ "livreur": livreur_id })), None, None)?;
         op.evenement("livraison", Some(commande_id));
         Ok(())
@@ -175,4 +180,72 @@ pub fn positions_en_cours(conn: &Connection, journee_id: &str) -> Resultat<Vec<P
         })?
         .collect::<Result<_, _>>()?;
     Ok(lignes)
+}
+
+/// Course d'un livreur, publiée au relais pour l'application Youma Livreur (RG-LIV-05, fiche 0047).
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct CourseLivreur {
+    pub code_livreur: String,
+    pub numero: i64,
+    pub statut: String,
+    pub client_nom: String,
+    pub telephone: Option<String>,
+    pub quartier: Option<String>,
+    pub repere: Option<String>,
+    pub lat: Option<i64>,
+    pub lon: Option<i64>,
+    /// Reste à encaisser auprès du client.
+    pub reste: i64,
+}
+
+/// Livreur ayant l'accès à l'application : le relais vérifie son PIN (empreinte Argon2) et lui montre ses courses.
+#[derive(Debug, Serialize)]
+pub struct LivreurRelais {
+    pub employe_id: String,
+    pub nom: String,
+    pub telephone: String,
+    pub pin_hash: String,
+    pub courses: Vec<CourseLivreur>,
+}
+
+pub fn livreurs_relais(conn: &Connection) -> Resultat<Vec<LivreurRelais>> {
+    let livreurs: Vec<(String, String, String, String)> = conn
+        .prepare("SELECT id, nom, telephone, pin_livreur_hash FROM employes WHERE pin_livreur_hash IS NOT NULL AND statut = 'actif' ORDER BY nom")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        .collect::<Result<_, _>>()?;
+    let mut s = conn.prepare_cached(
+        "SELECT c.id, c.code_livreur, c.numero, c.livraison_statut, COALESCE(cl.nom, c.client_nom_saisi, ''), c.livraison_telephone,
+                c.livraison_quartier, c.livraison_repere, c.livraison_lat, c.livraison_lon
+         FROM commandes c LEFT JOIN clients cl ON cl.id = c.client_id
+         WHERE c.livreur_id = ?1 AND c.code_livreur IS NOT NULL AND c.livraison_statut IN ('assignee', 'en_route') ORDER BY c.cree_le",
+    )?;
+    let mut v = Vec::with_capacity(livreurs.len());
+    for (id, nom, telephone, pin_hash) in livreurs {
+        let lignes: Vec<(String, CourseLivreur)> = s
+            .query_map(params![id], |r| {
+                Ok((
+                    r.get(0)?,
+                    CourseLivreur {
+                        code_livreur: r.get(1)?,
+                        numero: r.get(2)?,
+                        statut: r.get(3)?,
+                        client_nom: r.get(4)?,
+                        telephone: r.get(5)?,
+                        quartier: r.get(6)?,
+                        repere: r.get(7)?,
+                        lat: r.get(8)?,
+                        lon: r.get(9)?,
+                        reste: 0,
+                    },
+                ))
+            })?
+            .collect::<Result<_, _>>()?;
+        let mut courses = Vec::with_capacity(lignes.len());
+        for (commande_id, mut c) in lignes {
+            c.reste = commandes::totaux(conn, &commande_id)?.reste;
+            courses.push(c);
+        }
+        v.push(LivreurRelais { employe_id: id, nom, telephone: crate::zones_risque::normaliser_telephone(&telephone), pin_hash, courses });
+    }
+    Ok(v)
 }

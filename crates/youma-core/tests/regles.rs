@@ -777,7 +777,7 @@ fn migration_0010_garde_les_paiements() {
              DROP TABLE contrats_societe;
              ALTER TABLE clients DROP COLUMN vip; ALTER TABLE clients DROP COLUMN vip_jusqu_au;
              ALTER TABLE utilisateurs DROP COLUMN echecs_autorisation; ALTER TABLE utilisateurs DROP COLUMN premier_echec_autorisation;
-             ALTER TABLE utilisateurs DROP COLUMN autorisation_bloquee_jusqu_a;
+             ALTER TABLE utilisateurs DROP COLUMN autorisation_bloquee_jusqu_a; ALTER TABLE employes DROP COLUMN pin_livreur_hash;
              DROP INDEX IF EXISTS idx_parts_paiement; DROP INDEX IF EXISTS idx_parts_reference_mm; DROP INDEX IF EXISTS idx_parts_contrat;
              PRAGMA user_version = 9;",
         )
@@ -785,7 +785,7 @@ fn migration_0010_garde_les_paiements() {
     }
     let db = Db::ouvrir(&chemin, h).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 12);
+    assert_eq!(v, 13);
     let n: i64 = db.conn().query_row("SELECT COUNT(*) FROM parts_paiement WHERE moyen = 'especes' AND montant = 2000", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 1, "le paiement d'avant la migration est conservé");
     let fk: i64 = db.conn().pragma_query_value(None, "foreign_keys", |r| r.get(0)).unwrap();
@@ -814,7 +814,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 12);
+    assert_eq!(v, 13);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);

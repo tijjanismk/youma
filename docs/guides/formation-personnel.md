@@ -41,6 +41,11 @@ Sur téléphone, la commande est en bas : **Voir la commande (n)**.
 **Emporter ou livraison** : Salle → **+ Emporter / livraison**, puis comme à table. En livraison, choisir le
 quartier et noter le téléphone du client.
 
+**Livreurs** (gérant) : sur la fiche du livreur (Employés), **Application Youma Livreur** → taper un PIN → **Donner
+l'accès**. Le livreur se connecte avec son téléphone et ce PIN ; quand on lui assigne une course (Livraisons →
+**Livreur**), elle apparaît sur son téléphone avec l'adresse et la position du client. PIN oublié : en donner un
+nouveau. Livreur parti : **Retirer l'accès**.
+
 **Erreurs fréquentes**
 - Un article **pas encore envoyé** : le retirer avec **−** ou taper 0.
 - Un article **déjà envoyé** : le toucher → annuler, donner le **motif** ; le **PIN du gérant** est demandé.

@@ -325,6 +325,53 @@ async fn whatsapp_propose_seulement_s_il_est_configure() {
     assert_eq!(v["code"].as_str().unwrap().len(), 4);
 }
 
+/// RG-LIV-05 (fiche 0047) : le livreur se connecte par téléphone + PIN et voit ses courses publiées par le poste.
+#[tokio::test]
+async fn livreur_connecte_voit_ses_courses() {
+    let r = relais().await;
+    let hash = youma_core::auth::hacher("6666").unwrap();
+    let course = json!({ "code_livreur": "LIVREURCODE1", "numero": 12, "statut": "assignee", "client_nom": "Awa", "telephone": "76000001",
+                         "quartier": "Hamdallaye", "repere": "École", "lat": 12_640_000, "lon": -8_000_000, "reste": 2500 });
+    let livreurs = json!([{ "employe_id": "e1", "nom": "Ibrahim", "telephone": "76554433", "pin_hash": hash, "courses": [course] }]);
+    r.synchroniser(CLE, json!({ "menu": menu(), "livreurs": livreurs })).await;
+
+    let connexion = |tel: &str, pin: &str| json!({ "telephone": tel, "pin": pin });
+    assert_eq!(r.post("/public/livreur/connexion", connexion("76554433", "0000")).await.0, 401);
+    assert_eq!(r.post("/public/livreur/connexion", connexion("76000000", "6666")).await.0, 401);
+    let (code, v) = r.post("/public/livreur/connexion", connexion("+223 76 55 44 33", "6666")).await;
+    assert_eq!(code, 200, "{v}");
+    assert_eq!(v["nom"], "Ibrahim");
+    assert_eq!(v["restaurant"], "Maquis Le Baobab");
+    let jeton = v["jeton"].as_str().unwrap().to_string();
+
+    let courses = |j: String| {
+        let c = r.client.clone();
+        let url = format!("{}/public/livreur/courses", r.url);
+        async move {
+            let rep = c.get(url).bearer_auth(j).send().await.unwrap();
+            (rep.status().as_u16(), rep.json::<Value>().await.unwrap_or(Value::Null))
+        }
+    };
+    assert_eq!(courses("faux".into()).await.0, 401);
+    let (code, v) = courses(jeton.clone()).await;
+    assert_eq!(code, 200, "{v}");
+    assert_eq!(v["courses"][0]["code_livreur"], "LIVREURCODE1");
+    assert_eq!(v["courses"][0]["quartier"], "Hamdallaye");
+
+    // Poste ancien (sans « livreurs ») : rien ne change.
+    r.synchroniser(CLE, json!({ "menu": menu() })).await;
+    assert_eq!(courses(jeton.clone()).await.0, 200);
+    // PIN changé sur le poste : la session se ferme.
+    let autre = json!([{ "employe_id": "e1", "nom": "Ibrahim", "telephone": "76554433", "pin_hash": youma_core::auth::hacher("7777").unwrap(), "courses": [] }]);
+    r.synchroniser(CLE, json!({ "menu": menu(), "livreurs": autre })).await;
+    assert_eq!(courses(jeton).await.0, 401);
+    // 5 essais par numéro en 15 minutes, réussis compris (2 déjà faits sur ce numéro) : le 6e est refusé, même juste.
+    for pin in ["1111", "2222", "3333"] {
+        assert_eq!(r.post("/public/livreur/connexion", connexion("76554433", pin)).await.0, 401);
+    }
+    assert_eq!(r.post("/public/livreur/connexion", connexion("76554433", "7777")).await.0, 429);
+}
+
 /// Cloud multi-restaurants : résumés, SMS de clôture une seule fois, espace propriétaire, sauvegardes chiffrées.
 #[tokio::test]
 async fn cloud_resumes_proprietaire_et_sauvegardes() {

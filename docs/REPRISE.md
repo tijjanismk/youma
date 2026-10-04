@@ -53,10 +53,13 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Livreurs inscrits par le restaurant** (fiche 0047, RG-LIV-05) : PIN donné depuis la fiche du livreur ; connexion
+  par téléphone + PIN dans Youma Livreur (ou page `/livreur` du relais) ; les courses assignées y apparaissent avec
+  l'adresse et la position du client, sans lien à coller. Démonstration : Ibrahim, 76 55 44 33, PIN 6666.
 - **Position du client et numéro vérifié une fois** (fiche 0046) : la position partagée par le client est vue par le
   restaurant (commandes reçues, fiche de la commande) et le livreur ; code reçu par SMS ou WhatsApp au choix du client,
   demandé une seule fois par numéro (jeton gardé par son téléphone). Reste : compte Meta Business et modèle WhatsApp
-  validé pour les vrais messages ; étape suivante : connexion des livreurs par téléphone + PIN donné par le restaurant.
+  validé pour les vrais messages.
 - **Commande en ligne** (fiche 0045) : le formulaire dit ce qui manque pour envoyer ; « Autre quartier » aux frais de
   livraison par défaut (1 000 F, Administration → Restaurant et règles).
 - **Papier de 50 mm** (28 caractères, fiche 0044) : titres en gros caractères et lignes longues coupées aux mots.

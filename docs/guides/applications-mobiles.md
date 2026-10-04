@@ -28,9 +28,11 @@ exécution → **Artifacts** : `youma-client-android` et `youma-livreur-android`
 3. Ouvrir l'application :
    - **Client** : coller le lien de commande en ligne du restaurant (`https://…/menu`). Le restaurant est gardé
      dans « Mes restaurants ».
-   - **Livreur** : coller le lien « livreur » de la course, ou toucher **« ouvrir dans l'application »** sur la
-     page web du lien. À la première course, accepter la position (**« Toujours autoriser »** si Android le
-     propose) et les notifications.
+   - **Livreur** : se connecter avec l'**adresse du restaurant** (celle du menu en ligne, `https://…`), son
+     **téléphone** et le **PIN** donné par le restaurant (fiche du livreur → Application Youma Livreur, fiche 0047).
+     Ses courses apparaissent toutes seules : **Démarrer la course**. Sans accès, on peut encore coller le lien
+     « livreur » d'une course. À la première course, accepter la position (**« Toujours autoriser »** si Android
+     le propose) et les notifications. Sur iPhone ou sans l'application : page `https://…/livreur` du relais.
 
 Le Play Store reste possible plus tard (compte développeur Google : 25 $ une fois).
 

@@ -35,6 +35,7 @@ const Entrantes = lazy(() => import("./pages/Entrantes"));
 const MenuClient = lazy(() => import("./public/MenuClient"));
 const SuiviClient = lazy(() => import("./public/Suivi"));
 const Livreur = lazy(() => import("./public/Livreur"));
+const EspaceLivreur = lazy(() => import("./public/EspaceLivreur"));
 const Proprietaire = lazy(() => import("./public/Proprietaire"));
 // Applications Android « Youma Client » et « Youma Livreur » (fiche 0041).
 const Appli = lazy(() => import("./appli/Appli"));
@@ -52,6 +53,7 @@ function PagePublique() {
       {chemin.startsWith("/menu") && <MenuClient />}
       {chemin.startsWith("/suivi/") && <SuiviClient code={code} />}
       {chemin.startsWith("/livreur/") && <Livreur code={code} />}
+      {chemin === "/livreur" && <EspaceLivreur />}
       {chemin.startsWith("/proprietaire") && <Proprietaire />}
     </Suspense>
   );
@@ -59,7 +61,12 @@ function PagePublique() {
 
 export function estPagePublique(chemin: string) {
   return (
-    chemin === "/menu" || chemin.startsWith("/menu/") || chemin.startsWith("/suivi/") || chemin.startsWith("/livreur/") || chemin.startsWith("/proprietaire")
+    chemin === "/menu" ||
+    chemin.startsWith("/menu/") ||
+    chemin.startsWith("/suivi/") ||
+    chemin === "/livreur" ||
+    chemin.startsWith("/livreur/") ||
+    chemin.startsWith("/proprietaire")
   );
 }
 

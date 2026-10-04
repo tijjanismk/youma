@@ -194,6 +194,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/employes", get(employes_lister).post(employe_enregistrer))
         .route("/employes/references", get(employes_references))
         .route("/employes/{id}", get(employe_detail))
+        .route("/employes/{id}/acces-livreur", post(employe_acces_livreur))
         .route("/employes/avance", post(employe_avance))
         .route("/employes/evenement", post(employe_evenement))
         .route("/presences", get(presences).post(presences_pointer))
@@ -985,6 +986,16 @@ async fn employes_references(_a: Auth) -> Rep<Value> {
 
 async fn employe_enregistrer(State(e): State<Etat>, a: Auth, Json(x): Json<employes::Employe>) -> Rep<String> {
     ecrire!(e, a, |db| employes::enregistrer(db, &a, &x))
+}
+
+#[derive(Deserialize)]
+struct AccesLivreur {
+    /// PIN de 4 à 6 chiffres ; absent : accès retiré (RG-LIV-05).
+    pin: Option<String>,
+}
+
+async fn employe_acces_livreur(State(e): State<Etat>, a: Auth, Path(id): Path<String>, Json(x): Json<AccesLivreur>) -> Rep<()> {
+    ecrire!(e, a, |db| employes::definir_pin_livreur(db, &a, &id, x.pin.as_deref()))
 }
 
 async fn employe_detail(State(e): State<Etat>, a: Auth, Path(id): Path<String>) -> Rep<Value> {

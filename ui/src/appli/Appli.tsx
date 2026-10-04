@@ -17,6 +17,7 @@ import {
 import { dateHeure } from "../format";
 import { Page } from "../public/MenuClient";
 import { codesSuivis } from "../public/panierClient";
+import MesCourses from "../public/MesCourses";
 import type { MenuPublic } from "../types";
 
 const MenuClient = lazy(() => import("../public/MenuClient"));
@@ -199,9 +200,10 @@ function AccueilLivreur() {
   const [courses, setCourses] = useState<Course[]>(lireCourses);
   return (
     <Page titre="Youma Livreur" sousTitre="Votre position est envoyée au client pendant la course, même écran verrouillé">
+      <MesCourses />
       {courses.length > 0 && (
         <section className="carte">
-          <h2>Mes courses</h2>
+          <h2>Courses reçues par lien</h2>
           <ul className="liste-appli">
             {courses.map((c) => (
               <li key={c.code}>
@@ -230,8 +232,8 @@ function AccueilLivreur() {
         </section>
       )}
       <AjoutLien
-        libelle="Nouvelle course"
-        aide="Collez le lien « livreur » envoyé par le restaurant, ou touchez « Ouvrir dans l'application » sur la page du lien."
+        libelle="Course reçue par lien"
+        aide="Sans connexion, collez le lien « livreur » envoyé par le restaurant, ou touchez « Ouvrir dans l'application » sur la page du lien."
       />
     </Page>
   );

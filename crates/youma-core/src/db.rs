@@ -25,6 +25,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (10, include_str!("../migrations/0010_fidelite_cartes_contrats_vip.sql")),
     (11, include_str!("../migrations/0011_verrou_autorisation.sql")),
     (12, include_str!("../migrations/0012_avis_clients.sql")),
+    (13, include_str!("../migrations/0013_acces_livreurs.sql")),
 ];
 
 /// Migration qui reconstruit une table référencée : clés étrangères coupées le temps de la migration (procédure
