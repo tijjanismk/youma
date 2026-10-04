@@ -46,7 +46,7 @@ licence à coller dans « Code de licence ». Une licence expirée **ne bloque j
 Administration (mot de passe d'administration demandé) :
 
 - **Restaurant et règles** : ville, adresse, téléphone, pied de ticket ; heure de bascule de la journée ;
-  quartiers de livraison et leurs frais ; **largeur du papier** (58 mm = 32 caractères, 80 mm = 42 ou 48).
+  quartiers de livraison et leurs frais ; **largeur du papier** (50 mm = 28 caractères, 58 mm = 32, 80 mm = 42 ou 48).
 - **Produits** : catégories, plats, prix, photos (prises avec un téléphone, facultatives).
 - **Salle et tables**, **Utilisateurs** (un PIN par employé), **Moyens de paiement** (Orange Money, Moov, Wave…).
 
@@ -75,7 +75,7 @@ le bip. La page indique la largeur du papier, l'interface (USB, Ethernet) et, po
    choisir une adresse fixe hors de la plage distribuée par la box, par exemple `192.168.1.50`.
 3. Destination : `tcp:ADRESSE:9100` (par exemple `tcp:192.168.1.50:9100`).
 
-**Largeur du papier** (Administration → Restaurant et règles) : 58 mm → **32** caractères ; 80 mm → **48**
+**Largeur du papier** (Administration → Restaurant et règles) : 50 mm → **28** caractères ; 58 mm → **32** caractères ; 80 mm → **48**
 (ou **42** si les lignes débordent).
 
 **Où la déclarer**
@@ -135,7 +135,7 @@ Avec le propriétaire et le caissier, une fois :
 | Accents en idéogrammes ou en « ? » | Refaire la page d'autotest et envoyer la photo au fournisseur avec le modèle exact (page de code à ajuster). |
 | Xprinter réseau introuvable | Adresse de l'autotest dans le même réseau que la caisse (`192.168.1.x`) ; câble branché sur la box. |
 | Le tiroir ne s'ouvre pas | Tiroir branché sur la prise RJ11 de l'imprimante de caisse (pas sur la caisse) ; case « Ouvrir le tiroir-caisse » cochée. |
-| Traits coupés sur deux lignes | Largeur du papier trop grande : passer à 32 (58 mm) ou 42. |
+| Traits coupés sur deux lignes | Largeur du papier trop grande : passer à 28 (50 mm), 32 (58 mm) ou 42. |
 | Rien ne s'imprime | Le ticket est gardé et réessayé ; vérifier papier, câble, nom exact `windows:…` ou adresse `tcp:…`. |
 | « L'horloge du PC est antérieure… » | Corriger la date et l'heure de Windows. |
 | Mot de passe d'administration oublié | Propriétaire : se connecter avec son PIN, « Mot de passe oublié ? » dans la fenêtre du mot de passe, puis le code de secours ; sans lui, « Code perdu : appeler le fournisseur » (le fournisseur signe le code de demande : `youma-licence secours`). Gérant ou autre : le propriétaire lui redéfinit son mot de passe (Administration → Utilisateurs). |

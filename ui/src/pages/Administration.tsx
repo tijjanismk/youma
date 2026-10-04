@@ -844,10 +844,11 @@ function RestaurantAdmin() {
           valeur={String(params.largeur_ticket)}
           changer={(v) => setParams({ ...params, largeur_ticket: Number(v) })}
           options={[
+            { valeur: "28", libelle: "50 mm (28 caractères)" },
             { valeur: "32", libelle: "58 mm (32 caractères)" },
             { valeur: "42", libelle: "80 mm (42 caractères)" },
             { valeur: "48", libelle: "80 mm (48 caractères)" },
-            ...([32, 42, 48].includes(params.largeur_ticket)
+            ...([28, 32, 42, 48].includes(params.largeur_ticket)
               ? []
               : [{ valeur: String(params.largeur_ticket), libelle: `${params.largeur_ticket} caractères` }]),
           ]}

@@ -29,11 +29,11 @@ pub struct TicketEnvoi {
 pub fn rendu_envoi(t: &TicketEnvoi, largeur: usize, fuseau_minutes: i64) -> String {
     let mut s = String::new();
     if t.annulation {
-        s.push_str("##*** ANNULATION ***\n");
+        s.push_str(&double("*** ANNULATION ***", largeur));
     }
     let heure = format_ms(t.heure + fuseau_minutes * 60_000);
     let heure = heure.split(' ').nth(1).unwrap_or(&heure);
-    s.push_str(&format!("##{}\n", t.titre));
+    s.push_str(&double(&t.titre, largeur));
     if t.numero_envoi > 0 {
         s.push_str(&format!("**Envoi n°{} — {}\n", t.numero_envoi, heure));
     } else {
@@ -44,7 +44,7 @@ pub fn rendu_envoi(t: &TicketEnvoi, largeur: usize, fuseau_minutes: i64) -> Stri
     }
     s.push_str(&trait_ticket(largeur));
     for l in &t.lignes {
-        s.push_str(&format!("##{} × {}\n", l.quantite, l.libelle));
+        s.push_str(&double(&format!("{} × {}", l.quantite, l.libelle), largeur));
         for o in &l.options {
             s.push_str(&format!("   + {o}\n"));
         }
@@ -56,6 +56,22 @@ pub fn rendu_envoi(t: &TicketEnvoi, largeur: usize, fuseau_minutes: i64) -> Stri
     }
     s.push_str(&trait_ticket(largeur));
     s
+}
+
+/// Texte en gros caractères (« ## », double largeur) coupé aux mots pour tenir sur le papier : 28 caractères en 50 mm,
+/// 32 en 58 mm, 42 ou 48 en 80 mm, soit moitié moins en gros caractères.
+pub fn double(texte: &str, largeur: usize) -> String {
+    couper(texte, (largeur / 2).max(8)).into_iter().map(|l| format!("##{l}\n")).collect()
+}
+
+/// Texte centré (« >> ») coupé aux mots à la largeur du papier.
+pub fn centre(texte: &str, largeur: usize) -> String {
+    couper(texte, largeur.max(16)).into_iter().map(|l| format!(">>{l}\n")).collect()
+}
+
+/// Texte en gras (« ** ») coupé aux mots à la largeur du papier.
+pub fn gras(texte: &str, largeur: usize) -> String {
+    couper(texte, largeur.max(16)).into_iter().map(|l| format!("**{l}\n")).collect()
 }
 
 pub fn couper(texte: &str, largeur: usize) -> Vec<String> {
@@ -101,7 +117,7 @@ pub fn fcfa(montant: i64) -> String {
     format!("{signe}{out}")
 }
 
-/// Trait de séparation à la largeur du ticket (32 caractères en 58 mm, 42 ou 48 en 80 mm).
+/// Trait de séparation à la largeur du ticket (28 caractères en 50 mm, 32 en 58 mm, 42 ou 48 en 80 mm, fiche 0044).
 pub fn trait_ticket(largeur: usize) -> String {
     format!("{}\n", "-".repeat(largeur.max(2)))
 }
@@ -333,12 +349,12 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
             Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
         })?;
     let c = crate::commandes::detail(conn, commande_id)?;
-    let mut s = format!("##{nom}\n");
+    let mut s = double(&nom, w);
     if !adresse.is_empty() {
-        s.push_str(&format!(">>{adresse}\n"));
+        s.push_str(&centre(&adresse, w));
     }
     if !tel.is_empty() {
-        s.push_str(&format!(">>Tél. {tel}\n"));
+        s.push_str(&centre(&format!("Tél. {tel}"), w));
     }
     s.push_str(&trait_ticket(w));
     let titre = match &c.table_nom {
@@ -349,7 +365,7 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
     if payee {
         s.push_str(">>TICKET DE CAISSE\n");
     }
-    s.push_str(&format!("**Ticket n°{} — {titre}\n", c.numero));
+    s.push_str(&gras(&format!("Ticket n°{} — {titre}", c.numero), w));
     s.push_str(&format!("{}\n", format_ms(c.cree_le + p.fuseau_minutes * 60_000)));
     if let Some(serv) = &c.serveur_nom {
         s.push_str(&format!("Servi par : {serv}\n"));
@@ -399,12 +415,12 @@ pub fn ticket_client(conn: &Connection, commande_id: &str) -> Resultat<String> {
     // Fiche 0012 : le ticket payé sert de bon de sortie (RG-SOR-01/02).
     if payee {
         s.push_str(&trait_ticket(w));
-        s.push_str(&format!("##BON DE SORTIE n°{}\n", c.numero));
-        s.push_str(&format!("**PAYÉ — Code de contrôle : {}\n", crate::sortie::code_controle(conn, commande_id)?));
-        s.push_str(">>Présentez ce ticket à la sortie\n");
+        s.push_str(&double(&format!("BON DE SORTIE n°{}", c.numero), w));
+        s.push_str(&gras(&format!("PAYÉ — Code de contrôle : {}", crate::sortie::code_controle(conn, commande_id)?), w));
+        s.push_str(&centre("Présentez ce ticket à la sortie", w));
     }
     s.push_str(&trait_ticket(w));
-    s.push_str(&format!(">>{pied}\n"));
+    s.push_str(&centre(&pied, w));
     Ok(s)
 }
 

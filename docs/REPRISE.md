@@ -53,6 +53,7 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Papier de 50 mm** (28 caractères, fiche 0044) : titres en gros caractères et lignes longues coupées aux mots.
 - **Avis des clients et commandes non honorées** (fiche 0043) : note 1 à 5 depuis le suivi, mécontents à rappeler
   (Clients → Avis, tableau de bord), rapports « Avis clients » et « Non honorées » ; sauvegardes exportées et restaurées
   par nom seulement, via le second emplacement (C4).
