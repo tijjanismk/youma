@@ -1,3 +1,4 @@
+import { baseApi } from "../appli";
 import { useApp } from "../contexte";
 import type { Categorie } from "../types";
 import { IconeCategorie } from "./IconeCategorie";
@@ -11,12 +12,20 @@ export function teinte(couleur: string, alpha = 0.16): string {
 }
 
 /**
+ * Adresse de la photo : le relais sert les photos à part (`/api/public/photos/…`, fiche 0048), à préfixer par
+ * l'adresse du relais dans les applications ; sur le poste, la photo reste une URL `data:`.
+ */
+export function srcPhoto(photo: string): string {
+  return photo.startsWith("/api/") ? `${baseApi()}${photo}` : photo;
+}
+
+/**
  * Visuel du plat : la photo entière (jamais rognée, quelle que soit sa forme) dans un cadre arrondi ;
  * sans photo, l'icône dessinée de sa catégorie sur un cercle teinté (lisible hors ligne).
  */
 export function VisuelPlat({ photo, categorie, petit }: { photo?: string | null; categorie?: Pick<Categorie, "icone" | "couleur">; petit?: boolean }) {
   const classe = `visuel-plat ${petit ? "petit" : ""}`;
-  if (photo) return <img className={`${classe} photo`} src={photo} alt="" loading="lazy" />;
+  if (photo) return <img className={`${classe} photo`} src={srcPhoto(photo)} alt="" loading="lazy" decoding="async" />;
   return (
     <span className={classe} style={{ background: teinte(categorie?.couleur ?? "") }} aria-hidden>
       <IconeCategorie icone={categorie?.icone} taille="0.85em" />

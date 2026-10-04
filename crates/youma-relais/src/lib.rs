@@ -21,6 +21,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use base64::Engine;
 use rand::Rng;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Deserialize;
@@ -121,6 +122,7 @@ CREATE TABLE IF NOT EXISTS avis (code_suivi TEXT PRIMARY KEY, note INTEGER NOT N
     ms INTEGER NOT NULL, transmis INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS verifications (telephone TEXT PRIMARY KEY, empreinte TEXT NOT NULL, expire INTEGER NOT NULL,
     tentatives INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS photos (empreinte TEXT PRIMARY KEY, type TEXT NOT NULL, octets BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS livreurs (telephone TEXT PRIMARY KEY, nom TEXT NOT NULL, pin_hash TEXT NOT NULL,
     courses TEXT NOT NULL, maj INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions_livreurs (empreinte TEXT PRIMARY KEY, telephone TEXT NOT NULL, pin_hash TEXT NOT NULL,
@@ -136,6 +138,14 @@ impl Etat {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.execute_batch(SCHEMA)?;
         conn.execute_batch(cloud::SCHEMA)?;
+        // Relais mis à jour : un menu déjà reçu avec ses photos intégrées est converti (fiche 0048).
+        let ancien: Option<String> = conn.query_row("SELECT valeur FROM etat WHERE cle = 'menu'", [], |r| r.get(0)).optional()?;
+        if let Some(mut m) = ancien.filter(|v| v.contains("\"data:")).and_then(|v| serde_json::from_str::<Value>(&v).ok()) {
+            let tx = conn.unchecked_transaction()?;
+            ranger_photos(&tx, &mut m)?;
+            tx.execute("UPDATE etat SET valeur = ?1 WHERE cle = 'menu'", [m.to_string()])?;
+            tx.commit()?;
+        }
         Ok(Etat {
             db: Arc::new(Mutex::new(conn)),
             empreinte_cle: empreinte(&config.cle),
@@ -215,6 +225,7 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/public/commandes/{code}/modifier", post(modifier))
         .route("/api/public/position/{code}", post(position))
         .route("/api/public/avis/{code}", post(avis))
+        .route("/api/public/photos/{empreinte}", get(photo))
         .route("/api/public/livreur/connexion", post(connexion_livreur))
         .route("/api/public/livreur/courses", get(courses_livreur))
         .merge(cloud::routes())
@@ -224,7 +235,8 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         let index = ui.join("index.html");
         app = app.fallback_service(ServeDir::new(ui).fallback(ServeFile::new(index)));
     }
-    app.with_state(etat)
+    // Réponses compressées (gzip) pour les téléphones en 3G : menu, suivi, courses (fiche 0048).
+    app.layer(tower_http::compression::CompressionLayer::new()).with_state(etat)
 }
 
 pub async fn servir(etat: Etat, ui: Option<PathBuf>, ecoute: tokio::net::TcpListener) -> std::io::Result<()> {
@@ -299,7 +311,9 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         let tx = c.unchecked_transaction()?;
         let mut valeurs = vec![("config", s.config.clone()), ("dernier_contact", json!(t))];
         if let Some(m) = &s.menu {
-            valeurs.push(("menu", m.clone()));
+            let mut m = m.clone();
+            ranger_photos(&tx, &mut m)?;
+            valeurs.push(("menu", m));
             valeurs.push(("menu_empreinte", json!(s.menu_empreinte)));
         }
         for (cle, v) in valeurs {
@@ -374,6 +388,49 @@ async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<S
         "sms": e.sms.nom(),
         "menu_empreinte": menu_empreinte,
     })))
+}
+
+// ───────────── Photos du menu (fiche 0048) ─────────────
+
+/// Photo servie un an sans être redemandée : son adresse change avec son contenu.
+const CACHE_PHOTO: &str = "public, max-age=31536000, immutable";
+
+/// Sort les photos (`data:image/…;base64,…`) des plats du menu : chacune est gardée une fois, à part, et le menu
+/// ne porte plus que son adresse `/api/public/photos/<empreinte>`. 50 000 ouvertures du menu ne retéléchargent
+/// plus les photos : le téléphone les garde en cache. Les photos qui ne servent plus sont effacées.
+fn ranger_photos(tx: &Connection, menu: &mut Value) -> rusqlite::Result<()> {
+    let mut gardees = Vec::new();
+    for p in menu["produits"].as_array_mut().into_iter().flatten() {
+        let Some(photo) = p["photo"].as_str().map(str::to_owned) else { continue };
+        if let Some(h) = photo.strip_prefix("/api/public/photos/") {
+            gardees.push(h.to_string());
+            continue;
+        }
+        let Some((type_, donnees)) = photo.strip_prefix("data:").and_then(|r| r.split_once(";base64,")) else { continue };
+        let Ok(octets) = base64::engine::general_purpose::STANDARD.decode(donnees.trim()) else {
+            p["photo"] = json!("");
+            continue;
+        };
+        let h = hex(&empreinte(&photo))[..32].to_string();
+        tx.execute("INSERT OR IGNORE INTO photos(empreinte, type, octets) VALUES (?1, ?2, ?3)", params![h, type_, octets])?;
+        p["photo"] = json!(format!("/api/public/photos/{h}"));
+        gardees.push(h);
+    }
+    let liste = json!(gardees).to_string();
+    tx.execute("DELETE FROM photos WHERE empreinte NOT IN (SELECT value FROM json_each(?1))", [liste])?;
+    Ok(())
+}
+
+async fn photo(State(e): State<Etat>, Path(h): Path<String>) -> Response {
+    let trouvee: Result<Option<(String, Vec<u8>)>, Echec> =
+        e.avec(|c| c.query_row("SELECT type, octets FROM photos WHERE empreinte = ?1", [&h], |r| Ok((r.get(0)?, r.get(1)?))).optional());
+    match trouvee {
+        Ok(Some((type_, octets))) if type_.starts_with("image/") => {
+            ([(axum::http::header::CONTENT_TYPE, type_), (axum::http::header::CACHE_CONTROL, CACHE_PHOTO.to_string())], octets).into_response()
+        }
+        Ok(_) => erreur(StatusCode::NOT_FOUND, "NON_TROUVE", "Photo introuvable").into_response(),
+        Err(e) => e.into_response(),
+    }
 }
 
 // ───────────── Client ─────────────
