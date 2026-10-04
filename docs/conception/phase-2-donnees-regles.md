@@ -74,6 +74,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-CAT-03** Prix par zone : si la zone de la table a un prix pour le produit, il s'applique ; sinon le prix de base.
 * **RG-CAT-04** Groupe d'options : le nombre d'options choisies doit respecter `min`/`max`.
 * **RG-CAT-05** Un produit indisponible (rupture du jour) ne peut pas être ajouté à une commande.
+* **RG-CAT-08** Une rupture vaut pour la journée : à l'ouverture d'une **nouvelle** journée, tous les produits actifs
+  redeviennent disponibles (journalisé `produit.ruptures_levees`). Rouvrir la journée du même jour ne les lève pas.
 * **RG-CAT-06** Un produit « revendu » doit être lié à un article de stock ; sans article choisi, l'article est créé avec
   lui (même nom, famille = catégorie, coût de départ = coût d'achat estimé), puis chaque achat met son coût à jour (fiche 0036).
 * **RG-CAT-07** Menu du jour : un produit « plat du jour » n'est proposé (personnel, QR, en ligne) que s'il est coché pour la

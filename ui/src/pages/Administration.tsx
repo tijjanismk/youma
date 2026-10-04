@@ -199,6 +199,7 @@ function CatalogueAdmin() {
         </button>
         <button onClick={() => setCsv("categorie;nom;prix;poste\n")}>Importer (Excel → CSV)</button>
       </div>
+      <p className="aide">Décocher « Disponible » met un produit en rupture pour la journée : il redevient disponible à l'ouverture de la journée suivante.</p>
       {cat.categories.map((c) => (
         <section key={c.id} className="carte">
           <div className="titre-ligne">
@@ -835,10 +836,7 @@ function RestaurantAdmin() {
             />
           </div>
         ))}
-        <button
-          className="lien"
-          onClick={() => setParams({ ...params, quartiers: [...params.quartiers, { nom: "", frais: params.frais_livraison_defaut }] })}
-        >
+        <button className="lien" onClick={() => setParams({ ...params, quartiers: [...params.quartiers, { nom: "", frais: params.frais_livraison_defaut }] })}>
           + Quartier
         </button>
         <ChampMontant
@@ -1205,7 +1203,11 @@ function SauvegardesAdmin() {
   };
   // Restauration par le nom d'une sauvegarde de la liste, jamais par un chemin (constat C4, fiche 0043).
   const restaurer = (s: Sauvegarde) => {
-    if (confirm(`Restaurer la sauvegarde du ${dateHeure(s.horodatage)} ? Elle remplace toutes les données actuelles (une sauvegarde de l'état actuel est faite avant).`))
+    if (
+      confirm(
+        `Restaurer la sauvegarde du ${dateHeure(s.horodatage)} ? Elle remplace toutes les données actuelles (une sauvegarde de l'état actuel est faite avant).`,
+      )
+    )
       agir((pin) => post("/sauvegardes/restaurer", { nom: s.nom }, pin), "Restauration terminée").then(() => location.reload());
   };
   const externe = etat?.parametres?.dossier_sauvegarde_externe?.trim();
@@ -1272,7 +1274,11 @@ function SauvegardesAdmin() {
             ? `Copie vers le second emplacement : ${externe}`
             : "Réglez d'abord le second emplacement (Administration → Restaurant et règles), par exemple E:\\Youma."}
         </p>
-        <button className="principal" disabled={!externe} onClick={() => agir((pin) => post("/sauvegardes/exporter", {}, pin), "Copie sur la clé terminée").then(tout)}>
+        <button
+          className="principal"
+          disabled={!externe}
+          onClick={() => agir((pin) => post("/sauvegardes/exporter", {}, pin), "Copie sur la clé terminée").then(tout)}
+        >
           Exporter
         </button>
       </div>
