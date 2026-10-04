@@ -535,17 +535,17 @@ test("paie indépendante des caisses : salaire payé depuis le coffre (RG-PAI-09
   await connexion(page, /Mariam/, "1234");
   await page.goto("/paie");
   const ligne = page.getByRole("row").filter({ hasText: "Bakary Diallo" });
-  await ligne.getByRole("button", { name: "Clôturer" }).click();
-  const bulletin = page.getByRole("dialog", { name: "Bulletin" });
-  await bulletin.getByRole("button", { name: /^Payer / }).click();
+  // Paie simplifiée (fiche 0050) : un seul bouton arrête le salaire et le paie.
+  await ligne.getByRole("button", { name: "Payer", exact: true }).click();
   const paiement = page.getByRole("dialog", { name: "Payer Bakary Diallo" });
   const compte = paiement.getByLabel("Payé depuis");
   // Seuls les comptes hors caisse sont proposés.
   await expect(compte.locator("option", { hasText: "Caisse principale" })).toHaveCount(0);
   await expect(compte.locator("option", { hasText: "Coffre / propriétaire" })).toHaveCount(1);
   await compte.selectOption({ label: "Coffre / propriétaire" });
-  await paiement.getByRole("button", { name: "Payer", exact: true }).click();
-  await expect(page.getByText("Paiement enregistré")).toBeVisible();
+  await paiement.getByRole("button", { name: /^Payer \d/ }).click();
+  await expect(page.getByText("Salaire payé")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Bulletin" })).toBeVisible();
 });
 
 test("avance sur salaire : tiroir de la caisse ou compte hors caisse", async ({ page }) => {

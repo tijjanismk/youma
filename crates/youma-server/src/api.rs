@@ -201,6 +201,7 @@ pub fn routeur(etat: Etat) -> Router {
         .route("/paie/apercu", get(paie_apercu))
         .route("/paie/cloturer", post(paie_cloturer))
         .route("/paie/payer", post(paie_payer))
+        .route("/paie/payer-periode", post(paie_payer_periode))
         .route("/paie/bulletins", get(paie_bulletins))
         .route("/paie/bulletins/{id}", get(paie_bulletin))
         // Livraison
@@ -1042,6 +1043,10 @@ struct Periode {
 
 async fn paie_cloturer(State(e): State<Etat>, a: Auth, Json(p): Json<Periode>) -> Rep<paie::Bulletin> {
     ecrire!(e, a, |db| paie::cloturer(db, &a, &p.employe_id, &p.debut, &p.fin))
+}
+
+async fn paie_payer_periode(State(e): State<Etat>, a: Auth, Json(x): Json<paie::PaiePeriode>) -> Rep<paie::Bulletin> {
+    ecrire!(e, a, |db| paie::payer_periode(db, &a, &x))
 }
 
 async fn paie_payer(State(e): State<Etat>, a: Auth, Json(p): Json<paie::PaiementSalaire>) -> Rep<String> {

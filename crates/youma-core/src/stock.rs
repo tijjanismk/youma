@@ -154,6 +154,7 @@ pub(crate) fn inserer_mouvement(
     reference: Option<(&str, &str)>,
 ) -> Resultat<String> {
     let journee = crate::journee::ouverte(op)?.map(|j| j.id);
+    let avant = crate::stock::quantite(op, article_id)?;
     let id = op.nouvel_id();
     op.execute(
         "INSERT INTO mouvements_stock(id, article_id, type, quantite, cout_unitaire, motif, reference_type, reference_id,
@@ -174,7 +175,34 @@ pub(crate) fn inserer_mouvement(
         ],
     )?;
     op.outbox("mouvement_stock", &id, "creer")?;
+    rupture_selon_stock(op, article_id, avant, avant + quantite)?;
     Ok(id)
+}
+
+/// RG-STK-08 : le stock d'un article revendu passe à 0 (ou moins) → ses produits sont mis en rupture ; il redevient
+/// positif (achat, inventaire, retour) → ces ruptures-là sont levées. Seul le passage compte : un restaurant qui ne
+/// saisit pas ses achats (stock jamais positif) n'est jamais bloqué. Une rupture mise à la main n'est pas touchée.
+fn rupture_selon_stock(op: &Op, article_id: &str, avant: i64, apres: i64) -> Resultat<()> {
+    let (requete, action) = if avant > 0 && apres <= 0 {
+        (
+            "UPDATE produits SET disponible = 0, rupture_auto = 1, modifie_le = ?2
+             WHERE article_stock_id = ?1 AND suivi_stock = 'revendu' AND actif = 1 AND disponible = 1",
+            "produit.rupture_stock",
+        )
+    } else if avant <= 0 && apres > 0 {
+        (
+            "UPDATE produits SET disponible = 1, rupture_auto = 0, modifie_le = ?2
+             WHERE article_stock_id = ?1 AND suivi_stock = 'revendu' AND rupture_auto = 1",
+            "produit.retour_en_stock",
+        )
+    } else {
+        return Ok(());
+    };
+    if op.execute(requete, params![article_id, op.maintenant])? > 0 {
+        // Pas d'événement ici (opération sans accès mutable) : l'ajout au panier revérifie la disponibilité (RG-CAT-05).
+        op.audit(action, "article_stock", Some(article_id), None, Some(json!({ "stock": apres })), None, None)?;
+    }
+    Ok(())
 }
 
 /// RG-STK-01 : sortie d'un article revendu à l'envoi (ou au paiement en comptoir).

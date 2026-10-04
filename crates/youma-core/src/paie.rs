@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::db::{trouver, Acteur, Db};
+use crate::db::{trouver, Acteur, Db, Op};
 use crate::employes::{self, employe, inserer_mouvement, inserer_mouvement_date, presences, Employe};
 use crate::erreur::{Erreur, Resultat};
 use crate::parametres::{appliquer_bp, Parametres};
@@ -250,7 +250,43 @@ fn raison_blocage(fin_precedente: Option<&str>, debut: &str) -> Option<String> {
 /// RG-PAI-03/04/06 : clôture de la période et bulletin figé.
 pub fn cloturer(db: &mut Db, acteur: &Acteur, employe_id: &str, debut: &str, fin: &str) -> Resultat<Bulletin> {
     valider_periode(debut, fin)?;
+    let id = db.executer(acteur, |op| cloturer_op(op, employe_id, debut, fin))?;
+    bulletin(db.conn(), &id)
+}
+
+/// Paie simplifiée (fiche 0050) : arrête le salaire de la période (bulletin figé, RG-PAI-03/06) et le paie dans la même
+/// transaction depuis le compte choisi. `montant` absent : tout le net ; net nul ou négatif : bulletin seul.
+pub fn payer_periode(db: &mut Db, acteur: &Acteur, p: &PaiePeriode) -> Resultat<Bulletin> {
+    valider_periode(&p.debut, &p.fin)?;
     let id = db.executer(acteur, |op| {
+        let bid = cloturer_op(op, &p.employe_id, &p.debut, &p.fin)?;
+        let net = bulletin(op, &bid)?.reste_a_payer;
+        let montant = p.montant.unwrap_or(net).min(net);
+        if montant > 0 {
+            payer_op(
+                op,
+                &PaiementSalaire { employe_id: p.employe_id.clone(), montant, bulletin_id: Some(bid.clone()), compte_id: p.compte_id.clone(), note: String::new() },
+            )?;
+        }
+        Ok(bid)
+    })?;
+    bulletin(db.conn(), &id)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PaiePeriode {
+    pub employe_id: String,
+    pub debut: String,
+    pub fin: String,
+    #[serde(default)]
+    pub compte_id: Option<String>,
+    /// Paiement partiel ; absent : tout le net.
+    #[serde(default)]
+    pub montant: Option<i64>,
+}
+
+fn cloturer_op(op: &mut Op, employe_id: &str, debut: &str, fin: &str) -> Resultat<String> {
+    {
         let autorise_par = op.exiger(perm::PAIE_GERER)?;
         let e = employe(op, employe_id)?;
         let prev = dernier_bulletin(op, employe_id)?;
@@ -311,8 +347,7 @@ pub fn cloturer(db: &mut Db, acteur: &Acteur, employe_id: &str, debut: &str, fin
         op.audit("paie.cloturer", "bulletin", Some(&bid), None, Some(json!({ "employe": e.nom, "net": b.net_a_payer, "debut": debut, "fin": fin })), None, autorise_par.as_deref())?;
         op.outbox("bulletin", &bid, "creer")?;
         Ok(bid)
-    })?;
-    bulletin(db.conn(), &id)
+    }
 }
 
 pub fn bulletin(conn: &Connection, id: &str) -> Resultat<Bulletin> {
@@ -385,7 +420,11 @@ pub struct PaiementSalaire {
 
 /// RG-PAI-05 / RG-PAI-09 : paiement (éventuellement partiel) depuis un compte hors caisse.
 pub fn payer(db: &mut Db, acteur: &Acteur, p: &PaiementSalaire) -> Resultat<String> {
-    db.executer(acteur, |op| {
+    db.executer(acteur, |op| payer_op(op, p))
+}
+
+fn payer_op(op: &mut Op, p: &PaiementSalaire) -> Resultat<String> {
+    {
         let autorise_par = op.exiger(perm::PAIE_GERER)?;
         let e = employe(op, &p.employe_id)?;
         if p.montant <= 0 {
@@ -420,7 +459,7 @@ pub fn payer(db: &mut Db, acteur: &Acteur, p: &PaiementSalaire) -> Resultat<Stri
         op.audit("paie.payer", "employe", Some(&p.employe_id), None, Some(json!({ "montant": p.montant, "bulletin": p.bulletin_id })), None, autorise_par.as_deref())?;
         op.evenement("caisse", None);
         Ok(id)
-    })
+    }
 }
 
 /// Salaires et avances à venir (tableau de bord) : soldes créditeurs des employés actifs.

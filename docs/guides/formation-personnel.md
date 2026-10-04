@@ -152,7 +152,13 @@ bloqué : il peut faire l'action depuis sa propre session).
   **Résumé par WhatsApp** pour l'envoyer au propriétaire.
 - **Mobile Money** : vérifier les paiements marqués « à vérifier » avec le relevé de l'opérateur.
 - **Stock** → **Perte / sortie** pour une casse, un produit périmé, un repas du personnel (motif choisi dans la
-  liste).
+  liste). Une boisson dont le stock tombe à 0 se met **en rupture toute seule** ; elle revient au prochain achat.
+
+**Paie** (fin du mois, de la semaine ou du jour) : Paie → choisir la période (**Ce mois**, **Mois dernier**, **Cette
+semaine**, **Aujourd'hui**) → **Payer** devant l'employé : le salaire est calculé (avances, primes, retenues comprises),
+enregistré sur un bulletin qui ne se modifie plus, et payé depuis le coffre, la banque ou le Mobile Money (jamais le
+tiroir). **Tout payer** paie tout le monde d'un coup. Imprimer le bulletin et le faire signer. Une erreur se corrige le
+mois suivant par une prime ou une retenue.
 
 **Administration** (mot de passe personnel en plus du PIN) : produits et prix, tables, utilisateurs et PIN,
 moyens de paiement, imprimantes, sauvegardes, licence.
