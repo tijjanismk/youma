@@ -833,3 +833,41 @@ test("commandes non honorées et avis clients : rapports et suite des avis (fich
   await page.getByRole("tab", { name: "Avis" }).click();
   await expect(page.getByRole("tab", { name: "Mécontents à rappeler" })).toBeVisible();
 });
+
+test("position du client : échec et imprécision expliqués sous la case, bouton Réessayer (fiche 0043)", async ({ browser }) => {
+  // Le menu en ligne a été activé par le test des commandes à distance.
+  const refus = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
+  const tel = await refus.newPage();
+  // Autorisation jamais accordée (fenêtre ignorée) : au bout de 30 s, le message s'affiche au lieu de « Recherche… » sans fin.
+  await tel.clock.install();
+  await tel.goto("/menu");
+  await tel.getByRole("tab", { name: /Grillades/ }).click();
+  await tel.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
+  await tel.getByRole("button", { name: /^Commander \(1\)/ }).click();
+  await tel.getByLabel("Partager ma position pour le livreur").check();
+  await expect(tel.getByText(/Recherche de votre position/)).toBeVisible();
+  await tel.clock.fastForward(31_000);
+  const alerte = tel.getByRole("dialog").getByRole("alert");
+  await expect(alerte).toContainText("Position trop longue à trouver");
+  await expect(alerte.getByRole("button", { name: "Réessayer" })).toBeVisible();
+  await refus.close();
+
+  // Position trouvée mais à 381 m près : message et « Réessayer » sous la case, point de repère obligatoire.
+  const flou = await browser.newContext({
+    viewport: { width: 390, height: 780 },
+    isMobile: true,
+    hasTouch: true,
+    permissions: ["geolocation"],
+    geolocation: { latitude: 12.64, longitude: -8.0, accuracy: 381 },
+  });
+  const t2 = await flou.newPage();
+  await t2.goto("/menu");
+  await t2.getByRole("tab", { name: /Grillades/ }).click();
+  await t2.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
+  await t2.getByRole("button", { name: /^Commander \(1\)/ }).click();
+  await t2.getByLabel("Partager ma position pour le livreur").check();
+  await expect(t2.getByText(/à 381 m près\) : approximative/)).toBeVisible();
+  await expect(t2.getByRole("button", { name: "Réessayer" })).toBeVisible();
+  await expect(t2.getByLabel("Point de repère")).toBeVisible();
+  await flou.close();
+});

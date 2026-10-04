@@ -336,6 +336,10 @@ function Validation({
   const [position, setPosition] = useState<[number, number] | null>(null);
   const [precision, setPrecision] = useState<number | null>(null);
   const [partager, setPartager] = useState(false);
+  // Échec de la position, affiché sous la case (pas en bas du formulaire, hors de l'écran du téléphone).
+  const [erreurPosition, setErreurPosition] = useState("");
+  // Relance de la recherche (bouton « Réessayer ») sans décocher la case.
+  const [essai, setEssai] = useState(0);
   const [mode, setMode] = useState(menu.paiement_a_la_livraison ? "a_la_livraison" : "avance");
   const [operateur, setOperateur] = useState(menu.operateurs[0] ?? "");
   const [reference, setReference] = useState("");
@@ -370,7 +374,12 @@ function Validation({
       return;
     }
     if (!navigator.geolocation) return;
+    setErreurPosition("");
     let meilleure = Infinity;
+    const echec = (code: number) => {
+      setPartager(false);
+      setErreurPosition(messageErreurPosition(code, "Sinon, indiquez un point de repère précis."));
+    };
     const id = navigator.geolocation.watchPosition(
       (p) => {
         if (p.coords.accuracy >= meilleure) return;
@@ -381,17 +390,21 @@ function Validation({
       },
       (e) => {
         if (meilleure < Infinity) return;
-        setPartager(false);
-        setErreur(messageErreurPosition(e.code, "Sinon, indiquez un point de repère précis."));
+        navigator.geolocation.clearWatch(id);
+        echec(e.code);
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 30_000 },
     );
-    const fin = setTimeout(() => navigator.geolocation.clearWatch(id), 30_000);
+    // 30 s sans aucune mesure : on le dit au lieu de laisser « Recherche… » sans fin (3 = délai dépassé).
+    const fin = setTimeout(() => {
+      navigator.geolocation.clearWatch(id);
+      if (meilleure === Infinity) echec(3);
+    }, 30_000);
     return () => {
       clearTimeout(fin);
       navigator.geolocation.clearWatch(id);
     };
-  }, [partager]);
+  }, [partager, essai]);
 
   // Position GPS précise (100 m au plus) : le point de repère devient facultatif ; sans GPS, il reste obligatoire (fiche 0038).
   const positionPrecise = position !== null && precision !== null && precision <= 100;
@@ -481,17 +494,41 @@ function Validation({
               ) : (
                 <p className="aide">La position ne peut être partagée que depuis le lien Internet du restaurant : indiquez un point de repère précis.</p>
               )}
-              {partager && !position && <p className="aide">Recherche de votre position…</p>}
+              {partager && !position && <p className="aide">Recherche de votre position (30 secondes au plus)…</p>}
+              {erreurPosition && (
+                <div className="attention-texte" role="alert">
+                  <p>{erreurPosition}</p>
+                  <button type="button" onClick={() => setPartager(true)}>
+                    Réessayer
+                  </button>
+                </div>
+              )}
               {position && (
                 <p className={precision !== null && precision > 100 ? "attention-texte" : "aide"}>
                   <MapPin size={16} className="icone-texte" aria-hidden /> Position enregistrée
                   {precision !== null && ` (à ${precision} m près)`}
                   {precision !== null &&
                     precision > 100 &&
-                    " : approximative. Activez la localisation précise (GPS) du téléphone, ou indiquez un point de repère."}{" "}
+                    " : approximative. Activez la localisation précise (GPS) du téléphone, approchez-vous d'une fenêtre, ou indiquez un point de repère."}{" "}
                   <a href={lienCarte(position[0], position[1])} target="_blank" rel="noreferrer">
                     Vérifier sur la carte
                   </a>
+                  {precision !== null && precision > 100 && (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="petit"
+                        onClick={() => {
+                          setPosition(null);
+                          setPrecision(null);
+                          setEssai((n) => n + 1);
+                        }}
+                      >
+                        Réessayer
+                      </button>
+                    </>
+                  )}
                 </p>
               )}
             </>
