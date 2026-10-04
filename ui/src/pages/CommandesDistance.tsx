@@ -72,11 +72,18 @@ function CanauxAdmin() {
         <Champ libelle="Adresse du relais" valeur={c.relais_url} changer={(v) => maj({ relais_url: v })} placeholder="https://commande.exemple.ml" />
         <Champ libelle="Clé du relais" valeur={c.relais_cle} changer={(v) => maj({ relais_cle: v })} type="password" />
         <p className="aide">
+          Relais partagé par plusieurs restaurants : l'adresse se termine par le nom du restaurant (<code>https://…/r/maquis-le-baobab</code>), avec la clé
+          donnée à son inscription.
+        </p>
+        <p className="aide">
           SMS : Orange Mali, configuré sur le relais (identifiants Orange). Sans contrat Orange, le relais simule l'envoi et affiche le code au client.
         </p>
         <EtatRelais />
       </details>
-      <button className="principal" onClick={() => agir((pin) => appel("/parametres", { methode: "PUT", corps: p, pin }), "Canaux enregistrés").then(rechargerEtat)}>
+      <button
+        className="principal"
+        onClick={() => agir((pin) => appel("/parametres", { methode: "PUT", corps: p, pin }), "Canaux enregistrés").then(rechargerEtat)}
+      >
         Enregistrer
       </button>
     </div>
@@ -157,7 +164,17 @@ function ZonesAdmin() {
   );
 }
 
-function FormZone({ z: initiale, quartiers, fermer, enregistrer }: { z: ZoneRisque; quartiers: string[]; fermer: () => void; enregistrer: (z: ZoneRisque) => void }) {
+function FormZone({
+  z: initiale,
+  quartiers,
+  fermer,
+  enregistrer,
+}: {
+  z: ZoneRisque;
+  quartiers: string[];
+  fermer: () => void;
+  enregistrer: (z: ZoneRisque) => void;
+}) {
   const [z, setZ] = useState(initiale);
   const [debut, setDebut] = useState(hhmm(initiale.debut_min));
   const [fin, setFin] = useState(hhmm(initiale.fin_min));
@@ -184,7 +201,12 @@ function FormZone({ z: initiale, quartiers, fermer, enregistrer }: { z: ZoneRisq
           <Champ libelle="Longitude" valeur={lon} changer={setLon} placeholder="-8.0029" />
           <label className="champ">
             <span>Rayon (mètres)</span>
-            <input type="number" value={z.rayon_m ?? ""} onChange={(e) => setZ({ ...z, rayon_m: Number(e.target.value) || null })} aria-label="Rayon (mètres)" />
+            <input
+              type="number"
+              value={z.rayon_m ?? ""}
+              onChange={(e) => setZ({ ...z, rayon_m: Number(e.target.value) || null })}
+              aria-label="Rayon (mètres)"
+            />
           </label>
           <button type="button" onClick={ici}>
             <MapPin size={20} aria-hidden /> Ma position actuelle
@@ -197,7 +219,13 @@ function FormZone({ z: initiale, quartiers, fermer, enregistrer }: { z: ZoneRisq
       </div>
       <div className="suggestions" role="group" aria-label="Jours">
         {JOURS.map((j, i) => (
-          <button key={j} type="button" className={z.jours & (1 << i) ? "actif" : ""} aria-pressed={!!(z.jours & (1 << i))} onClick={() => setZ({ ...z, jours: z.jours ^ (1 << i) })}>
+          <button
+            key={j}
+            type="button"
+            className={z.jours & (1 << i) ? "actif" : ""}
+            aria-pressed={!!(z.jours & (1 << i))}
+            onClick={() => setZ({ ...z, jours: z.jours ^ (1 << i) })}
+          >
             {j}
           </button>
         ))}
@@ -253,7 +281,10 @@ function ListeNoireAdmin() {
           n.telephone,
           n.motif,
           dateHeure(n.cree_le),
-          <button className="petit" onClick={() => agir((pin) => post("/numeros-bloques/debloquer", { telephone: n.telephone }, pin), "Numéro débloqué").then(recharger)}>
+          <button
+            className="petit"
+            onClick={() => agir((pin) => post("/numeros-bloques/debloquer", { telephone: n.telephone }, pin), "Numéro débloqué").then(recharger)}
+          >
             Débloquer
           </button>,
         ])}
@@ -299,7 +330,8 @@ function QrTables() {
       actif = false;
     };
   }, [donnees, base]);
-  const generer = (regenerer: boolean) => agir((pin) => post<number>("/tables/codes-qr", { regenerer }, pin), regenerer ? "Nouveaux codes : réimprimez les QR" : "Codes créés").then(recharger);
+  const generer = (regenerer: boolean) =>
+    agir((pin) => post<number>("/tables/codes-qr", { regenerer }, pin), regenerer ? "Nouveaux codes : réimprimez les QR" : "Codes créés").then(recharger);
   const sansCode = (donnees ?? []).filter((d) => !d.code).length;
   return (
     <div className="carte">
@@ -320,15 +352,16 @@ function QrTables() {
           >
             <Printer size={20} aria-hidden /> Imprimer
           </button>
-          <button
-            className="attention petit"
-            onClick={() => confirm("Les anciens QR ne fonctionneront plus. Continuer ?") && generer(true)}
-          >
+          <button className="attention petit" onClick={() => confirm("Les anciens QR ne fonctionneront plus. Continuer ?") && generer(true)}>
             Changer tous les codes
           </button>
         </span>
       </div>
-      {!reseau?.actif && <p className="attention-texte">Le poste central est en mode mono-poste : démarrez-le en mode réseau pour que les clients accèdent au menu par le Wi-Fi.</p>}
+      {!reseau?.actif && (
+        <p className="attention-texte">
+          Le poste central est en mode mono-poste : démarrez-le en mode réseau pour que les clients accèdent au menu par le Wi-Fi.
+        </p>
+      )}
       <div className="qr-tables">
         {(donnees ?? [])
           .filter((d) => d.code)

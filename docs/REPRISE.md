@@ -53,6 +53,9 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Relais partagé par plusieurs restaurants** (fiche 0049) : chaque restaurant inscrit (`--ajouter-restaurant`) a ses
+  adresses `https://relais/r/<nom>/…` et sa propre base ; un seul service Railway pour tous. Le restaurant déjà relié
+  garde les adresses à la racine.
 - **Photos du menu en ligne servies à part** (fiche 0048) : le relais range chaque photo une fois et la sert avec un
   cache d'un an ; menu et suivi compressés. Le menu ouvert 50 000 fois ne retélécharge plus les photos.
 - **Livreurs inscrits par le restaurant** (fiche 0047, RG-LIV-05) : PIN donné depuis la fiche du livreur ; connexion
@@ -99,7 +102,7 @@ Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md
 7. ~~Finir la refonte des écrans secondaires~~ : fait (tableau de bord, caisse, stock, paie ; tableaux en
    cartes sur téléphone). Reste éventuellement : achats, clients, rapports, administration (ils profitent déjà
    des tableaux en cartes et du thème).
-8. **Plus tard** : relais partagé par plusieurs restaurants pour les commandes en ligne (base du SaaS) ;
+8. **Plus tard** : ~~relais partagé~~ (fait, fiche 0049) ; inscription des restaurants depuis une page web plutôt que la ligne de commande ;
    notifications poussées aux clients écran éteint si demandé (fiche 0041) ; interface en bambara
    (`ui/src/i18n.ts` est prêt pour la traduction).
 9. **PI-SPI** (paiement instantané interopérable de la BCEAO, QR ou numéro de téléphone) :

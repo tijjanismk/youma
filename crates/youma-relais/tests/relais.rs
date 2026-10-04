@@ -424,6 +424,75 @@ async fn photos_du_menu_servies_a_part_et_compression() {
     assert_eq!(c.get(format!("{url}{photo}")).send().await.unwrap().status().as_u16(), 200);
 }
 
+/// Fiche 0049 : relais partagé. Chaque restaurant inscrit a ses adresses `/r/<slug>/…`, sa base et sa clé ; le
+/// restaurant historique reste à la racine. Rien ne passe d'un restaurant à l'autre.
+#[tokio::test]
+async fn relais_partage_entre_plusieurs_restaurants() {
+    let dossier = tempfile::tempdir().unwrap();
+    let cle_a = youma_relais::inscrire_restaurant(dossier.path(), "Maquis Le Baobab").unwrap();
+    let cle_b = youma_relais::inscrire_restaurant(dossier.path(), "Chez Fanta & Fils").unwrap();
+    let cle_c = youma_relais::inscrire_restaurant(dossier.path(), "Maquis le Baobab").unwrap();
+    assert_eq!(youma_relais::adresse_restaurant(dossier.path(), &cle_a).unwrap().as_deref(), Some("maquis-le-baobab"));
+    assert_eq!(youma_relais::adresse_restaurant(dossier.path(), &cle_b).unwrap().as_deref(), Some("chez-fanta-fils"));
+    assert_eq!(youma_relais::adresse_restaurant(dossier.path(), &cle_c).unwrap().as_deref(), Some("maquis-le-baobab-2"), "nom court unique");
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: FournisseurSms::Simulation, whatsapp: None };
+    let etat = Etat::ouvrir(&config).unwrap();
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", ecoute.local_addr().unwrap());
+    tokio::spawn(youma_relais::servir(etat, None, ecoute));
+    let c = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).build().unwrap();
+    let sync = |prefixe: &str, cle: &str, corps: Value| {
+        let (c, url, cle) = (c.clone(), format!("{base}{prefixe}/api/relais/synchroniser"), cle.to_string());
+        async move {
+            let r = c.post(url).bearer_auth(cle).json(&corps).send().await.unwrap();
+            (r.status().as_u16(), r.json::<Value>().await.unwrap_or(Value::Null))
+        }
+    };
+    let get = |chemin: String| {
+        let c = c.clone();
+        async move {
+            let r = c.get(chemin).send().await.unwrap();
+            (r.status().as_u16(), r.json::<Value>().await.unwrap_or(Value::Null))
+        }
+    };
+    let menu_de = |nom: &str| {
+        let mut m = menu();
+        m["restaurant"] = json!(nom);
+        m
+    };
+    let a = "/r/maquis-le-baobab";
+    let b = "/r/chez-fanta-fils";
+    // Chacun sa clé : celle de A ne synchronise pas B, ni la racine.
+    assert_eq!(sync(b, &cle_a, json!({ "menu": menu_de("B") })).await.0, 401);
+    assert_eq!(sync("", &cle_a, json!({ "menu": menu_de("X") })).await.0, 401);
+    assert_eq!(sync(a, &cle_a, json!({ "menu": menu_de("Maquis A"), "config": { "verification_numero": "rappel" } })).await.0, 200);
+    assert_eq!(sync(b, &cle_b, json!({ "menu": menu_de("Chez Fanta"), "config": { "verification_numero": "rappel" } })).await.0, 200);
+    assert_eq!(sync("", CLE, json!({ "menu": menu_de("Racine") })).await.0, 200);
+    assert_eq!(get(format!("{base}{a}/api/public/menu")).await.1["restaurant"], "Maquis A");
+    assert_eq!(get(format!("{base}{b}/api/public/menu")).await.1["restaurant"], "Chez Fanta");
+    assert_eq!(get(format!("{base}/api/public/menu")).await.1["restaurant"], "Racine");
+    assert_eq!(get(format!("{base}/r/inconnu/api/public/menu")).await.0, 404);
+    // L'en-tête interne envoyé par un client est ignoré.
+    let r = c.get(format!("{base}/api/public/menu")).header("x-youma-restaurant", "chez-fanta-fils").send().await.unwrap();
+    assert_eq!(r.json::<Value>().await.unwrap()["restaurant"], "Racine");
+    // Accueil du restaurant : son menu.
+    let r = c.get(format!("{base}{a}/")).send().await.unwrap();
+    assert_eq!(r.headers()["location"], "/r/maquis-le-baobab/menu");
+
+    // Commande chez A : reprise par le poste de A seulement, suivi introuvable chez B.
+    let (_, rep) = {
+        let r = c.post(format!("{base}{a}/api/public/commandes")).json(&commande("")).send().await.unwrap();
+        (r.status().as_u16(), r.json::<Value>().await.unwrap())
+    };
+    assert_eq!(rep["statut"], "en_attente", "{rep}");
+    let code = rep["code_suivi"].as_str().unwrap().to_string();
+    assert_eq!(get(format!("{base}{a}/api/public/suivi/{code}")).await.0, 200);
+    assert_eq!(get(format!("{base}{b}/api/public/suivi/{code}")).await.0, 404);
+    assert_eq!(sync(b, &cle_b, json!({})).await.1["commandes"].as_array().unwrap().len(), 0);
+    assert_eq!(sync("", CLE, json!({})).await.1["commandes"].as_array().unwrap().len(), 0);
+    assert_eq!(sync(a, &cle_a, json!({})).await.1["commandes"][0]["code_suivi"], code.as_str());
+}
+
 /// Cloud multi-restaurants : résumés, SMS de clôture une seule fois, espace propriétaire, sauvegardes chiffrées.
 #[tokio::test]
 async fn cloud_resumes_proprietaire_et_sauvegardes() {

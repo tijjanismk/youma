@@ -38,12 +38,67 @@ fn hex(o: &[u8]) -> String {
     o.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// Inscription d'un restaurant par le fournisseur (`youma-relais --ajouter-restaurant NOM`) : renvoie sa clé.
+/// Relais partagé (fiche 0049) : chaque restaurant inscrit a un nom court (`slug`) qui donne son adresse
+/// `https://relais/r/<slug>/menu`. Les restaurants inscrits avant cette version reçoivent le leur à l'ouverture.
+pub fn migrer(conn: &Connection) -> rusqlite::Result<()> {
+    let a_slug: bool = conn.prepare("SELECT 1 FROM pragma_table_info('cloud_restaurants') WHERE name = 'slug'")?.exists([])?;
+    if !a_slug {
+        conn.execute("ALTER TABLE cloud_restaurants ADD COLUMN slug TEXT", [])?;
+    }
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_cloud_slug ON cloud_restaurants(slug)", [])?;
+    let sans: Vec<(String, String)> =
+        conn.prepare("SELECT id, nom FROM cloud_restaurants WHERE slug IS NULL")?.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<Result<_, _>>()?;
+    for (id, nom) in sans {
+        let s = slug_libre(conn, &nom)?;
+        conn.execute("UPDATE cloud_restaurants SET slug = ?1 WHERE id = ?2", params![s, id])?;
+    }
+    Ok(())
+}
+
+/// Nom court tiré du nom du restaurant : « Maquis Le Baobab » → `maquis-le-baobab`.
+pub fn slug(nom: &str) -> String {
+    let mut s = String::new();
+    for c in nom.trim().to_lowercase().chars() {
+        let c = match c {
+            'à' | 'â' | 'ä' | 'á' => 'a',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'î' | 'ï' | 'í' => 'i',
+            'ô' | 'ö' | 'ó' => 'o',
+            'ù' | 'û' | 'ü' | 'ú' => 'u',
+            'ç' => 'c',
+            'ñ' => 'n',
+            c => c,
+        };
+        if c.is_ascii_alphanumeric() {
+            s.push(c);
+        } else if !s.ends_with('-') && !s.is_empty() {
+            s.push('-');
+        }
+    }
+    let s: String = s.trim_end_matches('-').chars().take(30).collect();
+    let s = s.trim_end_matches('-').to_string();
+    if s.len() < 2 { "restaurant".into() } else { s }
+}
+
+fn slug_libre(conn: &Connection, nom: &str) -> rusqlite::Result<String> {
+    let base = slug(nom);
+    let mut s = base.clone();
+    let mut n = 2;
+    while conn.prepare("SELECT 1 FROM cloud_restaurants WHERE slug = ?1")?.exists([&s])? {
+        s = format!("{base}-{n}");
+        n += 1;
+    }
+    Ok(s)
+}
+
+/// Inscription d'un restaurant par le fournisseur (`youma-relais --ajouter-restaurant NOM`) : renvoie sa clé, valable
+/// pour le cloud et pour ses commandes en ligne sur `/r/<slug>` (fiche 0049).
 pub fn ajouter_restaurant(conn: &Connection, nom: &str) -> rusqlite::Result<String> {
+    migrer(conn)?;
     let cle: String = (0..32).map(|_| format!("{:x}", rand::thread_rng().gen_range(0..16))).collect();
     conn.execute(
-        "INSERT INTO cloud_restaurants(id, nom, empreinte_cle, cree_le) VALUES (?1, ?2, ?3, ?4)",
-        params![uuid::Uuid::now_v7().to_string(), nom.trim(), hex(&empreinte(&cle)), maintenant()],
+        "INSERT INTO cloud_restaurants(id, nom, empreinte_cle, cree_le, slug) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![uuid::Uuid::now_v7().to_string(), nom.trim(), hex(&empreinte(&cle)), maintenant(), slug_libre(conn, nom)?],
     )?;
     Ok(cle)
 }

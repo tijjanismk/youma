@@ -66,6 +66,72 @@ pub struct Etat {
     dossier: PathBuf,
     /// Espace propriétaire : jeton → (restaurants accessibles, expiration).
     sessions: Arc<Mutex<HashMap<String, SessionProprietaire>>>,
+    /// Relais partagé (fiche 0049) : base de chaque restaurant inscrit, ouverte à la première demande.
+    bases: Arc<Mutex<HashMap<String, Arc<Mutex<Connection>>>>>,
+    /// Restaurant servi (`/r/<slug>`) ; aucun pour le restaurant historique du relais (adresses à la racine).
+    restaurant: Option<String>,
+}
+
+/// En-tête interne posé par l'aiguillage des adresses `/r/<slug>/…` (jamais accepté du client).
+const ENTETE_RESTAURANT: &str = "x-youma-restaurant";
+
+fn slug_valide(s: &str) -> bool {
+    (2..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
+/// Relais partagé (fiche 0049) : `/r/<slug>/api/public/menu` est servi comme `/api/public/menu` pour ce restaurant ;
+/// les pages `/r/<slug>/menu`, `/r/<slug>/suivi/…` reçoivent la même interface.
+fn aiguiller(mut req: axum::extract::Request) -> axum::extract::Request {
+    req.headers_mut().remove(ENTETE_RESTAURANT);
+    let Some(reste) = req.uri().path().strip_prefix("/r/") else { return req };
+    let (slug, suite) = match reste.find('/') {
+        Some(i) => (reste[..i].to_string(), reste[i..].to_string()),
+        None => (reste.to_string(), "/".to_string()),
+    };
+    if !slug_valide(&slug) {
+        return req;
+    }
+    let cible = match req.uri().query() {
+        Some(q) => format!("{suite}?{q}"),
+        None => suite,
+    };
+    if let (Ok(uri), Ok(v)) = (cible.parse(), axum::http::HeaderValue::from_str(&slug)) {
+        *req.uri_mut() = uri;
+        req.headers_mut().insert(ENTETE_RESTAURANT, v);
+    }
+    req
+}
+
+/// État du restaurant de la requête : celui du relais (racine) ou un restaurant inscrit (`/r/<slug>`).
+pub struct Resto(Etat);
+
+impl axum::extract::FromRequestParts<Etat> for Resto {
+    type Rejection = Echec;
+
+    async fn from_request_parts(parts: &mut axum::http::request::Parts, e: &Etat) -> Result<Self, Echec> {
+        match parts.headers.get(ENTETE_RESTAURANT).and_then(|v| v.to_str().ok()) {
+            None => Ok(Resto(e.clone())),
+            Some(slug) => e.pour_restaurant(slug).map(Resto),
+        }
+    }
+}
+
+fn base_restaurant(chemin: &std::path::Path) -> rusqlite::Result<Connection> {
+    let conn = Connection::open(chemin)?;
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    conn.execute_batch(SCHEMA)?;
+    Ok(conn)
+}
+
+fn octets_hex(h: &str) -> Option<[u8; 32]> {
+    let mut o = [0u8; 32];
+    if h.len() != 64 {
+        return None;
+    }
+    for (i, b) in o.iter_mut().enumerate() {
+        *b = u8::from_str_radix(h.get(2 * i..2 * i + 2)?, 16).ok()?;
+    }
+    Some(o)
 }
 
 /// Restaurants accessibles et expiration (ms) d'une session de l'espace propriétaire.
@@ -138,6 +204,7 @@ impl Etat {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.execute_batch(SCHEMA)?;
         conn.execute_batch(cloud::SCHEMA)?;
+        cloud::migrer(&conn)?;
         // Relais mis à jour : un menu déjà reçu avec ses photos intégrées est converti (fiche 0048).
         let ancien: Option<String> = conn.query_row("SELECT valeur FROM etat WHERE cle = 'menu'", [], |r| r.get(0)).optional()?;
         if let Some(mut m) = ancien.filter(|v| v.contains("\"data:")).and_then(|v| serde_json::from_str::<Value>(&v).ok()) {
@@ -154,7 +221,38 @@ impl Etat {
             derriere_proxy: config.derriere_proxy,
             dossier: config.dossier_donnees.clone(),
             sessions: Arc::new(Mutex::new(HashMap::new())),
+            bases: Arc::new(Mutex::new(HashMap::new())),
+            restaurant: None,
         })
+    }
+
+    /// Restaurant inscrit sur le relais partagé : sa base (`restaurants/<slug>.db`) et sa clé. Inconnu : 404.
+    fn pour_restaurant(&self, slug: &str) -> Result<Etat, Echec> {
+        let cle: Option<String> =
+            self.avec(|c| c.query_row("SELECT empreinte_cle FROM cloud_restaurants WHERE slug = ?1", [slug], |r| r.get(0)).optional())?;
+        let empreinte_cle = cle
+            .as_deref()
+            .and_then(octets_hex)
+            .ok_or_else(|| erreur(StatusCode::NOT_FOUND, "NON_TROUVE", "Restaurant inconnu sur ce relais"))?;
+        let db = {
+            let mut bases = self.bases.lock().unwrap_or_else(|e| e.into_inner());
+            match bases.get(slug) {
+                Some(b) => b.clone(),
+                None => {
+                    let dossier = self.dossier.join("restaurants");
+                    std::fs::create_dir_all(&dossier).map_err(interne)?;
+                    let b = Arc::new(Mutex::new(base_restaurant(&dossier.join(format!("{slug}.db"))).map_err(interne)?));
+                    bases.insert(slug.to_string(), b.clone());
+                    b
+                }
+            }
+        };
+        Ok(Etat { db, empreinte_cle, restaurant: Some(slug.to_string()), ..self.clone() })
+    }
+
+    /// Début des adresses de ce restaurant : vide à la racine, `/r/<slug>` sur le relais partagé.
+    fn prefixe(&self) -> String {
+        self.restaurant.as_deref().map(|s| format!("/r/{s}")).unwrap_or_default()
     }
 
     fn avec<T>(&self, f: impl FnOnce(&Connection) -> rusqlite::Result<T>) -> Result<T, Echec> {
@@ -230,7 +328,7 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
         .route("/api/public/livreur/courses", get(courses_livreur))
         .merge(cloud::routes())
         // Le relais ne sert que les pages du client et du livreur, jamais l'application du personnel.
-        .route("/", get(|| async { Redirect::temporary("/menu") }));
+        .route("/", get(|Resto(e): Resto| async move { Redirect::temporary(&format!("{}/menu", e.prefixe())) }));
     if let Some(ui) = ui {
         let index = ui.join("index.html");
         app = app.fallback_service(ServeDir::new(ui).fallback(ServeFile::new(index)));
@@ -240,7 +338,9 @@ pub fn routeur(etat: Etat, ui: Option<PathBuf>) -> Router {
 }
 
 pub async fn servir(etat: Etat, ui: Option<PathBuf>, ecoute: tokio::net::TcpListener) -> std::io::Result<()> {
-    axum::serve(ecoute, routeur(etat, ui).into_make_service_with_connect_info::<SocketAddr>()).await
+    // L'aiguillage `/r/<slug>` passe avant le routage (fiche 0049).
+    let app = tower::Layer::layer(&tower::util::MapRequestLayer::new(aiguiller), routeur(etat, ui));
+    axum::serve(ecoute, axum::ServiceExt::<axum::extract::Request>::into_make_service_with_connect_info::<SocketAddr>(app)).await
 }
 
 /// Inscription d'un restaurant au cloud : renvoie la clé à saisir sur son poste central.
@@ -250,6 +350,12 @@ pub fn inscrire_restaurant(dossier: &std::path::Path, nom: &str) -> rusqlite::Re
     conn.execute_batch(SCHEMA)?;
     conn.execute_batch(cloud::SCHEMA)?;
     cloud::ajouter_restaurant(&conn, nom)
+}
+
+/// Nom court (adresse `/r/<slug>`) du restaurant de cette clé, sur le relais partagé (fiche 0049).
+pub fn adresse_restaurant(dossier: &std::path::Path, cle: &str) -> rusqlite::Result<Option<String>> {
+    let conn = Connection::open(dossier.join("youma-relais.db"))?;
+    conn.query_row("SELECT slug FROM cloud_restaurants WHERE empreinte_cle = ?1", [hex(&empreinte(cle))], |r| r.get(0)).optional()
 }
 
 pub async fn demarrer(config: Config) -> std::io::Result<()> {
@@ -301,7 +407,7 @@ struct Resultat {
     reponse: Value,
 }
 
-async fn synchroniser(State(e): State<Etat>, entetes: HeaderMap, Json(s): Json<Synchronisation>) -> Rep {
+async fn synchroniser(Resto(e): Resto, entetes: HeaderMap, Json(s): Json<Synchronisation>) -> Rep {
     let cle = entetes.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or("");
     if empreinte(cle) != e.empreinte_cle {
         return Err(erreur(StatusCode::UNAUTHORIZED, "NON_AUTHENTIFIE", "Clé du relais incorrecte"));
@@ -421,7 +527,7 @@ fn ranger_photos(tx: &Connection, menu: &mut Value) -> rusqlite::Result<()> {
     Ok(())
 }
 
-async fn photo(State(e): State<Etat>, Path(h): Path<String>) -> Response {
+async fn photo(Resto(e): Resto, Path(h): Path<String>) -> Response {
     let trouvee: Result<Option<(String, Vec<u8>)>, Echec> =
         e.avec(|c| c.query_row("SELECT type, octets FROM photos WHERE empreinte = ?1", [&h], |r| Ok((r.get(0)?, r.get(1)?))).optional());
     match trouvee {
@@ -435,7 +541,7 @@ async fn photo(State(e): State<Etat>, Path(h): Path<String>) -> Response {
 
 // ───────────── Client ─────────────
 
-async fn menu(State(e): State<Etat>, Query(q): Query<HashMap<String, String>>) -> Rep {
+async fn menu(Resto(e): Resto, Query(q): Query<HashMap<String, String>>) -> Rep {
     if q.contains_key("table") {
         return Err(erreur(StatusCode::FORBIDDEN, "INTERDIT", "Le QR des tables fonctionne sur le Wi-Fi du restaurant"));
     }
@@ -462,7 +568,7 @@ struct DemandeCode {
 pub const CLIENT_VERIFIE_MS: i64 = 180 * 86_400_000;
 
 /// RG-CAN-04 : code à 4 chiffres envoyé par SMS ou WhatsApp, valable 10 minutes, 5 essais.
-async fn verification(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(d): Json<DemandeCode>) -> Rep {
+async fn verification(Resto(e): Resto, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(d): Json<DemandeCode>) -> Rep {
     let config = e.lire("config")?.unwrap_or_default();
     if config["verification_numero"] != "sms" {
         return Err(erreur(StatusCode::FORBIDDEN, "INTERDIT", "Vérification du numéro non activée"));
@@ -534,7 +640,7 @@ struct Confirmation {
 
 /// Fiche 0046 : le bon code donne un jeton au téléphone du client ; ses commandes suivantes n'ont plus besoin de
 /// code. Seule l'empreinte du jeton est gardée.
-async fn confirmer(State(e): State<Etat>, Json(d): Json<Confirmation>) -> Rep {
+async fn confirmer(Resto(e): Resto, Json(d): Json<Confirmation>) -> Rep {
     let tel = normaliser_telephone(&d.telephone);
     if !verifier_code(&e, &tel, &d.code)? {
         return Err(erreur(StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION", "Code incorrect ou expiré"));
@@ -567,7 +673,7 @@ fn client_verifie(e: &Etat, tel: &str, jeton: &str) -> Result<bool, Echec> {
 
 /// Commande en ligne : gardée jusqu'à ce que le poste central la reprenne. Le client reçoit tout de suite
 /// son code de suivi ; le poste décide (prix, zones à risque, liste noire, file de validation).
-async fn commande(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(mut c): Json<Value>) -> Rep {
+async fn commande(Resto(e): Resto, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(mut c): Json<Value>) -> Rep {
     let adresse = e.adresse(&entetes, ip);
     if !e.limiter(&format!("cmd:{adresse}"), 10, 600_000) {
         return Err(erreur(StatusCode::TOO_MANY_REQUESTS, "TROP_DE_DEMANDES", "Trop de commandes : réessayez dans quelques minutes"));
@@ -652,7 +758,7 @@ struct ConnexionLivreur {
 }
 
 /// RG-LIV-05 : téléphone + PIN donné par le restaurant. 5 essais en 15 minutes par numéro, 20 par adresse.
-async fn connexion_livreur(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(c): Json<ConnexionLivreur>) -> Rep {
+async fn connexion_livreur(Resto(e): Resto, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Json(c): Json<ConnexionLivreur>) -> Rep {
     let tel = normaliser_telephone(&c.telephone);
     let adresse = e.adresse(&entetes, ip);
     if !e.limiter(&format!("livreur-ip:{adresse}"), 20, 15 * 60_000) || !e.limiter(&format!("livreur-tel:{tel}"), 5, 15 * 60_000) {
@@ -683,7 +789,7 @@ async fn connexion_livreur(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<S
 }
 
 /// Courses en cours du livreur connecté. Un PIN changé ou un accès retiré sur le poste ferme ses sessions.
-async fn courses_livreur(State(e): State<Etat>, entetes: HeaderMap) -> Rep {
+async fn courses_livreur(Resto(e): Resto, entetes: HeaderMap) -> Rep {
     let jeton = entetes.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or("");
     let h = hex(&empreinte(jeton));
     let trouve: Option<(String, String)> = e.avec(|x| {
@@ -720,7 +826,7 @@ fn compter_si_inconnu(e: &Etat, adresse: &str, r: &Rep) {
     }
 }
 
-async fn suivi(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>) -> Rep {
+async fn suivi(Resto(e): Resto, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>) -> Rep {
     let adresse = e.adresse(&entetes, ip);
     essais_publics(&e, &adresse)?;
     let r = suivi_publie(&e, code);
@@ -780,7 +886,7 @@ fn suivi_publie(e: &Etat, code: String) -> Rep {
 
 /// RG-CAN-06 : modification par le client, transmise au poste qui la vérifie et l'applique (ou non) ; le client voit
 /// le résultat dans son suivi. Le relais n'accepte que si le dernier suivi publié permet encore de modifier.
-async fn modifier(State(e): State<Etat>, Path(code): Path<String>, Json(m): Json<Value>) -> Rep {
+async fn modifier(Resto(e): Resto, Path(code): Path<String>, Json(m): Json<Value>) -> Rep {
     let code = code.trim().to_uppercase();
     let lignes = m["lignes"].as_array().map(|l| l.len()).unwrap_or(0);
     if lignes == 0 || lignes > 50 || m["note"].as_str().unwrap_or("").len() > 500 {
@@ -815,7 +921,7 @@ struct NouvelAvis {
 
 /// RG-AVI-01 : avis du client sur une commande terminée (suivi publié par le poste), une seule fois ; le poste
 /// revérifie à la réception. Codes inconnus comptés comme les autres essais (RG-CAN-08).
-async fn avis(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>, Json(a): Json<NouvelAvis>) -> Rep {
+async fn avis(Resto(e): Resto, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>, Json(a): Json<NouvelAvis>) -> Rep {
     let adresse = e.adresse(&entetes, ip);
     essais_publics(&e, &adresse)?;
     let r = enregistrer_avis(&e, &code, a);
@@ -856,7 +962,7 @@ struct Position {
 }
 
 /// RG-LIV-04 : position du livreur (lien secret), pendant la course seulement. Le poste revérifie.
-async fn position(State(e): State<Etat>, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>, Json(p): Json<Position>) -> Rep {
+async fn position(Resto(e): Resto, ConnectInfo(ip): ConnectInfo<SocketAddr>, entetes: HeaderMap, Path(code): Path<String>, Json(p): Json<Position>) -> Rep {
     let adresse = e.adresse(&entetes, ip);
     essais_publics(&e, &adresse)?;
     let r = enregistrer_position(&e, &code, p);

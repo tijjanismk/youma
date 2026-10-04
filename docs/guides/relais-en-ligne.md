@@ -43,7 +43,7 @@ le HTTPS et un disque (volume). Compter environ 5 $ par mois (offre Hobby) pour 
 5. **Vérifier** : `https://ADRESSE/api/etat` répond `{"relais":true,"sms":"simulation"}`.
 6. Relier le poste du restaurant : section 4 ci-dessous, avec cette adresse.
 
-**Inscrire un restaurant pour le cloud** : installer l'outil Railway (`npm i -g @railway/cli`), puis
+**Inscrire un restaurant** (cloud et commandes en ligne, fiche 0049) : installer l'outil Railway (`npm i -g @railway/cli`), puis
 `railway login`, `railway link` (choisir le projet), et :
 
 ```sh
@@ -54,9 +54,13 @@ railway ssh -- youma-relais --ajouter-restaurant "Maquis Le Baobab" --donnees /d
 ses pages (`watchPatterns` de `railway.toml`). Pendant le redémarrage (quelques secondes), le menu en ligne est
 indisponible ; les commandes en attente sont sur le volume et le poste renvoie son menu tout seul.
 
-**Plusieurs restaurants avec commandes en ligne** : dans le même projet, « New » → « GitHub Repo » (même dépôt)
-pour un second service, avec **sa propre clé**, **son propre volume** `/donnees` et sa propre adresse. Le cloud
-reste sur le premier service.
+La commande affiche la **clé** du restaurant et son **adresse** `https://ADRESSE/r/maquis-le-baobab`.
+
+**Plusieurs restaurants avec commandes en ligne** : un seul service suffit (relais partagé, fiche 0049). Inscrire
+chaque restaurant comme ci-dessus ; sur son poste, « Adresse du relais » = `https://ADRESSE/r/<son nom>` et « Clé du
+relais » = sa clé. Ses clients commandent sur `https://ADRESSE/r/<son nom>/menu`, ses livreurs se connectent sur
+`https://ADRESSE/r/<son nom>/livreur`. Chaque restaurant a sa propre base sur le volume (`/donnees/restaurants/`) ;
+le restaurant relié avec `YOUMA_RELAIS_CLE` garde les adresses à la racine.
 
 **Journal** : onglet « Deployments » → « View Logs ».
 
@@ -261,10 +265,9 @@ illisibles, pour tout le monde.
 
 - **Cloud** : une seule instance (`principal`) sert tous les restaurants. Inscrire chacun avec
   `--ajouter-restaurant` ; un même numéro et mot de passe propriétaire regroupe ses restaurants.
-- **Commandes en ligne** : aujourd'hui, **une instance par restaurant** (le relais ne connaît qu'une clé).
-  Pour un deuxième restaurant : `/etc/youma-relais/baobab.env` avec `YOUMA_PORT=8081` et sa propre clé,
-  `sudo systemctl enable --now youma-relais@baobab`, et un bloc `baobab.exemple.ml` dans le Caddyfile.
-  Son poste met cette adresse dans « Adresse du relais », et garde `https://commande.exemple.ml` pour le cloud.
+- **Commandes en ligne** : la même instance (relais partagé, fiche 0049). Chaque restaurant inscrit a ses
+  adresses `https://commande.exemple.ml/r/<son nom>` (menu, suivi, livreurs) ; son poste met cette adresse dans
+  « Adresse du relais » avec sa clé. Une instance par restaurant reste possible pour un restaurant très chargé.
 
 ## Mettre à jour
 

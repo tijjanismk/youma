@@ -18,7 +18,7 @@ import {
   totalPanierClient,
 } from "./panierClient";
 import { messageErreurPosition, positionPossible } from "./position";
-import { APPLI, baseApi } from "../appli";
+import { APPLI, baseApi, cheminPublic } from "../appli";
 
 type Produit = MenuPublic["produits"][number];
 
@@ -116,7 +116,7 @@ export default function MenuClient() {
       {enCours && (
         <p className="bandeau avertissement" role="status">
           Votre commande{enCours.numero ? ` n°${enCours.numero}` : ""} est déjà envoyée au restaurant : inutile de la renvoyer.{" "}
-          <a href={`/suivi/${enCours.code}`}>Suivre ma commande</a>
+          <a href={cheminPublic(`/suivi/${enCours.code}`)}>Suivre ma commande</a>
         </p>
       )}
       {modification && (
@@ -170,7 +170,7 @@ export default function MenuClient() {
           fait={(r) => {
             if (r.statut === "en_attente") {
               setPanier([]);
-              location.assign(`/suivi/${modifier}`);
+              location.assign(cheminPublic(`/suivi/${modifier}`));
             } else {
               setCommander(false);
               setRefus(r.message);
@@ -199,7 +199,7 @@ export default function MenuClient() {
             if (r.statut === "en_attente" && r.code_suivi) {
               setPanier([]);
               retenirSuivi(r.code_suivi);
-              location.assign(`/suivi/${r.code_suivi}`);
+              location.assign(cheminPublic(`/suivi/${r.code_suivi}`));
             } else {
               setCommander(false);
               setRefus(r.message);

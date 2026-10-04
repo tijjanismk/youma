@@ -2,7 +2,7 @@ import { ArrowLeftRight, House, Menu as MenuIcone, Moon, PanelLeftClose, PanelLe
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { definirJetonAppareil, get, post } from "./api";
-import { APPLI } from "./appli";
+import { APPLI, cheminCourant } from "./appli";
 import { BandeauMiseAJour } from "./composants/Installation";
 import { Fournisseur, useApp } from "./contexte";
 import { dateFr, dateHeure } from "./format";
@@ -42,7 +42,8 @@ const Appli = lazy(() => import("./appli/Appli"));
 
 /** Pages ouvertes par un QR ou un lien envoyé au client : hors de l'application du personnel. */
 function PagePublique() {
-  const chemin = location.pathname;
+  // Relais partagé : `/r/<nom>/menu` affiche le menu de ce restaurant (fiche 0049).
+  const chemin = cheminCourant();
   // Espace propriétaire : installable à part, avec sa propre icône d'accueil.
   useEffect(() => {
     if (chemin.startsWith("/proprietaire")) document.querySelector("link[rel=manifest]")?.setAttribute("href", "/manifest-proprietaire.webmanifest");
@@ -77,7 +78,7 @@ export default function App() {
         <Appli />
       </Suspense>
     );
-  if (estPagePublique(location.pathname)) return <PagePublique />;
+  if (estPagePublique(cheminCourant())) return <PagePublique />;
   return (
     <Fournisseur>
       <BrowserRouter>

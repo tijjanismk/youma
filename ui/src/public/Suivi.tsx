@@ -1,7 +1,7 @@
 import { Check, MapPin, Pencil, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ErreurApi, get, post } from "../api";
-import { APPLI } from "../appli";
+import { APPLI, cheminPublic, prefixeWeb } from "../appli";
 import { dateHeure, distanceTexte, fcfa, lienCarte, minutesDepuis } from "../format";
 import type { Suivi as SuiviT } from "../types";
 import { Page } from "./MenuClient";
@@ -56,7 +56,9 @@ export default function Suivi({ code }: { code: string }) {
   }, [code]);
 
   if (!s) return <Page titre="Suivi de commande">{erreur ? <p className="erreur-texte">{erreur}</p> : <p className="aide">Chargement…</p>}</Page>;
-  const etapes = ETAPES.filter((e) => s.type === "livraison" || e.cle !== "en_route").map((e) => (e.cle === "livree" && s.type !== "livraison" ? { ...e, libelle: "Servie" } : e));
+  const etapes = ETAPES.filter((e) => s.type === "livraison" || e.cle !== "en_route").map((e) =>
+    e.cle === "livree" && s.type !== "livraison" ? { ...e, libelle: "Servie" } : e,
+  );
   const rang = etapes.findIndex((e) => e.cle === s.etape);
   const distance = s.livreur && s.destination ? distanceMetres([s.livreur[0], s.livreur[1]], s.destination) : null;
   return (
@@ -80,11 +82,15 @@ export default function Suivi({ code }: { code: string }) {
       {(s.avis_possible || s.avis) && <AvisClient code={code} note={s.avis ?? null} donne={(n) => setS({ ...s, avis: n, avis_possible: false })} />}
       {(s.modifications_restantes ?? 0) > 0 && (
         <div className="carte">
-          <a className="bouton" href={`/menu?modifier=${encodeURIComponent(code)}${s.code_table ? `&table=${encodeURIComponent(s.code_table)}` : ""}`}>
+          <a
+            className="bouton"
+            href={cheminPublic(`/menu?modifier=${encodeURIComponent(code)}${s.code_table ? `&table=${encodeURIComponent(s.code_table)}` : ""}`)}
+          >
             <Pencil size={18} aria-hidden /> Modifier ma commande
           </a>
           <p className="aide">
-            Possible tant que le restaurant ne l'a pas prise, {s.modifications_restantes === 1 ? "encore une fois" : `encore ${s.modifications_restantes} fois`}.
+            Possible tant que le restaurant ne l'a pas prise, {s.modifications_restantes === 1 ? "encore une fois" : `encore ${s.modifications_restantes} fois`}
+            .
           </p>
         </div>
       )}
@@ -94,12 +100,7 @@ export default function Suivi({ code }: { code: string }) {
             <MapPin size={16} className="icone-texte" aria-hidden /> Position du livreur il y a {minutesDepuis(s.livreur[2])} min
             {distance !== null && <> — environ {distanceTexte(distance)} de chez vous</>}
           </p>
-          <a
-            className="bouton"
-            href={lienCarte(s.livreur[0], s.livreur[1])}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a className="bouton" href={lienCarte(s.livreur[0], s.livreur[1])} target="_blank" rel="noreferrer">
             Voir sur la carte
           </a>
         </div>
@@ -121,7 +122,10 @@ export default function Suivi({ code }: { code: string }) {
         {!APPLI && location.protocol === "https:" && (
           <p className="aide">
             Prévenu à chaque étape avec l'application Youma Client :{" "}
-            <a href={`youma-client://suivi?relais=${encodeURIComponent(location.origin)}&code=${encodeURIComponent(code)}`}>ouvrir dans l'application</a>.
+            <a href={`youma-client://suivi?relais=${encodeURIComponent(location.origin + prefixeWeb())}&code=${encodeURIComponent(code)}`}>
+              ouvrir dans l'application
+            </a>
+            .
           </p>
         )}
       </div>
