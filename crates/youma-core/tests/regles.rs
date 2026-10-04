@@ -210,6 +210,28 @@ fn rg_cat_04_05_options_et_rupture() {
     assert_eq!(commandes::ajouter_lignes(&mut b.db, &a, &c, &[l]).unwrap_err().regle_code(), Some("RG-CAT-05"));
 }
 
+/// RG-CAT-08 : la rupture vaut pour la journée ; une nouvelle journée remet tout le menu disponible.
+#[test]
+fn rg_cat_08_ruptures_levees_a_la_nouvelle_journee() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let frites = b.produit("Frites");
+    let caissier = b.caissier();
+    catalogue::definir_disponibilite(&mut b.db, &caissier, &frites, false).unwrap();
+    let g = b.gerant();
+    journee::cloturer(&mut b.db, &g).unwrap();
+    // Même jour, journée rouverte (clients arrivés après la clôture) : la rupture reste.
+    journee::ouvrir(&mut b.db, &g).unwrap();
+    assert!(!catalogue::produit(b.db.conn(), &frites).unwrap().disponible);
+    journee::cloturer(&mut b.db, &g).unwrap();
+    // Le lendemain : de nouveau disponible, et c'est journalisé.
+    b.horloge.avancer_minutes(24 * 60);
+    journee::ouvrir(&mut b.db, &g).unwrap();
+    assert!(catalogue::produit(b.db.conn(), &frites).unwrap().disponible);
+    let n: i64 = b.db.conn().query_row("SELECT COUNT(*) FROM journal_audit WHERE action = 'produit.ruptures_levees'", [], |r| r.get(0)).unwrap();
+    assert_eq!(n, 1);
+}
+
 // ───────────── Commandes ─────────────
 
 #[test]

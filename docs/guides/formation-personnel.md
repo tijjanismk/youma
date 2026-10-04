@@ -38,6 +38,9 @@ Sur téléphone, la commande est en bas : **Voir la commande (n)**.
 
 **Quand la cuisine a fini** : la table affiche **Prêt**. Aller chercher et servir.
 
+**Plat fini (rupture)** : Administration → Catalogue, décocher **Disponible** : le plat n'est plus proposé (salle, QR,
+en ligne) jusqu'au lendemain ; il revient tout seul à l'ouverture de la journée suivante.
+
 **Emporter ou livraison** : Salle → **+ Emporter / livraison**, puis comme à table. En livraison, choisir le
 quartier et noter le téléphone du client.
 

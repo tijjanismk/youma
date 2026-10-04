@@ -53,6 +53,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Ruptures levées chaque nouvelle journée** (RG-CAT-08) : un plat mis en rupture redevient disponible à l'ouverture
+  de la journée suivante (pas en rouvrant la même journée).
 - **Tiroir vidé avant l'ouverture** (RG-CAI-17) : à l'ouverture, « L'argent a été retiré du tiroir pour le coffre »
   met la différence au coffre (PIN du gérant) au lieu d'un écart.
 - **Relais partagé par plusieurs restaurants** (fiche 0049) : chaque restaurant inscrit (`--ajouter-restaurant`) a ses
