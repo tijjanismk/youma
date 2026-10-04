@@ -227,7 +227,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-PAI-09** La paie est indépendante des caisses : un salaire se paie depuis un compte choisi (coffre, banque, Mobile Money), jamais depuis le tiroir, et n'est rattaché à aucune session de caisse (fiche 0027).
 
 ### Livraison (LIV)
-* **RG-LIV-01** Une commande livraison porte adresse (quartier, repère, téléphone), frais et livreur.
+* **RG-LIV-01** Une commande livraison porte adresse (quartier, repère, téléphone), frais et livreur. Frais : ceux du
+  quartier dans la liste du restaurant, sinon les **frais par défaut** (1 000 F au départ, réglables ; fiche 0045).
 * **RG-LIV-02** Un paiement espèces encaissé par le livreur va sur le compte « à remettre » du livreur, pas dans la caisse.
 * **RG-LIV-03** Remise livreur : transfert du compte livreur vers la caisse ; l'écart (attendu − remis) est enregistré avec motif.
 * **RG-LIV-04** Suivi en direct : la position du livreur (microdegrés entiers, ajout seul) n'est acceptée que

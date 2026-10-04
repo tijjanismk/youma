@@ -61,6 +61,9 @@ pub struct MenuPublic {
     pub verification_numero: String,
     pub operateurs: Vec<String>,
     pub quartiers: Vec<crate::parametres::QuartierLivraison>,
+    /// Frais d'un quartier absent de la liste (fiche 0045).
+    #[serde(default)]
+    pub frais_livraison_defaut: i64,
     pub categories: Vec<CategoriePublique>,
     pub produits: Vec<ProduitPublic>,
 }
@@ -110,6 +113,7 @@ pub fn menu_public(conn: &Connection, code_table: Option<&str>, ms: i64) -> Resu
         verification_numero: p.canaux.verification_numero.clone(),
         operateurs,
         quartiers: p.quartiers.clone(),
+        frais_livraison_defaut: p.frais_livraison_defaut,
         categories,
         produits,
     })
@@ -399,7 +403,7 @@ fn recevoir_op(op: &mut Op, e: &CommandeEntrante) -> Resultat<Reponse> {
     };
     let ordre = if paiement_mode == "avance" { "avant" } else { "apres" };
     let frais = match (&type_[..], &quartier) {
-        ("livraison", Some(q)) => op.params.quartiers.iter().find(|x| x.nom.eq_ignore_ascii_case(q)).map(|x| x.frais).unwrap_or(0),
+        ("livraison", Some(q)) => op.params.frais_livraison(q),
         _ => 0,
     };
     let motif = validation_responsable.then(|| "Zone à risque : accord d'un responsable".to_string());

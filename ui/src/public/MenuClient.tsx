@@ -11,6 +11,8 @@ import { APPLI, baseApi } from "../appli";
 
 type Produit = MenuPublic["produits"][number];
 
+const AUTRE_QUARTIER = "__autre__";
+
 /**
  * Menu du client, sans connexion : QR collé sur la table (`/menu?table=CODE`) ou commande en ligne (`/menu`).
  * Les prix affichés sont indicatifs : le poste central les recalcule toujours.
@@ -362,7 +364,10 @@ function Validation({
     }
   };
   const [erreur, setErreur] = useState("");
-  const frais = enLigne && type === "livraison" ? (menu.quartiers.find((q) => q.nom === quartier)?.frais ?? 0) : 0;
+  // Quartier hors liste : « Autre quartier », frais par défaut du restaurant (fiche 0045).
+  const [autreQuartier, setAutreQuartier] = useState(false);
+  const fraisDefaut = menu.frais_livraison_defaut ?? 0;
+  const frais = enLigne && type === "livraison" ? (menu.quartiers.find((q) => q.nom === quartier)?.frais ?? fraisDefaut) : 0;
 
   // Position du client : le GPS (haute précision) plutôt que la position approchée du réseau, sans cache. La
   // première réponse est souvent grossière (antennes, Wi-Fi) : on garde la meilleure pendant 30 s au plus,
@@ -408,9 +413,17 @@ function Validation({
 
   // Position GPS précise (100 m au plus) : le point de repère devient facultatif ; sans GPS, il reste obligatoire (fiche 0038).
   const positionPrecise = position !== null && precision !== null && precision <= 100;
-  const valide =
-    !enLigne ||
-    (telephone.replace(/\D/g, "").length >= 8 && (!sms || codeSms.trim().length === 4) && (type === "emporter" || (quartier.trim() && (repere.trim() || positionPrecise))) && (mode !== "avance" || (operateur && reference.trim())));
+  // Ce qui manque encore pour envoyer, dit au client au lieu d'un bouton grisé sans explication.
+  const manque: string[] = !enLigne
+    ? []
+    : [
+        ...(telephone.replace(/\D/g, "").length < 8 ? ["votre numéro de téléphone (8 chiffres)"] : []),
+        ...(sms && codeSms.trim().length !== 4 ? [smsEnvoye ? "le code reçu par SMS (4 chiffres)" : "le code SMS : touchez « Recevoir un code par SMS »"] : []),
+        ...(type === "livraison" && !quartier.trim() ? ["votre quartier"] : []),
+        ...(type === "livraison" && !repere.trim() && !positionPrecise ? ["un point de repère (ou votre position à 100 m près)"] : []),
+        ...(mode === "avance" && !(operateur && reference.trim()) ? ["l'opérateur et la référence du paiement Mobile Money"] : []),
+      ];
+  const valide = manque.length === 0;
 
   const envoyer = async () => {
     setEnvoi(true);
@@ -472,15 +485,22 @@ function Validation({
           )}
           {type === "livraison" && (
             <>
-              {menu.quartiers.length > 0 ? (
+              {menu.quartiers.length > 0 && (
                 <Choix
                   libelle="Quartier"
-                  valeur={quartier}
-                  changer={setQuartier}
-                  options={menu.quartiers.map((q) => ({ valeur: q.nom, libelle: `${q.nom} (livraison ${fcfa(q.frais)})` }))}
+                  valeur={autreQuartier ? AUTRE_QUARTIER : quartier}
+                  changer={(v) => {
+                    setAutreQuartier(v === AUTRE_QUARTIER);
+                    setQuartier(v === AUTRE_QUARTIER ? "" : v);
+                  }}
+                  options={[
+                    ...menu.quartiers.map((q) => ({ valeur: q.nom, libelle: `${q.nom} (livraison ${fcfa(q.frais)})` })),
+                    { valeur: AUTRE_QUARTIER, libelle: `Autre quartier (livraison ${fcfa(fraisDefaut)})` },
+                  ]}
                 />
-              ) : (
-                <Champ libelle="Quartier" valeur={quartier} changer={setQuartier} obligatoire />
+              )}
+              {(menu.quartiers.length === 0 || autreQuartier) && (
+                <Champ libelle={menu.quartiers.length === 0 ? "Quartier" : "Votre quartier"} valeur={quartier} changer={setQuartier} obligatoire />
               )}
               <Champ
                 libelle={positionPrecise ? "Point de repère (facultatif : votre position est partagée)" : "Point de repère"}
@@ -559,6 +579,11 @@ function Validation({
         {frais > 0 && <small> (dont livraison {fcfa(frais)})</small>}
       </p>
       {erreur && <p className="erreur-texte">{erreur}</p>}
+      {manque.length > 0 && (
+        <p className="attention-texte" role="status">
+          Pour envoyer, il manque : {manque.join(" ; ")}.
+        </p>
+      )}
       <button className="principal grand" disabled={!valide || envoi} onClick={envoyer}>
         {envoi ? "Envoi…" : "Envoyer la commande"}
       </button>

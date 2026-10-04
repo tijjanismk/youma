@@ -651,3 +651,19 @@ fn rg_rap_04_commandes_non_honorees() {
     assert_eq!((repetes.len(), repetes[0][0].as_str(), repetes[0][2].as_i64()), (1, Some("76000021"), Some(2)));
     assert_eq!(tab("Détail").lignes.len(), 2);
 }
+
+/// RG-LIV-01 (fiche 0045) : quartier absent de la liste → frais de livraison par défaut (1 000 F, réglables).
+#[test]
+fn rg_liv_01_frais_par_defaut_hors_liste() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    activer(&mut b, |c| c.en_ligne = true);
+    let p = parametres::lire(b.db.conn()).unwrap();
+    assert_eq!(p.frais_livraison_defaut, 1_000);
+    let liste_frais = p.quartiers.iter().find(|q| q.nom == "Hamdallaye").map(|q| q.frais).unwrap();
+    assert_eq!(p.frais_livraison("hamdallaye "), liste_frais, "majuscules et espaces ignorés");
+    let r = recu(&mut b, "Sotuba", "76000031", "a_la_livraison");
+    let id = id_par_numero(&b, r.numero.unwrap());
+    assert_eq!(b.total(&id).frais_livraison, 1_000);
+    assert_eq!(entrantes::menu_public(b.db.conn(), None, 0).unwrap().frais_livraison_defaut, 1_000);
+}

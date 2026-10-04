@@ -835,9 +835,17 @@ function RestaurantAdmin() {
             />
           </div>
         ))}
-        <button className="lien" onClick={() => setParams({ ...params, quartiers: [...params.quartiers, { nom: "", frais: 500 }] })}>
+        <button
+          className="lien"
+          onClick={() => setParams({ ...params, quartiers: [...params.quartiers, { nom: "", frais: params.frais_livraison_defaut }] })}
+        >
           + Quartier
         </button>
+        <ChampMontant
+          libelle="Frais de livraison par défaut (quartier absent de la liste)"
+          valeur={params.frais_livraison_defaut}
+          changer={(v) => setParams({ ...params, frais_livraison_defaut: v })}
+        />
         <h3>Impression</h3>
         <Choix
           libelle="Largeur du papier des tickets"

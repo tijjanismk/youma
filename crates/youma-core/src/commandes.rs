@@ -440,9 +440,7 @@ pub(crate) fn ouvrir_op(op: &mut Op, n: &NouvelleCommande) -> Resultat<String> {
             if l.telephone.trim().is_empty() || l.quartier.trim().is_empty() {
                 return Err(Erreur::regle("RG-LIV-01", "Quartier et téléphone obligatoires pour une livraison"));
             }
-            let frais = l.frais.unwrap_or_else(|| {
-                op.params.quartiers.iter().find(|q| q.nom == l.quartier).map(|q| q.frais).unwrap_or(0)
-            });
+            let frais = l.frais.unwrap_or_else(|| op.params.frais_livraison(&l.quartier));
             (Some("nouvelle"), Some(l.quartier.clone()), Some(l.repere.clone()), Some(l.telephone.clone()), frais)
         }
         ("livraison", None) => return Err(Erreur::regle("RG-LIV-01", "Adresse de livraison manquante")),
