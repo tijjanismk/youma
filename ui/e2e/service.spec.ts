@@ -869,5 +869,14 @@ test("position du client : échec et imprécision expliqués sous la case, bouto
   await expect(t2.getByText(/à 381 m près\) : approximative/)).toBeVisible();
   await expect(t2.getByRole("button", { name: "Réessayer" })).toBeVisible();
   await expect(t2.getByLabel("Point de repère")).toBeVisible();
+  // Bouton grisé : la raison est écrite (fiche 0045) ; quartier hors liste aux frais par défaut (1 000 F).
+  await expect(t2.getByText(/Pour envoyer, il manque : votre numéro de téléphone/)).toBeVisible();
+  await t2.getByLabel("Quartier").selectOption({ label: "Autre quartier (livraison 1 000 FCFA)" });
+  await t2.getByLabel("Votre quartier").fill("Sotuba");
+  await t2.getByLabel("Votre téléphone").fill("76 44 55 66");
+  await t2.getByLabel("Point de repère").fill("Près du pont");
+  await expect(t2.getByText(/dont livraison 1 000 FCFA/)).toBeVisible();
+  await expect(t2.getByText(/Pour envoyer, il manque/)).toHaveCount(0);
+  await expect(t2.getByRole("button", { name: "Envoyer la commande" })).toBeEnabled();
   await flou.close();
 });

@@ -28,6 +28,8 @@ pub struct Parametres {
     pub coupures: Vec<i64>,
     /// Quartiers de livraison et frais (RG-LIV-01).
     pub quartiers: Vec<QuartierLivraison>,
+    /// RG-LIV-01 : frais de livraison d'un quartier absent de la liste (fiche 0045).
+    pub frais_livraison_defaut: i64,
     pub largeur_ticket: usize,
     /// Imprimante des tickets clients et rapports : '', 'tcp:IP:PORT', 'fichier:CHEMIN', 'windows:NOM'.
     pub imprimante_caisse: String,
@@ -148,6 +150,14 @@ pub struct Cotisations {
     pub amo_employeur_bp: i64,
 }
 
+impl Parametres {
+    /// RG-LIV-01 : frais du quartier (sans tenir compte des majuscules), sinon les frais par défaut.
+    pub fn frais_livraison(&self, quartier: &str) -> i64 {
+        let q = quartier.trim();
+        self.quartiers.iter().find(|x| x.nom.trim().eq_ignore_ascii_case(q)).map(|x| x.frais).unwrap_or(self.frais_livraison_defaut)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuartierLivraison {
     pub nom: String,
@@ -169,6 +179,7 @@ impl Default for Parametres {
             cotisations: Cotisations::default(),
             coupures: vec![10_000, 5_000, 2_000, 1_000, 500, 250, 200, 100, 50, 25, 10, 5],
             quartiers: vec![],
+            frais_livraison_defaut: 1_000,
             largeur_ticket: 42,
             imprimante_caisse: String::new(),
             ouvrir_tiroir: false,
@@ -310,7 +321,7 @@ pub fn modifier(db: &mut crate::Db, acteur: &crate::Acteur, p: &Parametres) -> R
     let p = &p;
     db.executer(acteur, |op| {
         op.exiger(crate::permissions::PARAMETRE_GERER)?;
-        if !(0..=12).contains(&p.heure_bascule) || p.arrondi < 1 || p.seuil_ecart_caisse < 0 || p.largeur_ticket < 24 {
+        if !(0..=12).contains(&p.heure_bascule) || p.arrondi < 1 || p.seuil_ecart_caisse < 0 || p.largeur_ticket < 24 || p.frais_livraison_defaut < 0 {
             return Err(crate::Erreur::validation("Paramètre hors limites"));
         }
         // RG-PAI-07 : taux saisis à la main ; activer sans taux n'aurait aucun effet visible.

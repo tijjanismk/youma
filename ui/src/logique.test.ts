@@ -7,6 +7,7 @@ import { ajouter, changerQuantite, chargerPanier, definirQuantite, optionsValide
 import { billetsProposes, rendu, sommeParts, verifierPaiement } from "./paiement";
 import { messageErreurPosition } from "./public/position";
 import { adresseRelais, lireLien } from "./appli";
+import { largeurImprimableMm } from "./composants/Ticket";
 import type { Produit } from "./types";
 
 const produit = (p: Partial<Produit>): Produit => ({
@@ -346,5 +347,14 @@ describe("applications : liens du restaurant (fiche 0041)", () => {
     expect(lireLien("https://r.example.ml/menu")).toEqual({ relais: "https://r.example.ml", page: "menu" });
     expect(lireLien("youma-client://menu?relais=https://r.example.ml")).toEqual({ relais: "https://r.example.ml", page: "menu" });
     expect(lireLien("youma-livreur://course?relais=https://r.example.ml")).toBeNull();
+  });
+});
+
+describe("largeur du ticket imprimé par le navigateur", () => {
+  it("suit le papier réglé : 50, 58 ou 80 mm", () => {
+    expect(largeurImprimableMm(28)).toBe(40);
+    expect(largeurImprimableMm(32)).toBe(48);
+    expect(largeurImprimableMm(42)).toBe(72);
+    expect(largeurImprimableMm(48)).toBe(72);
   });
 });

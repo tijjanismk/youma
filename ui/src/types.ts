@@ -44,6 +44,7 @@ export type Parametres = {
     amo_employeur_bp: number;
   };
   coupures: number[];
+  frais_livraison_defaut: number;
   quartiers: { nom: string; frais: number }[];
   largeur_ticket: number;
   imprimante_caisse: string;
@@ -141,6 +142,8 @@ export type MenuPublic = {
   verification_numero: string;
   operateurs: string[];
   quartiers: { nom: string; frais: number }[];
+  /** Frais d'un quartier absent de la liste (fiche 0045). */
+  frais_livraison_defaut?: number;
   categories: { id: string; nom: string; icone: string; couleur: string }[];
   produits: { id: string; categorie_id: string; nom: string; description: string; photo: string; prix: number; groupes_options: GroupeOptions[] }[];
 };

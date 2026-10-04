@@ -635,7 +635,8 @@ pub fn rapport_z(conn: &Connection, session_id: &str) -> Resultat<String> {
     let w = p.largeur_ticket;
     let nom: String = conn.query_row("SELECT nom FROM restaurant LIMIT 1", [], |r| r.get(0))?;
     let j = journee::par_id(conn, &s.journee_id)?;
-    let mut t = format!("##{nom}\n##RAPPORT Z\n");
+    let mut t = crate::impression::double(&nom, w);
+    t.push_str(&crate::impression::double("RAPPORT Z", w));
     t.push_str(&format!("**Journée du {}\n", j.date_exploitation));
     t.push_str(&format!("Caisse : {}\nCaissier : {}\n", s.compte_nom, s.caissier_nom));
     t.push_str(&format!("Ouverture : {}\n", horloge::format_ms(s.ouverte_le + p.fuseau_minutes * 60_000)));

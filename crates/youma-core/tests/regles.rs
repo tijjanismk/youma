@@ -945,3 +945,35 @@ fn rg_cat_07_menu_du_jour() {
     let m = catalogue::menu_du_jour(b.db.conn()).unwrap();
     assert_eq!((m.plats.len(), m.coches.len()), (1, 1));
 }
+
+/// Papier de 50 mm (28 caractères) : les tickets client et cuisine tiennent dans la largeur.
+#[test]
+fn ticket_sur_papier_de_50_mm() {
+    let mut b = banc();
+    let mut p = youma_core::parametres::lire(b.db.conn()).unwrap();
+    p.largeur_ticket = 28;
+    let prop = b.proprietaire().avec_eleve(true);
+    youma_core::parametres::modifier(&mut b.db, &prop, &p).unwrap();
+    b.ouvrir_journee();
+    b.ouvrir_caisse(10_000);
+    let a = b.caissier();
+    let c = b.commande_table("1", &[("Coca-Cola", 4), ("Brochettes (3)", 2)]);
+    let total = b.total(&c).total;
+    caisse::encaisser(&mut b.db, &a, &Encaissement { commande_id: c.clone(), parts: vec![especes(total)], especes_recues: Some(20_000) }).unwrap();
+    let ticket = youma_core::impression::ticket_client(b.db.conn(), &c).unwrap();
+    let tickets_cuisine: Vec<String> =
+        b.db.conn().prepare("SELECT contenu FROM impressions").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
+    for t in std::iter::once(&ticket).chain(tickets_cuisine.iter()) {
+        for ligne in t.lines() {
+            // « ## » : double largeur (moitié des caractères) ; « >> » et « ** » : centré ou gras, même largeur.
+            let (texte, double) = match ligne.get(..2) {
+                Some("##") => (&ligne[2..], true),
+                Some(">>") | Some("**") => (&ligne[2..], false),
+                _ => (ligne, false),
+            };
+            let n = texte.chars().count() * if double { 2 } else { 1 };
+            assert!(n <= 28, "« {ligne} » dépasse 28 caractères :\n{t}");
+        }
+    }
+    assert!(ticket.contains(&"-".repeat(28)) && !ticket.contains(&"-".repeat(29)), "{ticket}");
+}
