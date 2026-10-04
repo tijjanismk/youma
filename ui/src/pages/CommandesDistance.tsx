@@ -51,7 +51,7 @@ function CanauxAdmin() {
             changer={(v) => maj({ verification_numero: v })}
             options={[
               { valeur: "rappel", libelle: "Rappel par la caisse avant d'accepter" },
-              { valeur: "sms", libelle: "Code SMS Orange Mali (serveur relais)" },
+              { valeur: "sms", libelle: "Code par SMS ou WhatsApp, une fois par numéro (serveur relais)" },
             ]}
           />
         </div>

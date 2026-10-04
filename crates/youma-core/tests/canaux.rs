@@ -389,6 +389,8 @@ fn rg_zon_02_cercle_gps_et_validation_par_responsable() {
     let id = id_par_numero(&b, r.numero.unwrap());
     let f = entrantes::file(b.db.conn()).unwrap();
     assert!(f[0].validation_responsable);
+    // Fiche 0046 : la position du client est vue par le restaurant (et le livreur), pas seulement par le livreur.
+    assert_eq!((f[0].commande.livraison_lat, f[0].commande.livraison_lon), (Some(12_640_000), Some(-8_002_000)));
     // La caissière accepte d'ordinaire, mais ici il faut un responsable.
     let c = b.caissier();
     assert_eq!(code(&entrantes::valider(&mut b.db, &c, &id, true, "").unwrap_err()), "AUTORISATION_REQUISE");

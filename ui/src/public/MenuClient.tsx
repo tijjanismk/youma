@@ -1,11 +1,22 @@
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, BadgeCheck, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ErreurApi, get, post } from "../api";
 import { Case, Champ, Choix, Modal, Onglets } from "../composants/Base";
 import { VisuelPlat } from "../composants/Plat";
 import { fcfa, lienCarte, versMicro } from "../format";
 import type { GroupeOptions, MenuPublic, ReponseEntrante, Suivi } from "../types";
-import { cleOptions, ETAPES_EN_COURS, lirePanierClient, lireSuivis, PanierClient, retenirSuivi, totalPanierClient } from "./panierClient";
+import {
+  cleOptions,
+  ETAPES_EN_COURS,
+  lireClientVerifie,
+  lirePanierClient,
+  lireSuivis,
+  normaliserTelephone,
+  PanierClient,
+  retenirClientVerifie,
+  retenirSuivi,
+  totalPanierClient,
+} from "./panierClient";
 import { messageErreurPosition, positionPossible } from "./position";
 import { APPLI, baseApi } from "../appli";
 
@@ -233,8 +244,8 @@ function ConfirmerModification({
     <Modal titre="Modifier ma commande" fermer={fermer}>
       <p className="alerte" role="alert">
         Attention : votre commande sera remplacée par celle-ci, et le restaurant verra que vous l'avez modifiée.{" "}
-        {restantes === 1 ? "C'est votre dernière modification possible." : `Vous pourrez encore la modifier ${restantes - 1} fois.`} Pour
-        l'annuler, appelez le restaurant.
+        {restantes === 1 ? "C'est votre dernière modification possible." : `Vous pourrez encore la modifier ${restantes - 1} fois.`} Pour l'annuler, appelez le
+        restaurant.
       </p>
       <p>
         Nouveau total : <strong>{fcfa(total)}</strong>
@@ -255,7 +266,8 @@ function ConfirmerModification({
 export function messageClient(e: unknown, qr: boolean): string {
   if (e instanceof ErreurApi) {
     if (e.horsLigne) return "Le restaurant est injoignable pour le moment. Réessayez dans un instant.";
-    if (e.statut === 403) return qr ? "La commande depuis la table n'est pas active : appelez le serveur." : "Ce restaurant ne prend pas de commandes en ligne pour le moment.";
+    if (e.statut === 403)
+      return qr ? "La commande depuis la table n'est pas active : appelez le serveur." : "Ce restaurant ne prend pas de commandes en ligne pour le moment.";
     if (e.statut === 503) return "Le restaurant n'est pas encore connecté. Réessayez plus tard.";
     if (e.regle === "RG-CAN-02") return "Ce QR code n'est plus valable : demandez au serveur.";
   }
@@ -332,7 +344,9 @@ function Validation({
   const enLigne = !table;
   const [type, setType] = useState<"livraison" | "emporter">("livraison");
   const [nom, setNom] = useState("");
-  const [telephone, setTelephone] = useState("");
+  // Fiche 0046 : numéro vérifié une fois auprès de ce restaurant, proposé d'office.
+  const [verifie, setVerifie] = useState(lireClientVerifie);
+  const [telephone, setTelephone] = useState(() => verifie?.telephone ?? "");
   const [quartier, setQuartier] = useState(menu.quartiers[0]?.nom ?? "");
   const [repere, setRepere] = useState("");
   const [position, setPosition] = useState<[number, number] | null>(null);
@@ -347,21 +361,44 @@ function Validation({
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [envoi, setEnvoi] = useState(false);
-  // RG-CAN-04 : code SMS (serveur relais et fournisseur SMS configurés).
+  // RG-CAN-04 : code par SMS ou WhatsApp (serveur relais configuré), demandé une seule fois par numéro (fiche 0046).
   const sms = enLigne && menu.verification_numero === "sms";
+  const canaux = menu.canaux_verification?.length ? menu.canaux_verification : ["sms"];
+  const numeroReconnu = sms && verifie !== null && verifie.telephone === normaliserTelephone(telephone);
   const [codeSms, setCodeSms] = useState("");
-  const [smsEnvoye, setSmsEnvoye] = useState(false);
+  const [canalEnvoye, setCanalEnvoye] = useState("");
   const [codeSimule, setCodeSimule] = useState("");
-  const demanderCode = async () => {
+  const [confirmation, setConfirmation] = useState(false);
+  const demanderCode = async (canal: string) => {
     setErreur("");
     try {
-      const r = await post<{ envoye: boolean; simulation?: boolean; code?: string }>("/public/verification", { telephone });
-      setSmsEnvoye(true);
-      // Relais sans contrat Orange Mali : envoi simulé, le code s'affiche ici.
+      const r = await post<{ envoye: boolean; simulation?: boolean; code?: string }>("/public/verification", { telephone, canal });
+      setCanalEnvoye(canal);
+      setCodeSms("");
+      // Relais sans contrat Orange Mali ni WhatsApp : envoi simulé, le code s'affiche ici.
       setCodeSimule(r.simulation && r.code ? r.code : "");
     } catch (e) {
       setErreur(e instanceof Error ? e.message : String(e));
     }
+  };
+  const confirmerCode = async (code: string) => {
+    setErreur("");
+    setConfirmation(true);
+    try {
+      const r = await post<{ telephone: string; jeton_client: string }>("/public/verification/confirmer", { telephone, code: code.trim() });
+      const v = { telephone: r.telephone, jeton: r.jeton_client };
+      retenirClientVerifie(v);
+      setVerifie(v);
+      setCodeSimule("");
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : String(e));
+    } finally {
+      setConfirmation(false);
+    }
+  };
+  const changerCode = (v: string) => {
+    setCodeSms(v);
+    if (/^\d{4}$/.test(v.trim())) confirmerCode(v);
   };
   const [erreur, setErreur] = useState("");
   // Quartier hors liste : « Autre quartier », frais par défaut du restaurant (fiche 0045).
@@ -418,7 +455,7 @@ function Validation({
     ? []
     : [
         ...(telephone.replace(/\D/g, "").length < 8 ? ["votre numéro de téléphone (8 chiffres)"] : []),
-        ...(sms && codeSms.trim().length !== 4 ? [smsEnvoye ? "le code reçu par SMS (4 chiffres)" : "le code SMS : touchez « Recevoir un code par SMS »"] : []),
+        ...(sms && !numeroReconnu ? [canalEnvoye ? "le code reçu (4 chiffres)" : "la vérification de votre numéro : touchez « Recevoir le code »"] : []),
         ...(type === "livraison" && !quartier.trim() ? ["votre quartier"] : []),
         ...(type === "livraison" && !repere.trim() && !positionPrecise ? ["un point de repère (ou votre position à 100 m près)"] : []),
         ...(mode === "avance" && !(operateur && reference.trim()) ? ["l'opérateur et la référence du paiement Mobile Money"] : []),
@@ -435,17 +472,24 @@ function Validation({
             type,
             client_nom: nom,
             telephone,
-            livraison:
-              type === "livraison" ? { quartier, repere, telephone, lat: position?.[0] ?? null, lon: position?.[1] ?? null } : null,
+            livraison: type === "livraison" ? { quartier, repere, telephone, lat: position?.[0] ?? null, lon: position?.[1] ?? null } : null,
             paiement_mode: mode,
             paiement_operateur: mode === "avance" ? operateur : null,
             paiement_reference: mode === "avance" ? reference : null,
-            code_verification: sms ? codeSms.trim() : undefined,
+            jeton_client: numeroReconnu ? verifie?.jeton : undefined,
             lignes: panier,
             note,
           }
         : { canal: "qr_table", code_table: table, lignes: panier, note };
-      fait(await post<ReponseEntrante>("/public/commandes", corps));
+      const r = await post<ReponseEntrante>("/public/commandes", corps);
+      // Jeton expiré ou effacé du relais : le numéro sera vérifié de nouveau.
+      if (r.statut === "refusee" && numeroReconnu && r.message.includes("vérifier")) {
+        retenirClientVerifie(null);
+        setVerifie(null);
+        setErreur(r.message);
+        return;
+      }
+      fait(r);
     } catch (e) {
       setErreur(e instanceof Error ? e.message : String(e));
     } finally {
@@ -474,14 +518,34 @@ function Validation({
           />
           <Champ libelle="Votre nom" valeur={nom} changer={setNom} />
           <Champ libelle="Votre téléphone" valeur={telephone} changer={setTelephone} type="tel" obligatoire />
-          {sms && (
-            <div className="grille-2">
-              <button type="button" disabled={telephone.replace(/\D/g, "").length < 8} onClick={demanderCode}>
-                {smsEnvoye ? "Renvoyer le code" : "Recevoir un code par SMS"}
+          {sms && numeroReconnu && (
+            <p className="aide">
+              <BadgeCheck size={16} className="icone-texte" aria-hidden /> Numéro vérifié : pas de code à donner.{" "}
+              <button type="button" className="petit" onClick={() => setTelephone("")}>
+                Changer de numéro
               </button>
-              <Champ libelle="Code reçu par SMS" valeur={codeSms} changer={setCodeSms} />
-              {codeSimule && <p className="aide">Mode test (SMS simulé) : votre code est {codeSimule}</p>}
-            </div>
+            </p>
+          )}
+          {sms && !numeroReconnu && (
+            <>
+              <p className="aide">Première commande avec ce numéro : recevez un code pour le vérifier (une seule fois).</p>
+              <div className="boutons-ligne">
+                {canaux.map((c) => (
+                  <button key={c} type="button" disabled={normaliserTelephone(telephone).length !== 8} onClick={() => demanderCode(c)}>
+                    {c === "whatsapp" ? "Recevoir le code par WhatsApp" : "Recevoir le code par SMS"}
+                  </button>
+                ))}
+              </div>
+              {canalEnvoye && (
+                <div className="grille-2">
+                  <Champ libelle={canalEnvoye === "whatsapp" ? "Code reçu par WhatsApp" : "Code reçu par SMS"} valeur={codeSms} changer={changerCode} />
+                  <button type="button" disabled={codeSms.trim().length !== 4 || confirmation} onClick={() => confirmerCode(codeSms)}>
+                    {confirmation ? "Vérification…" : "Valider le code"}
+                  </button>
+                  {codeSimule && <p className="aide">Mode test (envoi simulé) : votre code est {codeSimule}</p>}
+                </div>
+              )}
+            </>
           )}
           {type === "livraison" && (
             <>
@@ -510,7 +574,7 @@ function Validation({
                 obligatoire={!positionPrecise}
               />
               {positionPossible() ? (
-                <Case libelle="Partager ma position pour le livreur" valeur={partager} changer={setPartager} />
+                <Case libelle="Partager ma position avec le restaurant et le livreur" valeur={partager} changer={setPartager} />
               ) : (
                 <p className="aide">La position ne peut être partagée que depuis le lien Internet du restaurant : indiquez un point de repère précis.</p>
               )}
@@ -558,7 +622,9 @@ function Validation({
             valeur={mode}
             changer={setMode}
             options={[
-              ...(menu.paiement_a_la_livraison ? [{ valeur: "a_la_livraison", libelle: type === "livraison" ? "À la livraison" : "Sur place, en récupérant" }] : []),
+              ...(menu.paiement_a_la_livraison
+                ? [{ valeur: "a_la_livraison", libelle: type === "livraison" ? "À la livraison" : "Sur place, en récupérant" }]
+                : []),
               ...(menu.paiement_avance && menu.operateurs.length ? [{ valeur: "avance", libelle: "Mobile Money maintenant" }] : []),
             ]}
           />

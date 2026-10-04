@@ -5,6 +5,7 @@ import { ErreurApi, get, post } from "../api";
 import { Champ, ChampMontant, DemandeMotif, Modal, Montant } from "../composants/Base";
 import { TicketImprimable, TicketWhatsApp } from "../composants/Ticket";
 import { VisuelPlat } from "../composants/Plat";
+import PositionClient from "../composants/PositionClient";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, nombre } from "../format";
 import { t } from "../i18n";
@@ -192,7 +193,8 @@ export default function PriseCommande() {
         {cmd.client_nom && <p className="aide">Client : {cmd.client_nom}</p>}
         {cmd.type === "livraison" && (
           <p className="aide">
-            <Bike size={16} className="icone-texte" aria-hidden /> {cmd.livraison_quartier} — {cmd.livraison_repere} — {cmd.livraison_telephone}
+            <Bike size={16} className="icone-texte" aria-hidden /> {cmd.livraison_quartier} — {cmd.livraison_repere} — {cmd.livraison_telephone}{" "}
+            <PositionClient lat={cmd.livraison_lat} lon={cmd.livraison_lon} />
           </p>
         )}
         <ul className="lignes">

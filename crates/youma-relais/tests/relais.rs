@@ -23,8 +23,12 @@ async fn relais() -> Relais {
 }
 
 async fn relais_avec(sms: FournisseurSms) -> Relais {
+    relais_complet(sms, None).await
+}
+
+async fn relais_complet(sms: FournisseurSms, whatsapp: Option<youma_relais::WhatsApp>) -> Relais {
     let dossier = tempfile::tempdir().unwrap();
-    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms };
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms, whatsapp };
     let etat = Etat::ouvrir(&config).unwrap();
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let adresse = ecoute.local_addr().unwrap();
@@ -69,6 +73,35 @@ async fn faux_orange() -> (youma_relais::Orange, Arc<Mutex<Vec<Value>>>) {
         nom_expediteur: Some("Baobab".into()),
     };
     (orange, recus)
+}
+
+/// Faux WhatsApp Cloud (Meta) : garde les messages reçus.
+async fn faux_whatsapp() -> (youma_relais::WhatsApp, Arc<Mutex<Vec<Value>>>) {
+    let recus = Arc::new(Mutex::new(Vec::new()));
+    let r = recus.clone();
+    let app = axum::Router::new().route(
+        "/{numero}/messages",
+        post(move |Path(numero): Path<String>, h: HeaderMap, Json(v): Json<Value>| {
+            let r = r.clone();
+            async move {
+                assert_eq!(h["authorization"], "Bearer JETON-META");
+                assert_eq!(numero, "1234567890");
+                r.lock().unwrap().push(v);
+                Json(json!({ "messages": [{ "id": "wamid.x" }] }))
+            }
+        }),
+    );
+    let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let a: SocketAddr = ecoute.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(ecoute, app).await });
+    let w = youma_relais::WhatsApp {
+        api: format!("http://{a}"),
+        numero_id: "1234567890".into(),
+        jeton: "JETON-META".into(),
+        modele: "youma_code".into(),
+        langue: "fr".into(),
+    };
+    (w, recus)
 }
 
 impl Relais {
@@ -220,13 +253,85 @@ async fn sms_simule_tant_qu_orange_n_est_pas_configure() {
     assert_eq!(s["commandes"][0]["telephone_verifie"], true);
 }
 
+/// Fiche 0046 : le client choisit SMS ou WhatsApp, vérifie son numéro une fois et commande ensuite sans code.
+#[tokio::test]
+async fn code_par_whatsapp_puis_numero_reconnu() {
+    let (orange, sms) = faux_orange().await;
+    let (whatsapp, wa) = faux_whatsapp().await;
+    let r = relais_complet(FournisseurSms::Orange(orange), Some(whatsapp)).await;
+    let config = json!({ "verification_numero": "sms" });
+    r.synchroniser(CLE, json!({ "menu": menu(), "config": config })).await;
+    let (_, m) = r.get("/public/menu").await;
+    assert_eq!(m["canaux_verification"], json!(["sms", "whatsapp"]));
+    assert_eq!(r.post("/public/verification", json!({ "telephone": "76000001", "canal": "pigeon" })).await.0, 422);
+
+    let (code, v) = r.post("/public/verification", json!({ "telephone": "76 00 00 01", "canal": "whatsapp" })).await;
+    assert_eq!(code, 200, "{v}");
+    assert!(v.get("code").is_none(), "WhatsApp configuré : le code ne part que par WhatsApp");
+    assert!(sms.lock().unwrap().is_empty(), "aucun SMS");
+    let message = wa.lock().unwrap()[0].clone();
+    assert_eq!(message["to"], "22376000001");
+    assert_eq!(message["template"]["name"], "youma_code");
+    let code_wa = message["template"]["components"][0]["parameters"][0]["text"].as_str().unwrap().to_string();
+    assert_eq!(message["template"]["components"][1]["parameters"][0]["text"], code_wa.as_str());
+
+    // Mauvais code : refusé ; bon code : un jeton pour ce téléphone.
+    let faux = if code_wa == "0000" { "1111" } else { "0000" };
+    assert_eq!(r.post("/public/verification/confirmer", json!({ "telephone": "76000001", "code": faux })).await.0, 422);
+    let (code, v) = r.post("/public/verification/confirmer", json!({ "telephone": "+223 76 00 00 01", "code": code_wa })).await;
+    assert_eq!(code, 200, "{v}");
+    let jeton = v["jeton_client"].as_str().unwrap().to_string();
+    assert_eq!(v["telephone"], "76000001");
+    // Le code est consommé.
+    assert_eq!(r.post("/public/verification/confirmer", json!({ "telephone": "76000001", "code": code_wa })).await.0, 422);
+
+    // Commandes suivantes : le jeton suffit, sans code.
+    let avec_jeton = |j: &str, n: i64| {
+        let mut c = commande("");
+        c["jeton_client"] = json!(j);
+        c["lignes"][0]["quantite"] = json!(n);
+        c
+    };
+    let (_, rep) = r.post("/public/commandes", avec_jeton(&jeton, 1)).await;
+    assert_eq!(rep["statut"], "en_attente", "{rep}");
+    let (_, rep) = r.post("/public/commandes", avec_jeton(&jeton, 2)).await;
+    assert_eq!(rep["statut"], "en_attente", "{rep}");
+    // Faux jeton, ou jeton d'un autre numéro : refusé.
+    assert_eq!(r.post("/public/commandes", avec_jeton("FAUX", 3)).await.1["statut"], "refusee");
+    let mut autre = avec_jeton(&jeton, 3);
+    autre["telephone"] = json!("76000002");
+    assert_eq!(r.post("/public/commandes", autre).await.1["statut"], "refusee");
+
+    // Le poste reçoit des commandes vérifiées, sans le jeton.
+    let (_, s) = r.synchroniser(CLE, json!({ "menu": menu(), "config": config })).await;
+    let commandes = s["commandes"].as_array().unwrap();
+    assert_eq!(commandes.len(), 2);
+    assert!(commandes.iter().all(|c| c["telephone_verifie"] == true && c.get("jeton_client").is_none()));
+}
+
+#[tokio::test]
+async fn whatsapp_propose_seulement_s_il_est_configure() {
+    let (orange, _) = faux_orange().await;
+    let r = relais_avec(FournisseurSms::Orange(orange)).await;
+    r.synchroniser(CLE, json!({ "menu": menu(), "config": { "verification_numero": "sms" } })).await;
+    assert_eq!(r.get("/public/menu").await.1["canaux_verification"], json!(["sms"]));
+    assert_eq!(r.post("/public/verification", json!({ "telephone": "76000001", "canal": "whatsapp" })).await.0, 422);
+    // Relais de démonstration (tout simulé) : les deux, le code s'affiche.
+    let r = relais().await;
+    r.synchroniser(CLE, json!({ "menu": menu(), "config": { "verification_numero": "sms" } })).await;
+    assert_eq!(r.get("/public/menu").await.1["canaux_verification"], json!(["sms", "whatsapp"]));
+    let (_, v) = r.post("/public/verification", json!({ "telephone": "76000001", "canal": "whatsapp" })).await;
+    assert_eq!(v["simulation"], true);
+    assert_eq!(v["code"].as_str().unwrap().len(), 4);
+}
+
 /// Cloud multi-restaurants : résumés, SMS de clôture une seule fois, espace propriétaire, sauvegardes chiffrées.
 #[tokio::test]
 async fn cloud_resumes_proprietaire_et_sauvegardes() {
     let dossier = tempfile::tempdir().unwrap();
     let cle_a = youma_relais::inscrire_restaurant(dossier.path(), "Maquis A").unwrap();
     let cle_b = youma_relais::inscrire_restaurant(dossier.path(), "Maquis B").unwrap();
-    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: FournisseurSms::Simulation };
+    let config = Config { dossier_donnees: dossier.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: FournisseurSms::Simulation, whatsapp: None };
     let etat = Etat::ouvrir(&config).unwrap();
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/api", ecoute.local_addr().unwrap());

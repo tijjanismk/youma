@@ -834,7 +834,10 @@ test("commandes non honorées et avis clients : rapports et suite des avis (fich
   await expect(page.getByRole("tab", { name: "Mécontents à rappeler" })).toBeVisible();
 });
 
-test("position du client : échec et imprécision expliqués sous la case, bouton Réessayer (fiche 0043)", async ({ browser }) => {
+test("position du client : échec et imprécision expliqués sous la case, bouton Réessayer, vue par le restaurant (fiches 0043, 0046)", async ({
+  browser,
+  page,
+}) => {
   // Le menu en ligne a été activé par le test des commandes à distance.
   const refus = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
   const tel = await refus.newPage();
@@ -844,7 +847,7 @@ test("position du client : échec et imprécision expliqués sous la case, bouto
   await tel.getByRole("tab", { name: /Grillades/ }).click();
   await tel.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
   await tel.getByRole("button", { name: /^Commander \(1\)/ }).click();
-  await tel.getByLabel("Partager ma position pour le livreur").check();
+  await tel.getByLabel("Partager ma position avec le restaurant et le livreur").check();
   await expect(tel.getByText(/Recherche de votre position/)).toBeVisible();
   await tel.clock.fastForward(31_000);
   const alerte = tel.getByRole("dialog").getByRole("alert");
@@ -865,7 +868,7 @@ test("position du client : échec et imprécision expliqués sous la case, bouto
   await t2.getByRole("tab", { name: /Grillades/ }).click();
   await t2.getByRole("button", { name: "Ajouter Brochettes (3)" }).click();
   await t2.getByRole("button", { name: /^Commander \(1\)/ }).click();
-  await t2.getByLabel("Partager ma position pour le livreur").check();
+  await t2.getByLabel("Partager ma position avec le restaurant et le livreur").check();
   await expect(t2.getByText(/à 381 m près\) : approximative/)).toBeVisible();
   await expect(t2.getByRole("button", { name: "Réessayer" })).toBeVisible();
   await expect(t2.getByLabel("Point de repère")).toBeVisible();
@@ -878,5 +881,17 @@ test("position du client : échec et imprécision expliqués sous la case, bouto
   await expect(t2.getByText(/dont livraison 1 000 FCFA/)).toBeVisible();
   await expect(t2.getByText(/Pour envoyer, il manque/)).toHaveCount(0);
   await expect(t2.getByRole("button", { name: "Envoyer la commande" })).toBeEnabled();
+  await t2.getByRole("button", { name: "Envoyer la commande" }).click();
+  await expect(t2).toHaveURL(/\/suivi\//);
   await flou.close();
+
+  // Fiche 0046 : la position du client est vue par le restaurant, pas seulement par le livreur.
+  await connexion(page, /Kadi/, "3333");
+  await page.goto("/entrantes");
+  const c = page.locator(".entrante").filter({ hasText: "Près du pont" });
+  await expect(c.getByRole("link", { name: "Position du client" })).toHaveAttribute("href", /openstreetmap\.org\/\?mlat=12\.64/);
+  await c.getByRole("button", { name: "Refuser" }).click();
+  await page.getByRole("button", { name: "Rupture" }).click();
+  await page.getByRole("button", { name: "Confirmer" }).click();
+  await expect(c).toHaveCount(0);
 });

@@ -32,6 +32,8 @@ le HTTPS et un disque (volume). Compter environ 5 $ par mois (offre Hobby) pour 
    - `YOUMA_RELAIS_CLE` = une clé tirée au hasard (`openssl rand -hex 24`, 16 caractères au moins) ;
    - facultatif, vrais SMS : `YOUMA_ORANGE_CLIENT_ID`, `YOUMA_ORANGE_CLIENT_SECRET`, `YOUMA_ORANGE_EXPEDITEUR`
      (+223…), `YOUMA_ORANGE_NOM_EXPEDITEUR`. Sans elles : simulation.
+   - facultatif, code par WhatsApp (section « Code par WhatsApp » ci-dessous) : `YOUMA_WHATSAPP_JETON`,
+     `YOUMA_WHATSAPP_NUMERO_ID`, `YOUMA_WHATSAPP_MODELE` (`youma_code` par défaut), `YOUMA_WHATSAPP_LANGUE` (`fr`).
    Ne pas définir `PORT` : Railway le fournit.
 3. **Disque** : clic droit sur le service (ou Ctrl+K) → « Add Volume » → chemin de montage **`/donnees`**.
    Sans volume, les commandes en attente et les sauvegardes disparaissent à chaque redéploiement.
@@ -287,3 +289,26 @@ sauvegardes locales.
 - « Clé du relais incorrecte » : la clé du poste et `YOUMA_RELAIS_CLE` diffèrent.
 - Le menu en ligne dit « restaurant fermé » : la journée n'est pas ouverte sur le poste, ou le poste n'a pas
   joint le relais depuis plus de 90 s.
+
+## Code par WhatsApp (facultatif, fiche 0046)
+
+Quand le restaurant demande la vérification du numéro (Commandes à distance → « Code par SMS ou WhatsApp »), le
+client choisit de recevoir son code par SMS ou par WhatsApp. Il ne le donne **qu'une fois** : son téléphone garde
+ensuite un jeton, et ses commandes suivantes partent sans code (180 jours après sa dernière commande).
+
+Pour le vrai WhatsApp (sinon le bouton WhatsApp n'apparaît pas, sauf sur un relais tout en simulation) :
+
+1. Compte **Meta Business** et application sur https://developers.facebook.com (produit « WhatsApp »), avec un
+   numéro de téléphone dédié (pas celui d'un WhatsApp déjà utilisé sur un téléphone).
+2. **Modèle de message** de catégorie **Authentification**, nom `youma_code`, langue français, bouton « Copier le
+   code ». Attendre sa validation par Meta.
+3. **Jeton permanent** : Paramètres de l'entreprise → Utilisateurs système → générer un jeton avec la permission
+   `whatsapp_business_messaging`.
+4. Variables du relais : `YOUMA_WHATSAPP_JETON` (le jeton), `YOUMA_WHATSAPP_NUMERO_ID` (identifiant du numéro,
+   « Phone number ID »), et si le modèle porte un autre nom ou une autre langue `YOUMA_WHATSAPP_MODELE`,
+   `YOUMA_WHATSAPP_LANGUE`. Redémarrer : le journal affiche « WhatsApp : configuré ».
+
+**[HYPOTHÈSE]** Format d'envoi de l'API WhatsApp Cloud v21 (modèle d'authentification, code dans le corps et le
+bouton) : à vérifier au premier envoi réel. Meta facture les messages d'authentification (quelques francs CFA
+chacun) ; le jeton client évite d'en renvoyer à chaque commande.
+

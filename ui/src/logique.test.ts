@@ -111,7 +111,20 @@ describe("panier local (scénario 13 : rien n'est perdu)", () => {
   });
 
   it("vérifie les options obligatoires (RG-CAT-04)", () => {
-    const frites = produit({ groupes_options: [{ id: "g", nom: "Taille", min_choix: 1, max_choix: 1, options: [{ id: "n", nom: "Normale", supplement: 0 }, { id: "gr", nom: "Grande", supplement: 500 }] }] });
+    const frites = produit({
+      groupes_options: [
+        {
+          id: "g",
+          nom: "Taille",
+          min_choix: 1,
+          max_choix: 1,
+          options: [
+            { id: "n", nom: "Normale", supplement: 0 },
+            { id: "gr", nom: "Grande", supplement: 500 },
+          ],
+        },
+      ],
+    });
     expect(optionsValides(frites, [])).toMatch(/Taille/);
     expect(optionsValides(frites, ["n", "gr"])).toMatch(/Taille/);
     expect(optionsValides(frites, ["gr"])).toBeNull();
@@ -179,7 +192,18 @@ describe("commandes à distance (fiche 0013)", async () => {
 
   it("panier du client : total indicatif avec suppléments", () => {
     const produits = [
-      { id: "b", prix: 1000, groupes_options: [{ options: [{ id: "piment", supplement: 0 }, { id: "frites", supplement: 500 }] }] },
+      {
+        id: "b",
+        prix: 1000,
+        groupes_options: [
+          {
+            options: [
+              { id: "piment", supplement: 0 },
+              { id: "frites", supplement: 500 },
+            ],
+          },
+        ],
+      },
       { id: "j", prix: 500, groupes_options: [] },
     ];
     const total = totalPanierClient(
@@ -215,7 +239,12 @@ describe("recettes (fiche 0014)", async () => {
     expect(recetteValide([{ article_id: "a", quantite: 0 }])).toBe(false);
     expect(recetteValide([{ article_id: "a", quantite: 1.5 }])).toBe(false);
     expect(recetteValide([{ article_id: "", quantite: 3 }])).toBe(false);
-    expect(recetteValide([{ article_id: "a", quantite: 1 }, { article_id: "a", quantite: 2 }])).toBe(false);
+    expect(
+      recetteValide([
+        { article_id: "a", quantite: 1 },
+        { article_id: "a", quantite: 2 },
+      ]),
+    ).toBe(false);
   });
 });
 
@@ -299,7 +328,13 @@ describe("comptes hors caisse (fiche 0027)", () => {
   it("coffre proposé en premier, jamais le tiroir", async () => {
     const { comptesHorsCaisse } = await import("./paiement");
     const c = (nom: string, type: string, actif = true) => ({ nom, type, actif });
-    const liste = comptesHorsCaisse([c("Banque", "banque"), c("Caisse", "especes"), c("OM", "mobile_money"), c("Coffre", "coffre"), c("Vieux", "coffre", false)]);
+    const liste = comptesHorsCaisse([
+      c("Banque", "banque"),
+      c("Caisse", "especes"),
+      c("OM", "mobile_money"),
+      c("Coffre", "coffre"),
+      c("Vieux", "coffre", false),
+    ]);
     expect(liste.map((x) => x.nom)).toEqual(["Coffre", "Banque", "OM"]);
   });
 });
@@ -341,7 +376,11 @@ describe("applications : liens du restaurant (fiche 0041)", () => {
     expect(adresseRelais("bonjour")).toBeNull();
   });
   it("lit les liens d'ouverture et les liens web", () => {
-    expect(lireLien("youma-livreur://course?relais=https%3A%2F%2Fr.example.ml&code=ABC123")).toEqual({ relais: "https://r.example.ml", code: "ABC123", page: "course" });
+    expect(lireLien("youma-livreur://course?relais=https%3A%2F%2Fr.example.ml&code=ABC123")).toEqual({
+      relais: "https://r.example.ml",
+      code: "ABC123",
+      page: "course",
+    });
     expect(lireLien("https://r.example.ml/livreur/XYZ")).toEqual({ relais: "https://r.example.ml", code: "XYZ", page: "course" });
     expect(lireLien("https://r.example.ml/suivi/K7")).toEqual({ relais: "https://r.example.ml", code: "K7", page: "suivi" });
     expect(lireLien("https://r.example.ml/menu")).toEqual({ relais: "https://r.example.ml", page: "menu" });
@@ -356,5 +395,22 @@ describe("largeur du ticket imprimé par le navigateur", () => {
     expect(largeurImprimableMm(32)).toBe(48);
     expect(largeurImprimableMm(42)).toBe(72);
     expect(largeurImprimableMm(48)).toBe(72);
+  });
+});
+
+describe("numéro du client vérifié une fois (fiche 0046)", async () => {
+  const { lireClientVerifie, normaliserTelephone, retenirClientVerifie } = await import("./public/panierClient");
+  beforeEach(() => localStorage.clear());
+  it("normalise comme le poste et le relais", () => {
+    expect(normaliserTelephone("+223 76 00 00 01")).toBe("76000001");
+    expect(normaliserTelephone("0022376000001")).toBe("76000001");
+    expect(normaliserTelephone("76-00-00-01")).toBe("76000001");
+  });
+  it("garde puis oublie le jeton", () => {
+    expect(lireClientVerifie()).toBeNull();
+    retenirClientVerifie({ telephone: "76000001", jeton: "J" });
+    expect(lireClientVerifie()).toEqual({ telephone: "76000001", jeton: "J" });
+    retenirClientVerifie(null);
+    expect(lireClientVerifie()).toBeNull();
   });
 });

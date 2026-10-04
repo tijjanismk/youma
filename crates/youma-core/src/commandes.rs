@@ -127,6 +127,9 @@ pub struct Commande {
     pub livraison_repere: Option<String>,
     pub livraison_telephone: Option<String>,
     pub livraison_frais: i64,
+    /// Position partagée par le client (micro-degrés), vue par le restaurant et le livreur (fiche 0046).
+    pub livraison_lat: Option<i64>,
+    pub livraison_lon: Option<i64>,
     pub livreur_id: Option<String>,
     pub cree_le: i64,
     pub lignes: Vec<Ligne>,
@@ -181,7 +184,8 @@ pub fn detail(conn: &Connection, id: &str) -> Resultat<Commande> {
         conn.query_row(
             "SELECT c.id, c.numero, c.journee_id, c.type, c.ordre_paiement, c.table_id, t.nom, c.zone_id, c.serveur_id,
                     u.nom, c.client_id, cl.nom, c.employe_id, c.couverts, c.note, c.statut, c.livraison_statut,
-                    c.livraison_quartier, c.livraison_repere, c.livraison_telephone, c.livraison_frais, c.livreur_id, c.cree_le
+                    c.livraison_quartier, c.livraison_repere, c.livraison_telephone, c.livraison_frais, c.livreur_id, c.cree_le,
+                    c.livraison_lat, c.livraison_lon
              FROM commandes c
              LEFT JOIN tables_salle t ON t.id = c.table_id
              LEFT JOIN utilisateurs u ON u.id = c.serveur_id
@@ -213,6 +217,8 @@ pub fn detail(conn: &Connection, id: &str) -> Resultat<Commande> {
                     livraison_frais: r.get(20)?,
                     livreur_id: r.get(21)?,
                     cree_le: r.get(22)?,
+                    livraison_lat: r.get(23)?,
+                    livraison_lon: r.get(24)?,
                     lignes: vec![],
                     envois: vec![],
                     remises: vec![],

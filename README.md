@@ -91,6 +91,8 @@ YOUMA_ORANGE_NOM_EXPEDITEUR=Baobab   # facultatif, nom validé par Orange
 ```
 
 Sans ces identifiants, le relais **simule** l'envoi : le code s'affiche sur la page du client (essais, démonstration).
+Le client peut aussi recevoir son code par **WhatsApp** (`YOUMA_WHATSAPP_JETON`, `YOUMA_WHATSAPP_NUMERO_ID`, guide
+`docs/guides/relais-en-ligne.md`). Il ne le donne qu'une fois : son numéro est ensuite reconnu (fiche 0046).
 
 ### Cloud (facultatif)
 

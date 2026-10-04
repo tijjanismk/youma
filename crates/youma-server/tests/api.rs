@@ -478,7 +478,7 @@ async fn commandes_qr_en_ligne_et_suivi_par_api() {
 async fn relais_internet_de_bout_en_bout() {
     const CLE: &str = "cle-du-relais-de-bout-en-bout";
     let dossier_relais = tempfile::tempdir().unwrap();
-    let rc = youma_relais::Config { dossier_donnees: dossier_relais.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: youma_relais::FournisseurSms::Simulation };
+    let rc = youma_relais::Config { dossier_donnees: dossier_relais.path().to_path_buf(), port: 0, cle: CLE.into(), dossier_ui: None, derriere_proxy: false, sms: youma_relais::FournisseurSms::Simulation, whatsapp: None };
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relais = format!("http://{}", ecoute.local_addr().unwrap());
     tokio::spawn(youma_relais::servir(youma_relais::Etat::ouvrir(&rc).unwrap(), None, ecoute));
@@ -587,6 +587,7 @@ async fn cloud_de_bout_en_bout() {
         dossier_ui: None,
         derriere_proxy: false,
         sms: youma_relais::FournisseurSms::Simulation,
+        whatsapp: None,
     };
     let ecoute = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let cloud = format!("http://{}", ecoute.local_addr().unwrap());

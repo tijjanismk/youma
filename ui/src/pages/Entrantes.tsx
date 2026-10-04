@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { get, post } from "../api";
 import { DemandeMotif, Vide } from "../composants/Base";
+import PositionClient from "../composants/PositionClient";
 import { useApp, useDonnees } from "../contexte";
 import { fcfa, minutesDepuis } from "../format";
 import { t } from "../i18n";
@@ -23,7 +24,11 @@ export default function Entrantes() {
       {donnees.length === 0 && <Vide>Aucune commande en attente. Les commandes QR et en ligne apparaîtront ici.</Vide>}
       <div className="liste-entrantes">
         {donnees.map((e) => (
-          <div key={e.commande.id} className={`carte entrante ${e.validation_responsable ? "risque" : ""}`} aria-label={`Commande reçue n°${e.commande.numero}`}>
+          <div
+            key={e.commande.id}
+            className={`carte entrante ${e.validation_responsable ? "risque" : ""}`}
+            aria-label={`Commande reçue n°${e.commande.numero}`}
+          >
             <div className="titre-ligne">
               <h2>
                 n°{e.commande.numero} — {t(e.canal)}
@@ -35,10 +40,15 @@ export default function Entrantes() {
             {e.canal === "en_ligne" && (
               <p>
                 <strong>{e.client_nom || "Client"}</strong> · <a href={`tel:${e.client_telephone}`}>{e.client_telephone}</a> ·{" "}
-                {e.commandes_precedentes > 0 ? `${e.commandes_precedentes} commande(s) déjà servie(s)` : <span className="attention-texte">nouveau client</span>}
+                {e.commandes_precedentes > 0 ? (
+                  `${e.commandes_precedentes} commande(s) déjà servie(s)`
+                ) : (
+                  <span className="attention-texte">nouveau client</span>
+                )}
                 <br />
                 {t(e.commande.type)}
-                {e.commande.livraison_quartier && ` — ${e.commande.livraison_quartier}, ${e.commande.livraison_repere ?? ""}`}
+                {e.commande.livraison_quartier && ` — ${e.commande.livraison_quartier}, ${e.commande.livraison_repere ?? ""}`}{" "}
+                <PositionClient lat={e.commande.livraison_lat} lon={e.commande.livraison_lon} />
               </p>
             )}
             {e.verification_numero === "rappel" && e.canal === "en_ligne" && e.commandes_precedentes === 0 && (
@@ -46,8 +56,8 @@ export default function Entrantes() {
             )}
             {e.modifications_client > 0 && (
               <p className="attention-texte">
-                <AlertTriangle size={16} className="icone-texte" aria-hidden /> Modifiée par le client ({e.modifications_client} fois) : vérifiez la
-                commande avant de l'accepter.
+                <AlertTriangle size={16} className="icone-texte" aria-hidden /> Modifiée par le client ({e.modifications_client} fois) : vérifiez la commande
+                avant de l'accepter.
               </p>
             )}
             {e.validation_responsable && (
