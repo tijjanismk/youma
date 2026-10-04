@@ -232,6 +232,46 @@ fn rg_cat_08_ruptures_levees_a_la_nouvelle_journee() {
     assert_eq!(n, 1);
 }
 
+/// RG-STK-08 (fiche 0050) : stock d'un produit revendu tombé à 0 → rupture automatique, levée au retour en stock ;
+/// la nouvelle journée ne la lève pas ; une rupture mise à la main ne bouge pas avec le stock.
+#[test]
+fn rg_stk_08_rupture_automatique_quand_le_stock_tombe_a_zero() {
+    use youma_core::stock::{self, MouvementManuel};
+    let mut b = banc();
+    b.ouvrir_journee();
+    let g = b.gerant();
+    let coca = b.produit("Coca-Cola");
+    let article = catalogue::produit(b.db.conn(), &coca).unwrap().article_stock_id.unwrap();
+    let regler = |b: &mut Banc, q: i64| {
+        let ecart = q - stock::quantite(b.db.conn(), &article).unwrap();
+        let g = b.gerant();
+        stock::mouvement_manuel(&mut b.db, &g, &MouvementManuel { article_id: article.clone(), type_: "regularisation".into(), quantite: ecart, motif: "Essai".into(), conditionnement_id: None }).unwrap();
+    };
+    regler(&mut b, 2);
+    let dispo = |b: &Banc| catalogue::produit(b.db.conn(), &coca).unwrap().disponible;
+    assert!(dispo(&b));
+    // Les 2 dernières bouteilles vendues : rupture.
+    b.commande_table("1", &[("Coca-Cola", 2)]);
+    assert_eq!(stock::quantite(b.db.conn(), &article).unwrap(), 0);
+    assert!(!dispo(&b), "plus de Coca : rupture automatique");
+    let a = b.serveur();
+    let c = commandes::ouvrir(&mut b.db, &a, &NouvelleCommande { type_: "comptoir".into(), table_id: None, client_id: None, employe_id: None, couverts: 0, note: String::new(), livraison: None, canal: None }).unwrap();
+    let l = b.ligne("Coca-Cola", 1);
+    assert_eq!(commandes::ajouter_lignes(&mut b.db, &a, &c, &[l]).unwrap_err().regle_code(), Some("RG-CAT-05"));
+    // Réception de 24 bouteilles : de nouveau disponible.
+    regler(&mut b, 24);
+    assert!(dispo(&b));
+    // Rupture à la main : le stock ne la lève pas.
+    catalogue::definir_disponibilite(&mut b.db, &g, &coca, false).unwrap();
+    regler(&mut b, 0);
+    regler(&mut b, 12);
+    assert!(!dispo(&b), "rupture décidée à la main : inchangée");
+    catalogue::definir_disponibilite(&mut b.db, &g, &coca, true).unwrap();
+    // Stock épuisé la veille : la nouvelle journée ne la lève pas (RG-CAT-08), le prochain achat oui.
+    regler(&mut b, 0);
+    assert!(!dispo(&b));
+}
+
 // ───────────── Commandes ─────────────
 
 #[test]
@@ -501,6 +541,34 @@ fn rg_pai_03_journalier_paye_aux_jours_de_presence() {
     let bul = paie::cloturer(&mut b.db, &g, &moussa, "2026-03-01", "2026-03-07").unwrap();
     assert_eq!(bul.net_a_payer, 9_000);
     assert_eq!(bul.type_contrat, "aucun");
+}
+
+/// Paie simplifiée (fiche 0050) : « Payer » arrête le salaire de la période et le paie en une fois.
+#[test]
+fn paie_simplifiee_arreter_et_payer_en_une_fois() {
+    let mut b = banc();
+    b.ouvrir_journee();
+    let g = b.gerant();
+    let awa = b.employe("Awa Traoré");
+    let coffre = b.compte("Coffre / propriétaire");
+    let avant = b.solde("Coffre / propriétaire");
+    let p = |compte: Option<String>, montant: Option<i64>, debut: &str, fin: &str| paie::PaiePeriode {
+        employe_id: awa.clone(),
+        debut: debut.into(),
+        fin: fin.into(),
+        compte_id: compte,
+        montant,
+    };
+    // Sans compte : refusé, et rien n'est arrêté (une seule transaction).
+    assert_eq!(paie::payer_periode(&mut b.db, &g, &p(None, None, "2026-03-01", "2026-03-31")).unwrap_err().regle_code(), Some("RG-PAI-09"));
+    assert!(paie::bulletins(b.db.conn(), Some(&awa)).unwrap().is_empty());
+    let bul = paie::payer_periode(&mut b.db, &g, &p(Some(coffre.clone()), None, "2026-03-01", "2026-03-31")).unwrap();
+    assert_eq!(bul.net_a_payer, 50_000);
+    assert_eq!(bul.reste_a_payer, 0, "tout payé");
+    assert_eq!(avant - b.solde("Coffre / propriétaire"), 50_000);
+    // Mois suivant, paiement partiel : le reste reste dû sur le bulletin.
+    let bul = paie::payer_periode(&mut b.db, &g, &p(Some(coffre), Some(30_000), "2026-04-01", "2026-04-30")).unwrap();
+    assert_eq!(bul.reste_a_payer, 20_000);
 }
 
 #[test]
@@ -827,7 +895,7 @@ fn migration_0010_garde_les_paiements() {
              DROP TABLE contrats_societe;
              ALTER TABLE clients DROP COLUMN vip; ALTER TABLE clients DROP COLUMN vip_jusqu_au;
              ALTER TABLE utilisateurs DROP COLUMN echecs_autorisation; ALTER TABLE utilisateurs DROP COLUMN premier_echec_autorisation;
-             ALTER TABLE utilisateurs DROP COLUMN autorisation_bloquee_jusqu_a; ALTER TABLE employes DROP COLUMN pin_livreur_hash;
+             ALTER TABLE utilisateurs DROP COLUMN autorisation_bloquee_jusqu_a; ALTER TABLE employes DROP COLUMN pin_livreur_hash; ALTER TABLE produits DROP COLUMN rupture_auto;
              DROP INDEX IF EXISTS idx_parts_paiement; DROP INDEX IF EXISTS idx_parts_reference_mm; DROP INDEX IF EXISTS idx_parts_contrat;
              PRAGMA user_version = 9;",
         )
@@ -835,7 +903,7 @@ fn migration_0010_garde_les_paiements() {
     }
     let db = Db::ouvrir(&chemin, h).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 13);
+    assert_eq!(v, 14);
     let n: i64 = db.conn().query_row("SELECT COUNT(*) FROM parts_paiement WHERE moyen = 'especes' AND montant = 2000", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 1, "le paiement d'avant la migration est conservé");
     let fk: i64 = db.conn().pragma_query_value(None, "foreign_keys", |r| r.get(0)).unwrap();
@@ -864,7 +932,7 @@ fn migration_v1_vers_derniere_version() {
     let h = std::sync::Arc::new(HorlogeFixe::a("2026-09-24", 8, 0));
     let db = Db::ouvrir(&chemin, h.clone()).unwrap();
     let v: i64 = db.conn().pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-    assert_eq!(v, 13);
+    assert_eq!(v, 14);
     assert!(chemin.with_extension("avant-migration-v1.db").exists(), "sauvegarde avant mise à jour");
     let noms: Vec<String> = caisse::lister_comptes(db.conn()).unwrap().into_iter().map(|c| c.nom).collect();
     assert_eq!(noms.iter().filter(|n| *n == "Wave").count(), 1);

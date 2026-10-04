@@ -164,6 +164,10 @@ Ce document en donne la logique et numérote les règles citées dans le code et
 * **RG-STK-05** Inventaire validé par un détenteur de `stock.valider_inventaire` : un mouvement d'écart par article (compté − théorique au moment de la validation).
 * **RG-STK-06** Le coût unitaire estimé d'un article = coût de la dernière réception.
 * **RG-STK-07** Le stock peut devenir négatif (vente non bloquée) mais apparaît en alerte.
+* **RG-STK-08** Quand le stock d'un article **passe** de positif à 0 ou moins, ses produits revendus sont mis en rupture
+  automatiquement ; quand il redevient positif (achat, inventaire, retour), ces ruptures-là sont levées. Un stock jamais
+  positif (achats non saisis) ne bloque rien (RG-STK-07). Une rupture mise à la main ne bouge pas avec le stock, et la
+  nouvelle journée (RG-CAT-08) ne lève pas une rupture de stock (fiche 0050).
 
 ### Recettes (REC) — fiche 0014
 * **RG-REC-01** Une recette (facultative) liste des ingrédients avec une quantité **entière** dans l'unité de base de
@@ -229,6 +233,8 @@ Ce document en donne la logique et numérote les règles citées dans le code et
   Désactivées par défaut. **Taux saisis à la main** par le restaurateur (aucun taux pré-rempli) ; une cotisation
   ne peut être activée sans taux salarié. La part employeur est affichée à titre informatif, jamais retenue sur le salaire.
 * **RG-PAI-08** Déduction d'absence = base ÷ jours ouvrables du mois (paramètre, défaut 26) × absences non justifiées, arrondie à l'entier.
+* **RG-PAI-10** Paie simplifiée : « Payer » arrête le salaire de la période (RG-PAI-03) et le paie (RG-PAI-05) dans la
+  même transaction ; montant partiel possible ; « Tout payer » le fait pour chaque employé (fiche 0050).
 * **RG-PAI-09** La paie est indépendante des caisses : un salaire se paie depuis un compte choisi (coffre, banque, Mobile Money), jamais depuis le tiroir, et n'est rattaché à aucune session de caisse (fiche 0027).
 
 ### Livraison (LIV)

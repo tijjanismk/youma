@@ -53,6 +53,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Rupture quand le stock tombe à 0** (RG-STK-08) et **paie simplifiée** (RG-PAI-10, fiche 0050) : un bouton « Payer »
+  par employé (arrête et paie la période), « Tout payer », périodes toutes faites.
 - **Ruptures levées chaque nouvelle journée** (RG-CAT-08) : un plat mis en rupture redevient disponible à l'ouverture
   de la journée suivante (pas en rouvrant la même journée).
 - **Tiroir vidé avant l'ouverture** (RG-CAI-17) : à l'ouverture, « L'argent a été retiré du tiroir pour le coffre »

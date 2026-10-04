@@ -516,7 +516,7 @@ pub fn definir_disponibilite(db: &mut Db, acteur: &Acteur, produit_id: &str, dis
             op.exiger(perm::CATALOGUE_GERER)?;
         }
         let n = op.execute(
-            "UPDATE produits SET disponible = ?1, modifie_le = ?2 WHERE id = ?3",
+            "UPDATE produits SET disponible = ?1, rupture_auto = 0, modifie_le = ?2 WHERE id = ?3",
             params![disponible, op.maintenant, produit_id],
         )?;
         if n == 0 {

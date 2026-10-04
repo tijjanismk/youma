@@ -75,7 +75,6 @@ export function BulletinImprimable({ b }: { b: Bulletin }) {
 }
 
 export default function Paie() {
-  const { agir } = useApp();
   const [debut, setDebut] = useState(premierDuMois());
   const [fin, setFin] = useState(finDuMois());
   const { donnees: employes, recharger } = useDonnees(() => get<Employe[]>("/employes"), ["employes"]);
@@ -104,13 +103,15 @@ export default function Paie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employes, debut, fin]);
 
-  const cloturer = (e: Employe) =>
-    agir((pin) => post<Bulletin>("/paie/cloturer", { employe_id: e.id, debut, fin }, pin), `Paie de ${e.nom} clôturée`).then((b) => {
-      if (b) {
-        setAffiche(b);
-        recharger();
-      }
-    });
+  // Paie simplifiée (fiche 0050) : « Payer » arrête le salaire de la période et le paie en une fois.
+  const [aPayer, setAPayer] = useState<{ e: Employe; a: Bulletin } | null>(null);
+  const [toutPayer, setToutPayer] = useState(false);
+  const fini = (b: Bulletin | null) => {
+    setAPayer(null);
+    setToutPayer(false);
+    if (b) setAffiche(b);
+    recharger();
+  };
 
   const calcules = Object.values(apercus).filter((a): a is Bulletin => typeof a !== "string");
   const somme = (f: (b: Bulletin) => number) => calcules.reduce((s, b) => s + f(b), 0);
@@ -122,9 +123,28 @@ export default function Paie() {
     <div>
       <h1>Paie</h1>
       <div className="carte filtres periode">
+        <div className="boutons-ligne">
+          {PERIODES.map((p) => (
+            <button
+              key={p.libelle}
+              className="petit"
+              onClick={() => {
+                const [d, f] = p.dates();
+                setDebut(d);
+                setFin(f);
+              }}
+            >
+              {p.libelle}
+            </button>
+          ))}
+        </div>
         <Champ libelle="Du" type="date" valeur={debut} changer={setDebut} />
         <Champ libelle="Au" type="date" valeur={fin} changer={setFin} />
       </div>
+      <p className="aide">
+        Choisissez la période, puis <strong>Payer</strong> : le salaire de la période est calculé (avances, primes et retenues comprises), enregistré sur un
+        bulletin qui ne se modifie plus, et payé depuis le coffre, la banque ou le Mobile Money. Une erreur se corrige le mois suivant (prime ou retenue).
+      </p>
       <Chiffres>
         <Chiffre libelle="Employés" valeur={actifs.length} Icone={Users} ton="bleu" />
         <Chiffre libelle="Total dû" valeur={fcfa(du)} Icone={Banknote} />
@@ -157,14 +177,19 @@ export default function Paie() {
               {a.cloture_bloquee ? (
                 <span className="raison-bloquee">{a.cloture_bloquee}</span>
               ) : (
-                <button className="petit principal" onClick={() => cloturer(e)}>
-                  Clôturer
+                <button className="petit principal" onClick={() => setAPayer({ e, a })}>
+                  Payer
                 </button>
               )}
             </span>,
           ];
         })}
       />
+      {calcules.some((a) => !a.cloture_bloquee && a.net_a_payer > 0) && (
+        <button className="principal grand" onClick={() => setToutPayer(true)}>
+          Tout payer ({fcfa(net)})
+        </button>
+      )}
       <BulletinsAPayer ouvrir={setPaiement} />
       <HistoriquePaie employes={employes ?? []} ouvrir={setAffiche} />
       {affiche && (
@@ -184,6 +209,19 @@ export default function Paie() {
         </Modal>
       )}
       {paiement && <PaiementSalaire b={paiement} fermer={() => setPaiement(null)} fait={recharger} />}
+      {aPayer && <PayerPeriode e={aPayer.e} a={aPayer.a} debut={debut} fin={fin} fermer={() => setAPayer(null)} fait={fini} />}
+      {toutPayer && (
+        <ToutPayer
+          lignes={actifs.flatMap((e) => {
+            const a = apercus[e.id];
+            return a && typeof a !== "string" && !a.cloture_bloquee && a.net_a_payer > 0 ? [{ e, a }] : [];
+          })}
+          debut={debut}
+          fin={fin}
+          fermer={() => setToutPayer(false)}
+          fait={() => fini(null)}
+        />
+      )}
     </div>
   );
 }
@@ -241,6 +279,158 @@ function HistoriquePaie({ employes, ouvrir }: { employes: Employe[]; ouvrir: (b:
         />
       )}
     </div>
+  );
+}
+
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Périodes toutes faites : la plupart des restaurants paient au mois, certains à la semaine ou au jour. */
+const PERIODES: { libelle: string; dates: () => [string, string] }[] = [
+  { libelle: "Ce mois", dates: () => [premierDuMois(), finDuMois()] },
+  {
+    libelle: "Mois dernier",
+    dates: () => {
+      const d = new Date();
+      return [iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))];
+    },
+  },
+  {
+    libelle: "Cette semaine",
+    dates: () => {
+      const d = new Date();
+      const lundi = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+      return [iso(lundi), iso(new Date(lundi.getFullYear(), lundi.getMonth(), lundi.getDate() + 6))];
+    },
+  },
+  { libelle: "Aujourd'hui", dates: () => [iso(new Date()), iso(new Date())] },
+];
+
+/** Comptes qui paient les salaires (RG-PAI-09 : jamais le tiroir). */
+function useComptesPaie() {
+  const { donnees: comptes } = useDonnees(() => get<Compte[]>("/comptes"), []);
+  const payeurs = comptesHorsCaisse(comptes ?? []);
+  const [compte, setCompte] = useState("");
+  const champ =
+    payeurs.length > 0 ? (
+      <Choix libelle="Payé depuis" valeur={compte || payeurs[0].id} changer={setCompte} options={payeurs.map((c) => ({ valeur: c.id, libelle: c.nom }))} />
+    ) : (
+      comptes && (
+        <p className="attention-texte">Aucun compte pour payer les salaires : créez le coffre ou un compte bancaire (Administration → Moyens de paiement).</p>
+      )
+    );
+  return { compteId: compte || payeurs[0]?.id || "", champ };
+}
+
+/** Paie simplifiée : le salaire de la période, arrêté et payé en une fois (fiche 0050). */
+function PayerPeriode({
+  e,
+  a,
+  debut,
+  fin,
+  fermer,
+  fait,
+}: {
+  e: Employe;
+  a: Bulletin;
+  debut: string;
+  fin: string;
+  fermer: () => void;
+  fait: (b: Bulletin | null) => void;
+}) {
+  const { agir } = useApp();
+  const net = Math.max(0, a.net_a_payer);
+  const [montant, setMontant] = useState(net);
+  const { compteId, champ } = useComptesPaie();
+  const envoyer = (payer: boolean) =>
+    agir(
+      (pin) =>
+        payer
+          ? post<Bulletin>("/paie/payer-periode", { employe_id: e.id, debut, fin, compte_id: compteId, montant }, pin)
+          : post<Bulletin>("/paie/cloturer", { employe_id: e.id, debut, fin }, pin),
+      payer ? "Salaire payé" : "Salaire enregistré, à payer plus tard",
+    ).then((b) => b && fait(b));
+  return (
+    <Modal titre={`Payer ${e.nom}`} fermer={fermer}>
+      <p>
+        Du {dateFr(debut)} au {dateFr(fin)} : dû <Montant valeur={a.total_gains + a.report_precedent} />, déductions{" "}
+        <Montant valeur={-(a.total_retenues + a.cotisations_salarie + a.deja_paye)} />.
+      </p>
+      <p>
+        Net à payer : <Montant valeur={a.net_a_payer} fort />
+      </p>
+      {net > 0 ? (
+        <>
+          <ChampMontant libelle="Montant payé maintenant" valeur={montant} changer={setMontant} raccourcis={[net]} />
+          {champ}
+          <div className="actions">
+            <button onClick={() => envoyer(false)}>Enregistrer sans payer</button>
+            <button className="principal" disabled={montant <= 0 || montant > net || !compteId} onClick={() => envoyer(true)}>
+              Payer {fcfa(montant)}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="aide">Rien à payer : les avances couvrent le salaire. Le reste dû par l'employé passe sur la période suivante.</p>
+          <div className="actions">
+            <button onClick={fermer}>Annuler</button>
+            <button className="principal" onClick={() => envoyer(false)}>
+              Enregistrer le bulletin
+            </button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+/** Tous les salaires de la période, depuis un même compte. */
+function ToutPayer({
+  lignes,
+  debut,
+  fin,
+  fermer,
+  fait,
+}: {
+  lignes: { e: Employe; a: Bulletin }[];
+  debut: string;
+  fin: string;
+  fermer: () => void;
+  fait: () => void;
+}) {
+  const { agir } = useApp();
+  const { compteId, champ } = useComptesPaie();
+  const total = lignes.reduce((s, l) => s + l.a.net_a_payer, 0);
+  return (
+    <Modal titre="Tout payer" fermer={fermer}>
+      <ul>
+        {lignes.map((l) => (
+          <li key={l.e.id}>
+            {l.e.nom} : {fcfa(l.a.net_a_payer)}
+          </li>
+        ))}
+      </ul>
+      <p>
+        Total : <strong>{fcfa(total)}</strong>
+      </p>
+      {champ}
+      <div className="actions">
+        <button onClick={fermer}>Annuler</button>
+        <button
+          className="principal"
+          disabled={!compteId}
+          onClick={() =>
+            agir(async (pin) => {
+              for (const l of lignes) await post("/paie/payer-periode", { employe_id: l.e.id, debut, fin, compte_id: compteId }, pin);
+            }, `${lignes.length} salaire(s) payé(s)`).then(fait)
+          }
+        >
+          Payer {fcfa(total)}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

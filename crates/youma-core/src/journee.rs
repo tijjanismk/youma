@@ -93,13 +93,14 @@ pub fn ouvrir(db: &mut Db, acteur: &Acteur) -> Resultat<Journee> {
         )?;
         op.audit("journee.ouvrir", "journee", Some(&id), None, Some(json!({ "date": date })), None, None)?;
         op.outbox("journee", &id, "creer")?;
-        // RG-CAT-08 : une rupture vaut pour la journée ; la nouvelle journée repart avec tout le menu disponible.
+        // RG-CAT-08 : une rupture vaut pour la journée ; la nouvelle journée repart avec tout le menu disponible, sauf les
+        // produits dont le stock est épuisé (RG-STK-08), levés au prochain achat.
         let ruptures: Vec<String> = op
-            .prepare("SELECT id FROM produits WHERE disponible = 0 AND actif = 1")?
+            .prepare("SELECT id FROM produits WHERE disponible = 0 AND actif = 1 AND rupture_auto = 0")?
             .query_map([], |r| r.get(0))?
             .collect::<Result<_, _>>()?;
         if !ruptures.is_empty() {
-            op.execute("UPDATE produits SET disponible = 1, modifie_le = ?1 WHERE disponible = 0 AND actif = 1", params![op.maintenant])?;
+            op.execute("UPDATE produits SET disponible = 1, modifie_le = ?1 WHERE disponible = 0 AND actif = 1 AND rupture_auto = 0", params![op.maintenant])?;
             op.audit("produit.ruptures_levees", "journee", Some(&id), None, Some(json!({ "produits": ruptures })), None, None)?;
             op.evenement("catalogue", None);
         }

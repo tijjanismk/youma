@@ -36,9 +36,9 @@ cite. Ici : où chaque famille est appliquée. Chemins relatifs à `crates/youma
 | CAN 01–08 | canaux QR / en ligne : QR inconnu (02), liste noire (03), numéro vérifié une fois par SMS ou WhatsApp (04, fiche 0046), paiement/plafond (05), modifications client (06), commande renvoyée une seule fois (07, fenêtre 5 min) | `entrantes.rs:126,230,320,368,458`, relais `youma-relais/src/lib.rs` |
 | ZON 01–03 | zones à risque (quartier et/ou cercle GPS) | `zones_risque.rs:86`, `entrantes.rs:206`, `commandes.rs:462` |
 | LIV 01–05 | livraison, remise du livreur (03), position pendant la course (04), accès du livreur par téléphone + PIN et courses publiées au relais (05, fiche 0047) | `livraison.rs` (`livreurs_relais`), `employes.rs::definir_pin_livreur`, `entrantes.rs:867`, relais `connexion_livreur` |
-| STK 01–07, REC 01–04 | stock (sortie à l'envoi, retour à l'annulation, inventaire), recettes et coût matière | `stock.rs:180,225,279,395`, `recettes.rs:38` |
+| STK 01–08 (08 : rupture auto quand le stock tombe à 0, `stock.rs::rupture_selon_stock`), REC 01–04 | stock (sortie à l'envoi, retour à l'annulation, inventaire), recettes et coût matière | `stock.rs:180,225,279,395`, `recettes.rs:38` |
 | ACH 01–05, CON 01–06 | achats (marché par défaut), consignes d'emballages | `achats.rs:88–209`, `consignes.rs` |
-| EMP 01–07, PAI 01–09 | employés, présences, avances, paie | `employes.rs`, `paie.rs:88,155,240,386` |
+| EMP 01–07, PAI 01–10 (10 : payer la période en une fois, `paie::payer_periode`) | employés, présences, avances, paie | `employes.rs`, `paie.rs:88,155,240,386` |
 | RMM 01–05 | relevés Mobile Money rapprochés | `releves_mm.rs:157,235,264` |
 | PRO, STA, RAP | promotions, statistiques, rapports ; commandes non honorées (RAP-04) | `promotions.rs`, `rapports.rs` (`rapport_non_honorees`) |
 | AVI 01–03 | avis des clients : note 1–5 par code de suivi, une fois, commande terminée, 7 jours (01) ; avis ≤ 2 à traiter par le gérant (02) ; rapport (03) | `avis.rs`, relais `enregistrer_avis` |
