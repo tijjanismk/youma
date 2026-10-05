@@ -468,3 +468,21 @@ describe("journée oubliée ouverte (RG-JOU-03)", async () => {
     expect(joursJourneeOuverte("2026-09-25", a("2026-10-04T09:00:00"))).toBe(9);
   });
 });
+
+describe("menu personnalisé (fiche 0051)", async () => {
+  const { appliquerMenuPerso, ecrireMenuPerso, lireMenuPerso } = await import("./menuPerso");
+  beforeEach(() => localStorage.clear());
+  const liens = [{ chemin: "/salle" }, { chemin: "/caisse" }, { chemin: "/stock" }, { chemin: "/paie" }];
+  it("ordre choisi, écrans cachés, nouveaux écrans à la fin", () => {
+    const m = { ordre: ["/caisse", "/salle"], caches: ["/stock"] };
+    expect(appliquerMenuPerso(liens, m).map((l) => l.chemin)).toEqual(["/caisse", "/salle", "/paie"]);
+    expect(appliquerMenuPerso(liens, m, true).map((l) => l.chemin)).toEqual(["/caisse", "/salle", "/stock", "/paie"]);
+  });
+  it("propre à chaque utilisateur", () => {
+    ecrireMenuPerso("u1", { ordre: [], caches: ["/paie"] });
+    expect(lireMenuPerso("u1").caches).toEqual(["/paie"]);
+    expect(lireMenuPerso("u2").caches).toEqual([]);
+    ecrireMenuPerso("u1", null);
+    expect(lireMenuPerso("u1").caches).toEqual([]);
+  });
+});

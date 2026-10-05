@@ -1,4 +1,4 @@
-import { ArrowLeftRight, House, Menu as MenuIcone, Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
+import { ArrowLeftRight, House, Menu as MenuIcone, Moon, PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Sun } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { definirJetonAppareil, get, post } from "./api";
@@ -10,6 +10,7 @@ import Connexion from "./pages/Connexion";
 import { choisirTheme, lireTheme, Theme } from "./theme";
 import Installation from "./pages/Installation";
 import Accueil, { menuVisible } from "./pages/Accueil";
+import { PersonnaliserMenu } from "./composants/PersonnaliserMenu";
 import Salle from "./pages/Salle";
 import PriseCommande from "./pages/PriseCommande";
 import Encaissement from "./pages/Encaissement";
@@ -212,6 +213,7 @@ function Coquille() {
   const { etat, session, deconnecter } = useApp();
   const [menu, setMenu] = useState(false);
   const [replie, setReplie] = useState(() => lireReplie());
+  const [perso, setPerso] = useState(false);
   const enAttente = useEntrantesEnAttente();
   const loc = useLocation();
   useEffect(() => setMenu(false), [loc.pathname]);
@@ -248,7 +250,8 @@ function Coquille() {
       </>
     );
   }
-  const liens = menuVisible(session.permissions, etat);
+  // Menu choisi par l'utilisateur sur cet appareil (fiche 0051) ; `perso` relit le choix après « Personnaliser le menu ».
+  const liens = menuVisible(session.permissions, etat, session.utilisateur.id);
   const actif = (chemin: string) => loc.pathname.startsWith(chemin) && chemin !== "/";
   // Barre du bas (téléphone) : l'accueil, puis les trois écrans du quotidien permis à cet utilisateur.
   const priorite = ["/salle", "/entrantes", "/caisse", "/cuisine", "/livraisons", "/tableau-de-bord"];
@@ -309,7 +312,21 @@ function Coquille() {
               {badge(m.chemin)}
             </Link>
           ))}
+          <button className="personnaliser" onClick={() => setPerso(true)} aria-label="Personnaliser le menu" title="Personnaliser le menu">
+            <SlidersHorizontal size={20} strokeWidth={1.8} aria-hidden />
+            <span>Personnaliser</span>
+          </button>
         </nav>
+        {perso && (
+          <PersonnaliserMenu
+            permis={menuVisible(session.permissions, etat)}
+            utilisateur={session.utilisateur.id}
+            fermer={() => {
+              setPerso(false);
+              setMenu(false);
+            }}
+          />
+        )}
         <nav className="barre-bas" aria-label="Accès rapide">
           <Link to="/" className={loc.pathname === "/" ? "actif" : ""} aria-label="Accueil">
             <House size={22} aria-hidden />

@@ -1,4 +1,4 @@
-import { ArrowLeft, Bike, Receipt, X } from "lucide-react";
+import { ArrowLeft, Bike, Receipt, X, PackageX } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ErreurApi, get, post } from "../api";
@@ -51,6 +51,9 @@ export default function PriseCommande() {
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   // Téléphone : le ticket est un tiroir qui monte du bas.
   const [ticketOuvert, setTicketOuvert] = useState(false);
+  // Mode « Ruptures » : toucher un plat le met en rupture ou le rend disponible (RG-CAT-05), sans passer par l'Administration.
+  const [modeRupture, setModeRupture] = useState(false);
+  const peutRupture = peut("caisse.encaisser") || peut("catalogue.gerer");
 
   useEffect(() => sauverPanier(id, panier), [id, panier]);
   useEffect(() => {
@@ -67,6 +70,12 @@ export default function PriseCommande() {
   const modifiable = cmd.statut === "ouverte";
   const categorieDe = (p: Produit) => cat.categories.find((c) => c.id === p.categorie_id);
   const categorieCourante = cat.categories.find((c) => c.id === categorie);
+
+  const basculerRupture = (p: Produit) =>
+    agir(
+      (pin) => post(`/produits/${p.id}/disponibilite`, { disponible: !p.disponible }, pin),
+      p.disponible ? `${p.nom} : en rupture jusqu'à demain` : `${p.nom} : de nouveau disponible`,
+    );
 
   const toucherProduit = (p: Produit) => {
     if (!p.disponible) return notifier(`${p.nom} : rupture aujourd'hui`, "erreur");
@@ -135,7 +144,17 @@ export default function PriseCommande() {
           <span className="aide">
             {produits.length} {produits.length > 1 ? "résultats" : "résultat"}
           </span>
+          {peutRupture && (
+            <button className={`petit ${modeRupture ? "principal" : ""}`} aria-pressed={modeRupture} onClick={() => setModeRupture(!modeRupture)}>
+              <PackageX size={16} aria-hidden /> {modeRupture ? "Terminer les ruptures" : "Ruptures"}
+            </button>
+          )}
         </div>
+        {modeRupture && (
+          <p className="attention-texte" role="status">
+            Touchez un plat pour le mettre en rupture (il disparaît des commandes, du QR et du menu en ligne jusqu'à demain) ou pour le rendre disponible.
+          </p>
+        )}
         <div className="produits">
           {produits.map((p) => {
             const dispo = cat.disponibles?.[p.id];
@@ -143,8 +162,8 @@ export default function PriseCommande() {
               <button
                 key={p.id}
                 className={`produit ${p.disponible ? "" : "rupture"}`}
-                onClick={() => modifiable && toucherProduit(p)}
-                disabled={!modifiable}
+                onClick={() => (modeRupture ? basculerRupture(p) : modifiable && toucherProduit(p))}
+                disabled={!modifiable && !modeRupture}
                 aria-label={`${p.nom} ${nombre(prixZone(p, cmd.zone_id, promos))} FCFA`}
               >
                 <VisuelPlat photo={p.photo} categorie={categorieDe(p)} />

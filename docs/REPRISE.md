@@ -53,6 +53,8 @@ Ouvrir une session sur le dépôt `tijjanismk/youma` et coller :
 
 Détail : tableau de `README.md` et `docs/conception/phase-4-plan-realisation.md`.
 
+- **Ruptures depuis la prise de commande et menu personnalisé** (fiche 0051) : mode « Ruptures » sur l'écran de commande ;
+  « Personnaliser » le menu (écrans affichés et ordre, par utilisateur sur son appareil).
 - **Rupture quand le stock tombe à 0** (RG-STK-08) et **paie simplifiée** (RG-PAI-10, fiche 0050) : un bouton « Payer »
   par employé (arrête et paie la période), « Tout payer », périodes toutes faites.
 - **Ruptures levées chaque nouvelle journée** (RG-CAT-08) : un plat mis en rupture redevient disponible à l'ouverture

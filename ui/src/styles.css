@@ -1697,6 +1697,38 @@ a:focus-visible {
 .application.replie .menu .replier {
   align-self: center;
 }
+/* Personnaliser le menu (fiche 0051) : discret, en bas de la liste. */
+.menu .personnaliser {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px dashed var(--bord);
+  color: var(--doux);
+  font-weight: 500;
+}
+.application.replie .menu .personnaliser {
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+}
+.liste-menu-perso {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.liste-menu-perso li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--bord);
+  padding: 4px 0;
+}
 .menu .badge {
   margin-left: auto;
 }
