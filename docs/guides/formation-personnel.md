@@ -38,8 +38,12 @@ Sur téléphone, la commande est en bas : **Voir la commande (n)**.
 
 **Quand la cuisine a fini** : la table affiche **Prêt**. Aller chercher et servir.
 
-**Plat fini (rupture)** : Administration → Catalogue, décocher **Disponible** : le plat n'est plus proposé (salle, QR,
-en ligne) jusqu'au lendemain ; il revient tout seul à l'ouverture de la journée suivante.
+**Plat fini (rupture)** : dans une commande, bouton **Ruptures**, puis toucher le plat (le retoucher le rend disponible),
+puis **Terminer les ruptures**. Ou Administration → Catalogue, décocher **Disponible**. Le plat n'est plus proposé (salle,
+QR, en ligne) jusqu'au lendemain ; il revient tout seul à l'ouverture de la journée suivante.
+
+**Mon menu** : en bas du menu, **Personnaliser** : cocher les écrans à garder, les monter ou descendre, **Enregistrer**.
+Chacun range son propre menu sur son appareil ; **Menu d'origine** remet tout.
 
 **Emporter ou livraison** : Salle → **+ Emporter / livraison**, puis comme à table. En livraison, choisir le
 quartier et noter le téléphone du client.

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { appliquerMenuPerso, lireMenuPerso } from "../menuPerso";
 import {
   Banknote,
   Bike,
@@ -47,16 +48,20 @@ export const MENU: EntreeMenu[] = [
   { chemin: "/administration", libelle: "Administration", court: "Réglages", Icone: Settings, permission: "catalogue.gerer" },
 ];
 
-/** Entrées du menu permises ; « Commandes reçues » seulement si le QR ou l'en ligne est activé. */
-export function menuVisible(permissions: string[], etat: EtatGeneral | null) {
+/**
+ * Entrées du menu permises ; « Commandes reçues » seulement si le QR ou l'en ligne est activé. Avec `utilisateur` :
+ * ordre et écrans cachés choisis par cet utilisateur sur cet appareil (fiche 0051).
+ */
+export function menuVisible(permissions: string[], etat: EtatGeneral | null, utilisateur?: string) {
   const distance = !!(etat?.parametres?.canaux?.qr_table || etat?.parametres?.canaux?.en_ligne);
-  return MENU.filter((m) => (!m.permission || permissions.includes(m.permission)) && (m.chemin !== "/entrantes" || distance));
+  const permis = MENU.filter((m) => (!m.permission || permissions.includes(m.permission)) && (m.chemin !== "/entrantes" || distance));
+  return utilisateur ? appliquerMenuPerso(permis, lireMenuPerso(utilisateur)) : permis;
 }
 
 export default function Accueil() {
   const { etat, session, peut, agir, rechargerEtat } = useApp();
   const nav = useNavigate();
-  const liens = menuVisible(session?.permissions ?? [], etat);
+  const liens = menuVisible(session?.permissions ?? [], etat, session?.utilisateur.id);
 
   const ouvrirJournee = () =>
     agir(async (pin) => {

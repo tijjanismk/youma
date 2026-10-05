@@ -913,3 +913,36 @@ test("accès du livreur à l'application : PIN donné depuis sa fiche (RG-LIV-05
   await expect(livreur.getByRole("button", { name: "Se connecter" })).toBeDisabled();
   await livreur.close();
 });
+
+test("ruptures depuis la prise de commande, menu personnalisé (fiche 0051)", async ({ page }) => {
+  await connexion(page, /Kadi/, "3333");
+  // Menu : cacher « Stock », monter « Caisse » ; propre à cet utilisateur sur cet appareil.
+  const menu = page.getByRole("navigation", { name: "Menu principal" });
+  await expect(menu.getByRole("link", { name: "Stock", exact: true })).toBeVisible();
+  await menu.getByRole("button", { name: "Personnaliser le menu" }).click();
+  const perso = page.getByRole("dialog", { name: "Personnaliser le menu" });
+  await perso.getByRole("checkbox", { name: "Stock", exact: true }).uncheck();
+  await perso.getByRole("button", { name: "Monter Caisse" }).click();
+  await perso.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(menu.getByRole("link", { name: "Stock", exact: true })).toHaveCount(0);
+  const ordre = await menu.getByRole("link").allInnerTexts();
+  expect(ordre.indexOf("Caisse")).toBeLessThan(ordre.indexOf("Commandes reçues") === -1 ? ordre.indexOf("Salle et commandes") : ordre.indexOf("Commandes reçues"));
+  // Menu d'origine.
+  await menu.getByRole("button", { name: "Personnaliser le menu" }).click();
+  await page.getByRole("dialog", { name: "Personnaliser le menu" }).getByRole("button", { name: "Menu d'origine" }).click();
+  await expect(menu.getByRole("link", { name: "Stock", exact: true })).toBeVisible();
+
+  // Rupture sans passer par l'Administration : mode « Ruptures » de la prise de commande.
+  await page.goto("/salle");
+  await page.getByRole("button", { name: "+ Emporter / livraison" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Créer" }).click();
+  await page.getByRole("tab", { name: /Boissons/ }).click();
+  await page.getByRole("button", { name: "Ruptures" }).click();
+  await page.getByRole("button", { name: /^Coca-Cola / }).click();
+  await expect(page.getByText("Coca-Cola : en rupture jusqu'à demain")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Coca-Cola / })).toContainText("Rupture");
+  await page.getByRole("button", { name: /^Coca-Cola / }).click();
+  await expect(page.getByText("Coca-Cola : de nouveau disponible")).toBeVisible();
+  await page.getByRole("button", { name: "Terminer les ruptures" }).click();
+  await expect(page.getByRole("button", { name: /^Coca-Cola / })).not.toContainText("Rupture");
+});
