@@ -1,10 +1,10 @@
 # Module : relais Internet (`crates/youma-relais`) et licences (`crates/youma-licence`)
 
-Rôle : serveur public facultatif (HTTPS) : menu en ligne, suivi, livreur, propriétaire, cloud multi-restaurants, SMS.
+Rôle : serveur public facultatif (HTTPS), partagé par plusieurs restaurants : menu en ligne, suivi, livreurs, propriétaire, cloud, codes SMS / WhatsApp.
 
 ## Fichiers
-- `youma-relais/src/lib.rs` (571 l.) — `Config`, `Etat`, `routeur`, limiteur par adresse et numéro, RG-CAN-08 sur suivi et position (15 codes inconnus / 15 min, 429), doublons de commande (`empreinte_panier`, `FENETRE_DOUBLON_MS`), file vers le poste.
-- `youma-relais/src/cloud.rs` (258 l.) — restaurants, résumés, sauvegardes chiffrées (RG-CLO-05).
+- `youma-relais/src/lib.rs` (997 l.) — `Config`, `Etat`, `routeur`, `aiguiller` (l. 84), `Etat::pour_restaurant` (l. 230), `ranger_photos` (l. 507), `confirmer` (l. 643), `connexion_livreur` (l. 761), limiteur par adresse et numéro, RG-CAN-08 sur suivi et position (15 codes inconnus / 15 min, 429), doublons de commande (`empreinte_panier`, `FENETRE_DOUBLON_MS`), file vers le poste.
+- `youma-relais/src/cloud.rs` (312 l.) — restaurants (`migrer`, `slug` : nom court du relais partagé), résumés, sauvegardes chiffrées (RG-CLO-05).
 - `youma-relais/src/sms.rs` — codes par SMS (Orange Mali ou simulation) ou WhatsApp Cloud (`WhatsApp`, `Canal`), au choix du client ; `Envoyeur::canaux` (fiche 0046).
 - Numéro vérifié une fois (fiche 0046) : `POST /api/public/verification/confirmer` → `jeton_client` (empreinte dans `clients_verifies`, 180 jours après la dernière commande) ; `commande` accepte `jeton_client` ou `code_verification`.
 - Livreurs (fiche 0047, RG-LIV-05) : le poste publie `livreurs` (téléphone, empreinte Argon2 du PIN, courses) ; `POST /api/public/livreur/connexion` (5 essais / 15 min par numéro) → jeton de 30 jours (`sessions_livreurs`, liée à l'empreinte du PIN) ; `GET /api/public/livreur/courses`.

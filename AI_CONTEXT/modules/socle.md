@@ -13,8 +13,9 @@ Rôle : transaction métier, migrations, audit, permissions, sessions, appareils
 - `licence.rs` (181 l.) — Ed25519 ; `cle_publique` = `YOUMA_CLE_PUBLIQUE` sinon `CLE_DEV` (l. 18–21).
 - `parametres.rs` (383 l.) — `Parametres` (Fidelite, Canaux, ParametresPaie, Cloud…), `lire`/`modifier`, `journal_audit`.
 - `sauvegarde.rs` — sauvegarde, export (vers le second emplacement réglé seulement), restauration par **nom** (`nom_valide`, C4 fiche 0043), `lister_externes`, intégrité, rotation.
-- `journee.rs` (152 l.) — ouverture, `blocages_cloture` (RG-JOU-04), clôture.
-- `demo.rs` (371 l.) — base de démonstration (PIN 1234/2222/3333/4444/5555).
+- `journee.rs` (162 l.) — ouverture (lève les ruptures manuelles, RG-CAT-08), `blocages_cloture` (RG-JOU-04), clôture.
+- `demo.rs` — base de démonstration (PIN 1234/2222/3333/4444/5555 ; livreur Ibrahim 76 55 44 33, PIN 6666).
+- Migrations 0013 (`employes.pin_livreur_hash`), 0014 (`produits.rupture_auto`) ; version vérifiée à 14 par `tests/regles.rs`.
 
 ## Entrant
 `db.rs` importé par 31 fichiers, `erreur.rs` par 34 ; `youma-server/src/api.rs` et `lib.rs` (INFERE via `use youma_core::…`).

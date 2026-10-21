@@ -62,7 +62,7 @@ appels bloquants en async (`api.rs:1310`, `server/cloud.rs:124,177`, `relais/clo
 | --- | --- | --- | --- |
 | L1 | Page en HTTP : géolocalisation refusée, message générique trompeur | **Corrigé** (fiche 0040) : case remplacée par une demande de repère hors contexte sécurisé | `ui/src/public/position.ts::positionPossible` |
 | L2 | Permission refusée mémorisée, même message pour toutes les erreurs | **Corrigé** (fiche 0040) : message selon le code (refus, GPS coupé, délai) | `position.ts::messageErreurPosition` |
-| L3 | Position imprécise | **En partie traité** (fiche 0038) : GPS haute précision, meilleure mesure sur 30 s, arrêt ≤ 25 m, précision affichée, repère facultatif si ≤ 100 m. **Reste** : précision non envoyée au poste ; `zones_risque::evaluer` applique le cercle GPS sans elle | `MenuClient.tsx:355–390`, `zones_risque.rs` |
+| L3 | Position imprécise | **En partie traité** (fiche 0038 ; depuis la fiche 0046 la position est aussi vue par le restaurant, sans sa précision) : GPS haute précision, meilleure mesure sur 30 s, arrêt ≤ 25 m, précision affichée, repère facultatif si ≤ 100 m. **Reste** : précision non envoyée au poste ; `zones_risque::evaluer` applique le cercle GPS sans elle | `MenuClient.tsx:355–390`, `zones_risque.rs` |
 | L4 | Position du livreur coupée écran verrouillé | **Atténué** (fiche 0040) : écran gardé allumé (Wake Lock) pendant la course + rappel ; mini-app livreur (option 4) si le pilote montre encore des coupures | `ui/src/public/Livreur.tsx` |
 
 Proposition déjà faite au porteur et non confirmée : cacher « Partager ma position » sur une page HTTP et demander

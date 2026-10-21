@@ -1,4 +1,4 @@
-# Architecture — Youma (carte au commit e5d816b, 3 octobre 2026)
+# Architecture — Youma (carte au commit 0c273e4, 21 octobre 2026)
 
 Logiciel de restaurant **local-first** pour le Mali. Un **poste central** (PC caisse Windows) détient la seule base
 SQLite et sert l'interface web aux téléphones du Wi-Fi ; un **relais Internet facultatif** sert les pages publiques
@@ -8,9 +8,9 @@ SQLite et sert l'interface web aux téléphones du Wi-Fi ; un **relais Internet 
 
 | Couche | Techno | Où |
 | --- | --- | --- |
-| Métier | Rust, rusqlite, migrations `PRAGMA user_version` 0001→0013 | `crates/youma-core` (≈ 12 000 l.) |
-| Poste central | axum, WebSocket, TLS local, impression ESC/POS | `crates/youma-server` (164 routes dans `api.rs`) |
-| Relais Internet | axum + SQLite propre, SMS Orange, cloud multi-restaurants | `crates/youma-relais` |
+| Métier | Rust, rusqlite, migrations `PRAGMA user_version` 0001→0014 | `crates/youma-core` (≈ 12 000 l.) |
+| Poste central | axum, WebSocket, TLS local, impression ESC/POS | `crates/youma-server` (172 routes dans `api.rs`) |
+| Relais Internet | axum + SQLite, partagé par plusieurs restaurants (`/r/<nom>`, une base chacun), SMS Orange / WhatsApp, photos du menu en cache, cloud | `crates/youma-relais` |
 | Licences | Ed25519 hors ligne (outil fournisseur) | `crates/youma-licence` |
 | Interface | React 19 + TS, Vite 8, React Router 7, lucide, Poppins embarquée | `ui/src` |
 | Bureau | Coquille Tauri autour du serveur | `apps/desktop` (hors workspace) |
@@ -20,7 +20,7 @@ SQLite et sert l'interface web aux téléphones du Wi-Fi ; un **relais Internet 
 
 ```mermaid
 graph LR
-  UI["ui/src (59 fichiers)<br/>pages, public, composants"] -->|HTTP /api + WS| SRV
+  UI["ui/src (72 fichiers)<br/>pages, public, composants"] -->|HTTP /api + WS| SRV
   SRV["youma-server (15)<br/>api.rs, lib.rs Auth/Poste, ws, tls, relais, cloud"] -->|48 liens use| CORE
   CORE["youma-core (44)<br/>métier + SQLite"]
   REL["youma-relais (3)<br/>lib.rs, cloud.rs, sms.rs"] -. dépend de .-> CORE

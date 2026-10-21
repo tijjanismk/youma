@@ -8,35 +8,43 @@
   "empreinte": "af4ecf6288f0461c"
  },
  {
-  "date": "2026-10-03",
-  "texte": "positionPossible() masque le partage de position hors contexte sécurisé ; messages par code d'erreur dans position.ts (L1/L2 corrigés)",
+  "date": "2026-10-21",
+  "texte": "positionPossible() masque le partage de position hors contexte sécurisé ; messages par code d'erreur dans position.ts (L1/L2 corrigés) ; la position va aussi au restaurant (fiche 0046)",
   "fichier": "ui/src/public/MenuClient.tsx",
-  "ligne": null,
+  "ligne": 576,
   "statut": "corrige",
-  "empreinte": "b8a0ce72022282d1"
+  "empreinte": "45a228b9fe63ca0f"
  },
  {
-  "date": "2026-10-03",
+  "date": "2026-10-21",
   "texte": "Contrôle des doublons RG-CAN-07 placé APRÈS la liste noire RG-CAN-03, sinon un numéro bloqué reçoit 'déjà reçue'",
   "fichier": "crates/youma-core/src/entrantes.rs",
-  "ligne": 230,
+  "ligne": 328,
   "statut": "confirme",
-  "empreinte": "aa5677ba07285906"
+  "empreinte": "b70d92163b37a803"
  },
  {
-  "date": "2026-10-03",
+  "date": "2026-10-21",
   "texte": "Migration qui reconstruit une table référencée : commencer par le marqueur -- youma:cles-etrangeres-coupees",
   "fichier": "crates/youma-core/src/db.rs",
-  "ligne": 31,
+  "ligne": 34,
   "statut": "confirme",
-  "empreinte": "7fee86c8a4fcd43f"
+  "empreinte": "9decc8524100353f"
  },
  {
-  "date": "2026-10-03",
-  "texte": "Les applications (VITE_APPLI) appellent le relais via baseApi() : tout nouvel appel public doit passer par api.ts, jamais fetch('/api…') direct",
+  "date": "2026-10-21",
+  "texte": "Les applications et les pages /r/<nom> appellent le relais via baseApi() : tout appel public passe par api.ts ; seule exception voulue, MesCourses.tsx (fetch direct vers le relais de chaque session livreur)",
   "fichier": "ui/src/appli.ts",
   "ligne": null,
   "statut": "piege",
-  "empreinte": "6918d19e00bffb3c"
+  "empreinte": "6b0efd68fd35dff8"
+ },
+ {
+  "date": "2026-10-21",
+  "texte": "Une rupture de stock (rupture_auto=1) n'est levée que par le stock ; definir_disponibilite remet rupture_auto à 0 et journee::ouvrir ne lève que les ruptures manuelles",
+  "fichier": "crates/youma-core/src/stock.rs",
+  "ligne": 185,
+  "statut": "piege",
+  "empreinte": "097bf100e92e7182"
  }
 ]
